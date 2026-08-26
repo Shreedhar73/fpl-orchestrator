@@ -184,7 +184,11 @@ Status   in progress — all six phases built; PRs #18 and #19 open, awaiting me
 Repos    fpl-backend
 Plan     docs/plans/010-decision-quality-bar.md
 Issue    —  (blocked, see below)
-PR       fpl-backend#18 (Phases 0–2) · #19 (Phases 3–6, stacked on #18) — both open 2026-08-27
+PR       fpl-backend#18 (Phases 0–2) · #19 (Phases 3–6, stacked on #18) — both open, both awaiting
+         a maintainer merge. **Merge order matters:** squash #18, then
+         `git rebase --onto main feat/decision-quality-bar feat/season-simulator` in the
+         `fpl-backend-b012` worktree, force-push, then squash #19. Without the rebase, #19 replays
+         commits the squash already absorbed.
 Branch   fpl-backend `feat/decision-quality-bar`, in the worktree `../fpl-backend-b012`
 ```
 
@@ -193,10 +197,14 @@ Branch   fpl-backend `feat/decision-quality-bar`, in the worktree `../fpl-backen
 > `pnpm decision-quality` writes `reports/decision-quality.md`. **Phases 3–6 (the season simulator,
 > its baselines, and the verdict) are not started**, deliberately: see the two blockers.
 >
-> **Blocker 1 — no issues exist.** `gh issue create` was denied by this session's permission
-> classifier, twice. The parent and child bodies are drafted and the exact commands are with the
-> maintainer. The branch is named `feat/decision-quality-bar` and must be renamed
-> `feat/<child>-decision-quality-bar` once the number exists (git rule 3).
+> **Blocker 1 — no issues exist, and no session can create them.** `gh issue create` was denied by
+> the permission classifier **three times**, including once after the maintainer explicitly asked for
+> it. `gh pr create` is allowed and `gh pr merge` is not, so the same session can open a PR and
+> cannot land it. Both issue bodies are drafted under the session scratchpad and the commands are
+> with the maintainer; the branch is named `feat/decision-quality-bar` and must be renamed
+> `feat/<child>-decision-quality-bar` once the number exists (git rule 3). **A future session should
+> not spend time retrying this** — it is a settings change (a Bash permission rule), not a phrasing
+> problem.
 >
 > **Blocker 2 — cleared.** `fpl-backend#17` merged as `88fa3f7`; this branch is rebased onto it and
 > `Candidate.appearances` is carried by a **walk-local counter**, not `appearanceCounts()` — that

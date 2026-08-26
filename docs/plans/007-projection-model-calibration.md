@@ -139,6 +139,12 @@ gameweek of backtest.
 - [ ] Add the snapshot assertion to `/fpl:plan-gameweek` step 2 — **not done**. The capture now rides on the ordinary sync, so the skill change is a check rather than the trigger, but an empty table should still be caught there
 - [ ] Decide and implement `explain`-block retention before season rollover: a raw-JSON capture table, versus 38 committed fixtures at ~440 KB each (~17 MB in-repo, which argues for the table) — `prisma/schema.prisma`, `sync.service.ts`
 - [ ] `SyncService.runLive` currently rejects (`sync.service.ts:299`). Decide in this phase whether it is needed at all: `--full` re-reads finished gameweeks and `explain` persists within the season, so live sync may be unnecessary for calibration and only useful for in-play display. Record the decision either way — `docs/decisions.md`
+- [x] **A second GW2 capture was taken 2026-08-26 19:25 UTC — 46.1 hours before the deadline**, via
+      `pnpm sync:fpl -- --snapshot` (forced, outside the 36-hour window). 614 players. The first was
+      at 15:45 UTC on the 26th. A third, closer to the 17:30 UTC deadline on the 28th, is still the
+      most valuable one — `chance_of_playing_next_round` moves on press-conference news in the last
+      24 hours, which is exactly the signal B-015 needs and the only one that cannot be recovered
+      afterwards.
 - [x] **GW2 hedge — superseded, and better than planned.** The CSV floor was taken at 2026-08-26 15:45 UTC, and then Phase 2 landed the same day, so **GW2 is captured in `player_deadline_snapshot` itself (614 players)** rather than only as a flat file. A second capture closer to the deadline is still worth taking, now through `pnpm sync:fpl -- --snapshot` rather than `\copy`
   - **First capture done 2026-08-26 15:45 UTC** — 614 rows, `fpl-backend` `04e0150` on `feat/10-projection-model-calibration`, joined to `teams` and keyed on `fplId` so it survives a database reset. Source data was 1.5h old (last successful `bootstrap-static/` sync 14:15 UTC)
   - **Second capture still owed, before 2026-08-28 17:30 UTC.** Run `/fpl:sync-fpl` first — a stale dump captures stale news, which is the one thing this file exists to avoid
