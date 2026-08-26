@@ -247,6 +247,22 @@ These are wrong independently of any fitting, and fitting on top of them would t
 
 ### 4e. The verdict
 
+**⚠ Owed, and it is a live footgun as of 2026-08-26: there are now TWO projection writers.**
+
+`pnpm forecast` writes `v2-fitted-<date>` rows and `pnpm project` still writes `v1-fdr-blend`. Serving
+picks by `createdAt desc` (`latestProjectionModelVersion()`), so **whichever ran last is the model the
+whole app serves** — optimizer, insights, and the frontend advice panel alike. Right now that is v2,
+because the forecast ran last. **Running `pnpm project` silently reverts the app to v1**, with no error
+and nothing in the UI to say so, and `/fpl:plan-gameweek` step 4 tells a session to run exactly that.
+
+This is the same `createdAt desc` trap written into invariant 1 at the top of this plan, arriving from
+the other direction: invariant 1 stopped a backtest from becoming the served model, and nothing stops
+two legitimate writers from taking turns.
+
+- [ ] **One projection entry point.** Either wire `FITTED_PARAMS` into `ProjectionsService` so `pnpm project` *is* the fitted path, or make `pnpm project` delegate to the forecast and keep one writer. Until then, do not run `pnpm project`
+- [ ] Pin the shared strength definition with a test that feeds archive and live rows through `buildLeague` and asserts they agree — the live path now maps into the same `HistoryRow` shape, so the claim is structural, but nothing checks it
+- [ ] Goalkeepers fitted separately
+
 **Measured 2026-08-26 on the held-out 2025-26 season, and it is a split verdict.**
 
 | | MAE | RMSE | bias |
