@@ -152,3 +152,10 @@ below is a first estimate in `model.ts`, never fitted to anything.
 Phase 1 → Phase 2 → Phase 3 are all buildable now, in that order. Phase 4 waits on the calendar.
 B-008 stays blocked until this entry closes (maintainer decision 2026-08-26), which on ~1 checked
 gameweek per week puts the earliest realistic close in October.
+
+**Deviation from `/fpl:track-work`, deliberate.** That skill assumes one PR per repo per item and puts
+`Closes #<child>` in its body. Here one child (`fpl-backend#10`) spans four phases and the last of them
+closes in roughly October — so a single branch would sit unmerged for two months, and a Phase 1 PR
+carrying `Closes #10` would shut the child three phases early. Therefore: **each phase ships its own
+PR off `feat/10-projection-model-calibration`, and interim PRs say `Part of #10`. Only the Phase 4 PR
+says `Closes #10`.**
