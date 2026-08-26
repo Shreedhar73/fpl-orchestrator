@@ -771,3 +771,59 @@ step anyway.
    cannot resolve it. B-014 is the entry that asks whether the input is the problem — team strength
    defined as the sum of a squad's expected goals is lagged, injury-blind and rotation-blind, and an
    elasticity fitted on top of an uninformative input will fit to zero however real the true effect.
+
+---
+
+## D-024 · 2026-08-27 · The fixture term was zero because its input was, and the holdout still says the rebuild is a wash
+
+**Context.** B-007 fitted both fixture elasticities to 0 with `strength.confidenceMatches` at the top
+of its grid, and read that as a finding about football: the fixture signal does not survive
+single-gameweek variance. B-014 proposed the opposite reading — an elasticity fitted on top of a
+strength estimate that carries no information will fit to zero **whatever the true effect is**, so the
+zero is a fact about the input, not about the fixture.
+
+Team strength was the sum of a squad's expected goals: lagged, injury-blind, rotation-blind, and
+undecayed, so a round-1 match counted as much as last week's.
+
+**Decision.** `buildLeague` accumulates decay-weighted **actual goals** for and against alongside the
+expected-goals sum, and `StrengthParams` gains `goalsWeight` and `decayHalfLife`. Both are searched
+rather than chosen, with `goalsWeight = 0` — the incumbent definition — as the null candidate under
+D-023. Only the goals side decays, so `goalsWeight = 0` reproduces the previous model exactly and the
+search is a comparison rather than two simultaneous changes.
+
+A team's goals in a fixture are its players' `goalsScored` plus the **opponent's** `ownGoals`. Neither
+source carries a team score — the backlog entry's claim that the archive holds
+`team_h_score`/`team_a_score` is simply false — so this rollup is the definition, and it is the same
+rollup on both sides by construction. The live `fixtures` table does carry `homeScore`/`awayScore`,
+and using it would create a definition only one source can produce, which is the drift the shared
+`buildLeague` exists to prevent.
+
+**The result.** Every number the entry named moved: `goalsWeight` 0.5 on an interior optimum,
+`decayHalfLife` 6 rounds, `confidenceMatches` **64 rather than the grid edge**, `xaFixtureElasticity`
+2.5 and `xgFixtureElasticity` 0.25, both previously zero. The interior `confidenceMatches` is the
+direct evidence: the search used to keep improving as strength was shrunk toward the league average,
+because the signal it was shrinking was not worth keeping.
+
+**And it did not carry to the held-out season** — RMSE 2.002 → 2.008, spearman 0.533 → 0.529, points
+captured @11 36.3% → 35.0%.
+
+**The consequential part: the parameters stand anyway.** They were chosen on the validation set with
+the test season untouched. Reverting them *because the test season disliked them* would be using the
+holdout to select, which destroys the only thing it is for. Shipping a wash is the smaller error than
+shipping a model whose parameters were tuned against the set that certifies it.
+
+This is a rule and not a one-off: **the holdout reports, it never chooses.** A future session that
+finds a change neutral on the test season may not undo it on that basis; it may run a different
+validation, widen a grid, or record the neutral result — and it must do one of those instead.
+
+**Consequences.**
+
+1. The fixture term is **not** removed from the model or from the UI's explanation of it. B-014's
+   second honest outcome does not fire. The model carries a fixture effect that is non-zero and
+   **unproven out-of-sample**, and that phrasing travels with it.
+2. The assist elasticity is a clear result; the goal elasticity is barely identified — 0, 0.25 and
+   0.5 score within 0.0002 RMSE. Reporting them as one finding would overstate half of it.
+3. `P(defcon ≥ threshold)` reliability improves to 0.0001, and under `greedy-1ft` the model's squad
+   finishes ahead of the crowd's template for the first time, 1943 to 1917. D-021's headline deficit
+   of 102 points is closed — by B-019, B-020 and this entry together, not by any one of them.
+4. The goalkeeper fit that rode with this entry is unbuilt and is now **B-021**.

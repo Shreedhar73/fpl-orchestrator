@@ -1252,3 +1252,102 @@ No component is an outlier any more — the worst term is `P(60+ minutes)` at 0.
 Overall bias −0.002 → **+0.064**. The model was under-paying these terms and now pays them; that is a
 real change in level and it is stated rather than buried.
 
+---
+
+## B-014 · Team strength carries no signal, and the fixture term fitted to zero
+
+```
+Status   backlog
+Repos    fpl-backend
+Plan     —
+Issue    —
+```
+
+**Why.** The single largest modelling finding in B-007, and nothing has acted on it. Two results from
+`reports/calibration-fitted.md`, and they are the same finding twice:
+
+- **`attack.xgFixtureElasticity = 0` and `attack.xaFixtureElasticity = 0`.** Fitted, not chosen. At
+  single-gameweek granularity the opponent gave the attacking terms no measurable improvement in RMSE,
+  so the fit removed them. **The model currently projects attacking returns without regard to who the
+  opponent is.**
+- **`strength.confidenceMatches = 96`, which was the top of its search grid.** Held-out RMSE kept
+  improving as team strength was shrunk toward the league average. The search never found a stopping
+  point because the signal it was shrinking away was not worth keeping.
+
+An elasticity fitted on top of a strength estimate that carries no information will fit to zero
+whatever the true fixture effect is. The fixture effect is real — the guide (§3.2) builds the whole
+model on it — so the likely fault is the strength estimate, not the elasticity.
+
+**The suspect, named.** `strength.ts` computes a team's expected goals for a fixture as **the sum of
+its players' `expectedGoals`**. That definition was chosen because both the archive and the live sync
+carry it, which keeps one shared definition across sources (plan 007, Phase 4a). It is also a
+lagged, injury-blind, rotation-blind proxy for a team's attack: a club whose top scorer is out reads
+weaker for the wrong reason, and a club that has just been outplayed reads on last week's team sheet.
+
+**What to build.** A team-strength model off **match results and team goals**, home/away split —
+Dixon-Coles or a rolling bivariate Poisson, per the guide §3.2 — producing λ_home and λ_away per
+fixture, then re-fit the elasticities on top of it. Feasible on both sides: the archive carries
+`team_h_score` / `team_a_score` and our `fixtures` table carries the same for the live season.
+
+**The constraint that must be kept or knowingly broken.** The archive and the live path share one
+`buildLeague()` definition by construction, and plan 007 left **the test that pins it unwritten**
+(items 219 and 262). Any new definition must be reachable from both sources or the calibration
+harness stops measuring the thing that serves. Write that test as part of this entry, whichever
+definition wins.
+
+**Rides with it: goalkeepers, fitted separately.** Owed from plan 007 (items 238, 263) and unbuilt.
+Keepers share every global parameter today; only the save term is keeper-specific. They are the one
+position whose points come mostly from the opponent's attack rather than their own team's — the same
+λ this entry rebuilds — and they are already the best-fitting position (MAE 0.774), so the fit is
+being flattered by the easiest rows. `P(CS) = exp(−λ_against)` and `E[floor(saves/3)]` both hang off
+this work.
+
+**Two honest outcomes.** Either the rebuilt strength earns non-zero elasticities and the report says by
+how much, or it does not and the fixture term is **removed from the model and from the UI's
+explanation of it** rather than left in at zero, pretending to a signal it does not have.
+
+---
+
+**Outcome — shipped 2026-08-27, backend#28. The hypothesis was right, and the holdout says it is a
+wash.**
+
+The entry's claim was that an elasticity fitted on top of an uninformative strength estimate fits to
+zero whatever the truth is. Rebuilding the estimate moved **every** number the entry named:
+`goalsWeight` 0.5 on an interior optimum, `decayHalfLife` 6 rounds, `confidenceMatches` **64 rather
+than the top of its grid**, `xaFixtureElasticity` **2.5** and `xgFixtureElasticity` **0.25**, both
+previously zero.
+
+`confidenceMatches` finding an interior optimum is the direct evidence. The search used to keep
+improving as strength was shrunk toward the league average; it now has something worth not shrinking.
+
+**The entry was wrong about the data, and it did not matter.** `ArchivePlayerGameweek` carries no
+team-score columns — the claim that it holds `team_h_score`/`team_a_score` is false. It carries
+per-player `goalsScored` and `ownGoals`, which is enough: a team's goals in a fixture are its
+players' goals plus the **opponent's** own goals. That keeps the archive and the live path on one
+definition by construction, which the entry's own constraint demanded. The live `fixtures` table does
+carry `homeScore`/`awayScore` and is deliberately unused for exactly that reason.
+
+**Two honest halves, and the second is the important one.**
+
+- The assist elasticity is a clear result (1.9470 at zero against 1.9453 at 2.5). The goal elasticity
+  is barely identified — 0, 0.25 and 0.5 are within 0.0002 of each other.
+- **None of it carried to the held-out season.** RMSE 2.002 → 2.008, spearman 0.533 → 0.529, points
+  captured @11 36.3% → 35.0%, @30 43.2% → 41.9%.
+
+**The parameters stand, and the reasoning generalises.** They were chosen on the validation set with
+the test season untouched. Reverting them *because the test season disliked them* would use the
+holdout to select, which destroys it — a worse error than shipping a wash. So the fixture term is not
+removed from the model or from the UI's explanation of it, the entry's second honest outcome does not
+fire, and the model carries a fixture effect that is non-zero and unproven out-of-sample, stated as
+such wherever it appears.
+
+Component calibration improved: `P(defcon ≥ threshold)` reliability 0.0005 → **0.0001**. And under
+`greedy-1ft` the model's squad finishes **ahead of the crowd's template, 1943 to 1917** — the deficit
+D-021 named at 102 points is gone.
+
+The `buildLeague` pin test owed since plan 007 (items 219, 262) is written, with a sabotage arm so it
+cannot pass by both sides computing nothing.
+
+**Not carried here: the goalkeeper fit.** The entry's rider — keepers share every global parameter
+and only the save term is keeper-specific — is unbuilt, and is now **B-021**.
+

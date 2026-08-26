@@ -180,60 +180,6 @@ sell value.
 
 ---
 
-## B-014 · Team strength carries no signal, and the fixture term fitted to zero
-
-```
-Status   backlog
-Repos    fpl-backend
-Plan     —
-Issue    —
-```
-
-**Why.** The single largest modelling finding in B-007, and nothing has acted on it. Two results from
-`reports/calibration-fitted.md`, and they are the same finding twice:
-
-- **`attack.xgFixtureElasticity = 0` and `attack.xaFixtureElasticity = 0`.** Fitted, not chosen. At
-  single-gameweek granularity the opponent gave the attacking terms no measurable improvement in RMSE,
-  so the fit removed them. **The model currently projects attacking returns without regard to who the
-  opponent is.**
-- **`strength.confidenceMatches = 96`, which was the top of its search grid.** Held-out RMSE kept
-  improving as team strength was shrunk toward the league average. The search never found a stopping
-  point because the signal it was shrinking away was not worth keeping.
-
-An elasticity fitted on top of a strength estimate that carries no information will fit to zero
-whatever the true fixture effect is. The fixture effect is real — the guide (§3.2) builds the whole
-model on it — so the likely fault is the strength estimate, not the elasticity.
-
-**The suspect, named.** `strength.ts` computes a team's expected goals for a fixture as **the sum of
-its players' `expectedGoals`**. That definition was chosen because both the archive and the live sync
-carry it, which keeps one shared definition across sources (plan 007, Phase 4a). It is also a
-lagged, injury-blind, rotation-blind proxy for a team's attack: a club whose top scorer is out reads
-weaker for the wrong reason, and a club that has just been outplayed reads on last week's team sheet.
-
-**What to build.** A team-strength model off **match results and team goals**, home/away split —
-Dixon-Coles or a rolling bivariate Poisson, per the guide §3.2 — producing λ_home and λ_away per
-fixture, then re-fit the elasticities on top of it. Feasible on both sides: the archive carries
-`team_h_score` / `team_a_score` and our `fixtures` table carries the same for the live season.
-
-**The constraint that must be kept or knowingly broken.** The archive and the live path share one
-`buildLeague()` definition by construction, and plan 007 left **the test that pins it unwritten**
-(items 219 and 262). Any new definition must be reachable from both sources or the calibration
-harness stops measuring the thing that serves. Write that test as part of this entry, whichever
-definition wins.
-
-**Rides with it: goalkeepers, fitted separately.** Owed from plan 007 (items 238, 263) and unbuilt.
-Keepers share every global parameter today; only the save term is keeper-specific. They are the one
-position whose points come mostly from the opponent's attack rather than their own team's — the same
-λ this entry rebuilds — and they are already the best-fitting position (MAE 0.774), so the fit is
-being flattered by the easiest rows. `P(CS) = exp(−λ_against)` and `E[floor(saves/3)]` both hang off
-this work.
-
-**Two honest outcomes.** Either the rebuilt strength earns non-zero elasticities and the report says by
-how much, or it does not and the fixture term is **removed from the model and from the UI's
-explanation of it** rather than left in at zero, pretending to a signal it does not have.
-
----
-
 ## B-015 · Minutes and availability — the half of the model that is still a guess
 
 ```
@@ -431,3 +377,39 @@ opposite.
 
 **Depends on nothing.** Independent of B-012 and B-013 — this shows what the optimizer already did,
 not a new number about the future.
+
+---
+
+## B-021 · Goalkeepers, fitted separately
+
+```
+Status   backlog
+Repos    fpl-backend
+Plan     —
+Issue    —
+```
+
+**Why.** Owed from plan 007 (items 238, 263), carried through B-014 as a rider and not built there —
+named here so it stops travelling as somebody else's footnote.
+
+Keepers share every global parameter in the model today; only the save term is keeper-specific. They
+are the one position whose points come mostly from the **opponent's** attack rather than their own
+team's, so they are also the position most exposed to B-014's rebuilt λ. `P(CS) = exp(−λ_against)`
+and `E[⌊saves/3⌋]` both hang off it.
+
+**Two measurements say the position is being flattered.** They are the best-fitting position on MAE
+(0.774 against DEF's 1.277), which means the fit is being scored on the easiest rows; and B-013's
+per-position table shows `P(any appearance)` is their worst term — 0.353 predicted against a 0.225
+base rate before B-019, the largest positional gap in the model, because a second-choice keeper is a
+different animal from a second-choice midfielder. He does not come on.
+
+**What to build.** Position-specific minutes curves — at minimum a keeper-specific `startSlope`,
+`subIntercept` and `subSlope` — and a keeper-specific save model that reads the rebuilt λ_against
+rather than a pressure ratio hand-scaled from it. Then re-run `pnpm calibrate:components` and require
+the GKP rows of the per-position tables to improve without the other three degrading.
+
+**The trap.** Four positions times the minutes parameters is four times the parameters on a quarter
+of the rows each. Fit only the parameters whose per-position tables actually disagree, and report the
+per-position `n` beside every fitted number, so a parameter fitted on 3,396 keeper rows is not read
+with the confidence of one fitted on 29,482.
+
