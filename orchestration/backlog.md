@@ -37,30 +37,6 @@ Why      What makes this worth building, and anything already established about 
 
 ---
 
-## B-002 · The work register and the issue-first loop
-
-```
-Status   in progress
-Repos    fpl-orchestrator
-Plan     docs/plans/001-work-register.md
-Issue    orchestrator#1 (parent; no children — this change touches no sibling repo)
-```
-
-**Why.** This repo is the planning repo and had no mechanism for planning: nowhere to record agreed
-work, no issue step in the loop, and nothing stopping the orchestrator itself from branching. On
-2026-08-26 a session took "handle authentication" straight to a finished implementation across both
-sibling repos — no entry, no plan, no approval, no issue — and it was reverted whole. `workflow.md`
-already said "plan first"; what was missing was somewhere for the decision to live before the code,
-and an issue saying out loud what had been agreed.
-
-Ports the GitHub half of `unfpa-safehouse-frontend`'s `safehouse-change-control` skill: `glab`→`gh`,
-MR→PR, `develop`→`main`. Decisions recorded as D-009 and D-010.
-
-**Honest note on sequence.** This entry was written *during* the work, not before it — the loop it
-creates did not exist when the work started. It is the last item that gets to say that.
-
----
-
 ## B-001 · FPL authentication
 
 ```

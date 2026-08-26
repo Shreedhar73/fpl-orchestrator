@@ -89,8 +89,8 @@ Recorded in `docs/decisions.md` as **D-009** and **D-010**.
 - [x] Cross-repo sub-issue linking probed with a throwaway child in `fpl-backend`, read back from the parent's `sub_issues` list, then unlinked and deleted
 - [x] Cross-repo sub-issue verdict recorded as `D-011` — it **works**, and takes the REST integer id, not the node id
 - [x] Skill corrected: the fallback removed, the id trap and the read-back check written in
-- [ ] Commit to `main` — awaiting the maintainer's go
-- [ ] `orchestrator#1` closed and `B-002` moved to `archive.md` — after the commit
+- [x] Committed to `main` as `141f9be` and pushed — no PR, this repo does not branch
+- [x] `orchestrator#1` closed with the outcome; `B-002` moved to `archive.md`
 
 ### Deliberately deferred
 - FPL authentication — `B-001`, mechanism undecided, no plan file, no issue.
