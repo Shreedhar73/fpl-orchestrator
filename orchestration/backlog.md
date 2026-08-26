@@ -107,20 +107,25 @@ to FPL" paragraph — the answer is now that we handle no FPL cookies at all.
 
 ---
 
-## B-005 · Squad optimizer — best legal squad and transfer plan
+## B-005 · Squad optimizer — best legal squad from scratch
 
 ```
-Status   backlog
+Status   planned
 Repos    fpl-backend
-Plan     —
+Plan     docs/plans/005-squad-optimizer.md
 Issue    —
 ```
 
-**Why.** Turns projections into a decision under the **full FPL ruleset**: £100m budget, 2/5/5/3
-squad, a valid starting formation, max 3 players per club, captain and bench order. Two modes: the
-**recommended best team from scratch** (single-GW and season-long objective), and, given an existing
-squad, a **transfer plan** that respects one free transfer a week, −4 hits and chip timing over the
-horizon. Each solve is logged to `OptimizerRun` with its inputs and reasoning. Depends on B-004.
+**Why.** Turns projections into the optimal 15 under the **full squad ruleset**: £100m budget, 2/5/5/3
+squad, a valid starting formation, max 3 players per club, captain and bench order — an integer linear
+program, not a greedy picker (greedy on points-per-million is provably wrong under a budget + 3-per-club
+cap). Objective over the horizon (`Σ EP × decay^i`), single-GW as a special case. Each solve logged to
+`OptimizerRun` with inputs and reasoning. Depends on B-004 (done).
+
+**Scope narrowed 2026-08-26.** Transfer planning (one free transfer, −4 hits, chip windows) was split
+out to **B-008** — it needs an *owned* squad to plan from, which only arrives with B-006's import, so
+it is built and verified against a real squad there rather than a mock here. Solver:
+`javascript-lp-solver` (pure JS, handles 612 binaries in well under a second).
 
 ---
 
@@ -143,3 +148,46 @@ Issue    —
 Given any team, the frontend shows the advice — transfers, captain, bench, chips — for the next GW
 and the season-long plan, with the evidence visible. Crosses the HTTP contract (backend endpoints +
 DTOs first, then regenerated types, then the frontend). Depends on B-005.
+
+---
+
+## B-007 · Projection model calibration
+
+```
+Status   backlog
+Repos    fpl-backend
+Plan     —
+Issue    —
+```
+
+**Why.** B-004 shipped a v1 projection engine that **over-projects the premium head** — the top ~30
+nailed starters read 2–4× their `ep_next`, from a too-generous defensive-contribution hit-rate and
+attacking terms (archive B-004, finding 1). It was deliberately not tuned to `ep_next` (that fits
+FPL's own model rather than improving ours), and honest calibration needs several `data_checked`
+gameweeks — of which there was one on 2026-08-26. When the season has enough checked gameweeks: run
+the DB-backed backtest with the strict time-cut (`backtest.ts` already provides the leak-safe filter),
+fit the knobs (defcon threshold curve, attacking multiplier, clean-sheet/conceded curves) against
+realised points, replace the placeholder bonus term with a BPS/90 model, and report MAE and
+calibration against `ep_next` / `form` / last-season. Bump `modelVersion` so old projections stay
+comparable. Depends on B-004 (done) and enough elapsed gameweeks.
+
+---
+
+## B-008 · Transfer planning — one free transfer, hits, chip windows
+
+```
+Status   backlog
+Repos    fpl-backend
+Plan     —
+Issue    —
+```
+
+**Why.** Split from B-005 on 2026-08-26 because it needs an *owned* squad to plan from, which arrives
+with B-006's import — so it is verified against a real squad, not a mock. Given a current squad and the
+projections, decide the transfer(s) that maximise horizon points net of cost: `Σ transfers_out ≤
+free_transfers + hits`, objective penalised by `4 × hits`, the hit **inside** the objective (the
+question is always "is this player worth more than 4 points over the horizon"). Chips are a separate,
+coarser season-level decision — recommend the *window* (a double gameweek for Bench Boost, a blank for
+Free Hit) and let the user commit; a chip is unspendable once spent, so the model never spends it.
+Uses sell value (purchase + half the rise, rounded down), not market price. Extends `OptimizerRun`.
+Depends on B-005 and B-006.
