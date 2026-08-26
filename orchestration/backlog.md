@@ -180,62 +180,6 @@ sell value.
 
 ---
 
-## B-013 · Per-component calibration — which term is actually wrong
-
-```
-Status   backlog
-Repos    fpl-backend
-Plan     —
-Issue    —
-```
-
-**Why.** The model is decomposed — minutes, attacking returns, clean sheets, conceded, defensive
-contribution, saves, bonus — and it is measured only in aggregate, so an error in one term is
-invisible against the others. The guide (§6) names exactly the missing checks: **calibration plots for
-P(start), P(CS), P(DefCon), P(bonus≥1)** and **Brier scores** on the binaries. Everything needed is in
-`archive_player_gameweek`, so this is available now and does not wait on the calendar. Guardrail 6 of
-the guide is unmet for the same reason: nothing attaches uncertainty to a projection because nothing
-has checked whether the model's probabilities mean anything.
-
-**The aggregate curve already says something is wrong and cannot say what.** From
-`reports/calibration-fitted.md`, the fitted model on held-out 2025-26:
-
-| Predicted band | n | mean predicted | mean actual |
-|---|---:|---:|---:|
-| 0–1 | 16296 | 0.343 | **0.200** |
-| 1–2 | 7315 | 1.474 | **1.680** |
-| 2–3 | 3467 | 2.419 | **2.878** |
-| 4–5 | 322 | 4.314 | **3.683** |
-| 6–8 | 12 | 6.410 | **4.000** |
-
-Over-confident at both tails, under-confident in the middle. That is the signature of a wrongly
-shaped component, not of a wrong overall level — the overall bias is **−0.025**. Which component is a
-question this entry answers and no existing report can.
-
-**What to build.** For each binary the model emits, a reliability curve and a Brier score against
-realised archive rows, split by position: `P(start)`, `P(60+)`, `P(any appearance)`, `P(clean sheet)`,
-`P(defcon ≥ threshold)`, `P(bonus ≥ 1)`. Then the count terms — goals, assists, saves, conceded — as
-predicted-mean versus realised-mean by decile. Report per component **and** per position, because the
-residual is known to be position-shaped (DEF MAE 1.277 against GKP 0.774).
-
-**Two components are already under suspicion and this is how they get convicted or cleared.**
-
-- **Defensive contribution.** Its parameters are the one exception to B-007's holdout — dispersion
-  fitted on 2025-26 rounds 1–12, shape chosen on 13–19, because the category exists in no earlier
-  season. It is therefore the least-validated term in the model and the one the guide flags as a
-  threshold rather than a level (`P(reach threshold)`, never `E[actions] × something`).
-- **Bonus.** 0.0415 points per BPS, capped at 3, fitted on 2023-24 and 2024-25 BPS distributions.
-  The guide (§1.8) says the 2026/27 BPS rules changed — being tackled no longer costs, CBIs now score
-  per 3 instead of per 2, keeper saves reworked upward — and that **2025/26 bonus distributions must
-  not be assumed to transfer.** The term is fitted on two seasons older still. Re-fit on 2026/27 once
-  ~6 gameweeks exist; until then the report says out loud which rule version it was fitted on.
-
-**The bar.** A reliability curve per binary with its Brier score, and a named component carrying the
-tail miscalibration above — or the finding that the miscalibration is spread across all of them, which
-is a different and equally publishable answer.
-
----
-
 ## B-014 · Team strength carries no signal, and the fixture term fitted to zero
 
 ```
@@ -488,3 +432,42 @@ opposite.
 **Depends on nothing.** Independent of B-012 and B-013 — this shows what the optimizer already did,
 not a new number about the future.
 
+## B-019 · The substitute-appearance term is one global constant, and it is the model's worst shape
+
+```
+Status   backlog
+Repos    fpl-backend
+Plan     —
+Issue    —
+```
+
+**Why.** B-013 measured every term of the model on its own and named this one. On 29,482 held-out
+2025-26 rows, `P(any appearance)` carries a Brier reliability of **0.0121** — 10.4× the mean of every
+other binary the model emits — while `P(start)` and `P(60+)` sit at 0.0015. The start curve is fine.
+What is wrong is the term that turns "did not start" into "might still appear":
+
+```ts
+const pSub = clamp01(availability * (1 - rawStart) * m.subAppearanceRate); // 0.154, one global number
+```
+
+It pays **every** non-starter the same 15.4%, so a fringe player who will never be used and a first
+substitute who always comes on are given the same appearance probability. The curve says exactly
+that: 14,136 rows — nearly half the corpus — predicted at 0.178 and observed at **0.066**, and the
+middle bands under-predicted the other way (0.548 predicted, 0.690 observed).
+
+**This is fittable from the archive today, and does not wait on B-015.** B-015 is calendar-bound
+because `availabilityMultiplier()` needs per-gameweek `status`, which the archive does not carry. The
+sub-appearance rate needs no such thing: it is a function of a player's own lagged start rate and
+minutes, both of which the archive has for 86,755 rows. The two halves of the minutes model were
+being treated as one blocked thing; they are not.
+
+**What to build.** Replace the scalar with a fitted curve — `P(appear | did not start)` as a logistic
+on the same lagged features `P(start)` already uses, at minimum lagged start rate and lagged
+minutes-per-match. Then re-run `pnpm calibrate:components` and require the reliability term to fall.
+`pPlay` is also what orders the bench (`pPlay × EP`), so this is not only a points-sum question.
+
+**The bar.** `P(any appearance)` reliability below the mean of the other binaries, on the same held-out
+rows, with the report committed. If a fitted curve cannot do it, the finding is that appearance off
+the bench is not predictable from lagged minutes, which is also an answer.
+
+---

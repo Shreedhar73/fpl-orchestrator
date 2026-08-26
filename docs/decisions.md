@@ -685,3 +685,45 @@ dropped or an unused substitute, none of it knowable before a deadline. Read as 
 benched every player about to lose their place: worth several points a season, and **indistinguishable
 from a good minutes model**. Blanks are decided at club level; a dropped player keeps his last known
 projection. Any future backtest that infers availability from absence has this bug.
+
+---
+
+## D-022 · 2026-08-27 · The model is scored term by term, and the appearance term is the one that is wrong
+
+**Context.** `reports/calibration-fitted.md` showed the fitted model over-confident at both tails and
+under-confident in the middle while the overall bias was −0.025. That is the signature of a wrongly
+*shaped* component rather than a wrong overall level, and an aggregate report cannot say which
+component — the terms are summed before anything looks at them.
+
+**Decision.** `projectFixtureV2` keeps the probabilities it computes on the way to a mean rather than
+discarding them, `runBacktest` carries the realised counterpart of each on the same row, and
+`pnpm calibrate:components` scores every term on its own with a reliability curve and a Brier score
+decomposed into reliability / resolution / uncertainty.
+
+The decomposition is not decoration. A raw Brier score is a trap for a rare event: predicting "never"
+for a 2% event scores 0.0196, which reads as excellent and knows nothing. Every table in the report
+therefore carries its `n` and its base rate, and each term's row filter is written beside it — a
+reliability curve computed against a definitionally-true counterpart, or over rows the term does not
+apply to, passes and looks identical to a healthy one.
+
+**The finding, on 29,482 held-out 2025-26 rows.** `P(any appearance)` carries the calibration error at
+reliability **0.0121**, against a mean of 0.0012 for every other binary the model emits. `P(start)` and
+`P(60+)` are both at 0.0015. So the start curve — the half that was fitted hardest, and whose slope of
+0.485 was B-007's headline — is fine, and the fault is the term that turns "did not start" into "might
+still appear": a single global `subAppearanceRate = 0.154` paying every non-starter the same chance.
+14,136 rows, nearly half the corpus, are predicted at 0.178 and observed at 0.066.
+
+**Consequences.**
+
+1. **B-019 is opened and is not blocked by B-015.** The two halves of the minutes model were being
+   treated as one calendar-bound thing. They are not: `availabilityMultiplier()` needs per-gameweek
+   `status`, which the archive does not carry, but the sub-appearance rate is a function of lagged
+   start rate and lagged minutes, and the archive has both for 86,755 rows. It is fittable tonight.
+2. **`P(defcon ≥ threshold)` predicts 0.013 against a 0.054 base rate** — a 4× under-payment on the
+   least-validated term in the model, and the one whose parameters are the single exception to the
+   season holdout. B-014 carries it.
+3. **`P(bonus ≥ 1)` predicts 0.019 against 0.041**, on parameters fitted two BPS rule versions ago.
+4. **Fitting a constant cannot repair a shape.** The unfitted parameters score the same term at
+   0.0393; the fit moved it 3× closer and left it 10× worse than everything else. Every future
+   parameter search should be read with that in mind — a search over a scalar will find the best
+   scalar and say nothing about whether a scalar was the right object.

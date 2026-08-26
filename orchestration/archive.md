@@ -1039,3 +1039,87 @@ letting a later session read it as measured.
 Caveat on the sweep, stated in the report: each gameweek is solved from scratch at that week's prices,
 with no transfers, no hits, no sell-on fee and **no auto-subs**. Those omissions are held constant
 across λ, which makes the columns comparable; it does not make any column a season. That is B-012.
+
+---
+
+## B-013 · Per-component calibration — which term is actually wrong
+
+```
+Status   backlog
+Repos    fpl-backend
+Plan     —
+Issue    —
+```
+
+**Why.** The model is decomposed — minutes, attacking returns, clean sheets, conceded, defensive
+contribution, saves, bonus — and it is measured only in aggregate, so an error in one term is
+invisible against the others. The guide (§6) names exactly the missing checks: **calibration plots for
+P(start), P(CS), P(DefCon), P(bonus≥1)** and **Brier scores** on the binaries. Everything needed is in
+`archive_player_gameweek`, so this is available now and does not wait on the calendar. Guardrail 6 of
+the guide is unmet for the same reason: nothing attaches uncertainty to a projection because nothing
+has checked whether the model's probabilities mean anything.
+
+**The aggregate curve already says something is wrong and cannot say what.** From
+`reports/calibration-fitted.md`, the fitted model on held-out 2025-26:
+
+| Predicted band | n | mean predicted | mean actual |
+|---|---:|---:|---:|
+| 0–1 | 16296 | 0.343 | **0.200** |
+| 1–2 | 7315 | 1.474 | **1.680** |
+| 2–3 | 3467 | 2.419 | **2.878** |
+| 4–5 | 322 | 4.314 | **3.683** |
+| 6–8 | 12 | 6.410 | **4.000** |
+
+Over-confident at both tails, under-confident in the middle. That is the signature of a wrongly
+shaped component, not of a wrong overall level — the overall bias is **−0.025**. Which component is a
+question this entry answers and no existing report can.
+
+**What to build.** For each binary the model emits, a reliability curve and a Brier score against
+realised archive rows, split by position: `P(start)`, `P(60+)`, `P(any appearance)`, `P(clean sheet)`,
+`P(defcon ≥ threshold)`, `P(bonus ≥ 1)`. Then the count terms — goals, assists, saves, conceded — as
+predicted-mean versus realised-mean by decile. Report per component **and** per position, because the
+residual is known to be position-shaped (DEF MAE 1.277 against GKP 0.774).
+
+**Two components are already under suspicion and this is how they get convicted or cleared.**
+
+- **Defensive contribution.** Its parameters are the one exception to B-007's holdout — dispersion
+  fitted on 2025-26 rounds 1–12, shape chosen on 13–19, because the category exists in no earlier
+  season. It is therefore the least-validated term in the model and the one the guide flags as a
+  threshold rather than a level (`P(reach threshold)`, never `E[actions] × something`).
+- **Bonus.** 0.0415 points per BPS, capped at 3, fitted on 2023-24 and 2024-25 BPS distributions.
+  The guide (§1.8) says the 2026/27 BPS rules changed — being tackled no longer costs, CBIs now score
+  per 3 instead of per 2, keeper saves reworked upward — and that **2025/26 bonus distributions must
+  not be assumed to transfer.** The term is fitted on two seasons older still. Re-fit on 2026/27 once
+  ~6 gameweeks exist; until then the report says out loud which rule version it was fitted on.
+
+**The bar.** A reliability curve per binary with its Brier score, and a named component carrying the
+tail miscalibration above — or the finding that the miscalibration is spread across all of them, which
+is a different and equally publishable answer.
+
+---
+
+**Outcome — shipped 2026-08-27, backend#22, and it named a component.**
+
+`projectFixtureV2` now keeps the probabilities it computes on the way to a mean, `runBacktest`
+carries the realised counterpart of each on the same row, and `pnpm calibrate:components` writes
+`reports/calibration-components.md`. Brier scores are reported with Murphy's decomposition plus a
+skill score, because a raw Brier score is a trap for a rare event — predicting "never" for a 2% event
+scores 0.0196 and knows nothing.
+
+**The answer is `P(any appearance)`**, at reliability 0.0121 against a mean of 0.0012 for every other
+binary. It over-predicts the fringe (0.178 predicted, **0.066** observed, on 14,136 rows) and
+under-predicts the middle (0.548 predicted, **0.690** observed) — the same tail-and-middle signature
+the aggregate curve showed, now attributed. `P(start)` and `P(60+)` are both at 0.0015, so the start
+curve is not the fault: the **substitute-appearance term** is, and it is one global constant. Opened
+as **B-019**, which is fittable from the archive and does not wait on B-015.
+
+Two further findings, recorded and not fixed here:
+
+- `P(defcon ≥ threshold)` predicts **0.013** against a base rate of **0.054**. The least-validated
+  term in the model under-pays by 4×, and it is the one whose parameters are the single exception to
+  the season holdout. B-014 rides with this.
+- `P(bonus ≥ 1)` predicts **0.019** against **0.041**, on parameters fitted two BPS rule versions ago.
+
+The unfitted parameters score the same term at 0.0393, so the fit moved it 3× closer and left it 10×
+worse than everything else — fitting a constant cannot repair a shape.
+
