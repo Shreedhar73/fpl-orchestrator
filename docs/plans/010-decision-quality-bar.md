@@ -109,26 +109,46 @@ the rows a baseline dropped.
 
 ## Phase 1 — ordering metrics
 
+**Landed 2026-08-27 — `fpl-backend` `8902410`. `pnpm decision-quality` writes `reports/decision-quality.md`. 151 tests green.**
+
+**The result, on held-out 2025-26, and it is a split:**
+
+| Predictor | Spearman | captured @11 | @15 | @30 |
+|---|---:|---:|---:|---:|
+| **model** | 0.518 | **35.4%** | **36.9%** | **43.2%** |
+| baseline: `form` | **0.574** | 33.5% | 34.5% | 40.1% |
+| baseline: last season pts/90 | 0.052 | 12.6% | 17.3% | 22.8% |
+
+`form` orders the **whole field** better; the model captures more points in the **top k**, at every
+k, in every one of the three views. Not a contradiction: a whole-field rank correlation is dominated
+by the players who score nothing — which `form` ranks well by predicting nothing for them — and a
+squad optimiser never chooses between two players who will both blank. It chooses at the top.
+
+**And the fit is what put the model there.** On identical rows the unfitted v1 constants capture
+**32.6%** @11, *behind* `form`'s 33.5%; the fitted model captures 35.4%. MAE reported the unfitted
+model as worse without ever saying whether the difference reached a decision.
+
+**This is a claim about ordering, not about points.** It becomes a claim about points at Phase 3, and
+the report says so rather than implying otherwise.
+
 The optimiser ranks a few hundred candidates against each other. Nothing measures whether the ranking
 is any good.
 
-- [ ] **Tie-corrected Spearman, per round, then aggregated across rounds** — never pooled.
+- [x] **Tie-corrected Spearman, per round, then aggregated across rounds** — never pooled.
       `src/modules/calibration/ordering.ts`. Pooling rounds conflates "ranked this week's players well"
       with "knew which weeks were high-scoring", which is a different and easier question. **Ties are
       not a detail here**: realised points are massively tied — hundreds of players on 0, 1 or 2 — so
       ranks must be averaged within ties or the coefficient is simply wrong
-- [ ] **Points captured @ k**, the primary top-k metric: the realised points of the model's top *k*
+- [x] **Points captured @ k**, the primary top-k metric: the realised points of the model's top *k*
       divided by the realised points of the true top *k*, for k = 11, 15, 30. Tie-robust, unlike
       precision@k, and it answers the question in the units the game is played in
-- [ ] **Precision@k** reported beside it, with its fragility stated: with a tied boundary the metric
+- [x] **Precision@k** reported beside it, with its fragility stated: with a tied boundary the metric
       depends on sort order, so it is a secondary number
-- [ ] Every metric computed for the model **and** each baseline, on the Phase 0 intersection
-- [ ] Restricted views as well as the whole field: the top 100 by price, and the top 100 by predicted
-      points. The optimiser never chooses among the whole 600, so a coefficient over the whole 600
-      measures a job nobody does
-- [ ] Sabotage: shuffle the predictions within a round and assert points-captured@11 collapses toward
-      the random baseline and Spearman toward 0. **A ranking metric that survives a shuffle is measuring
-      the round, not the model**
+- [x] Every metric computed for the model **and** each baseline, on the Phase 0 intersection
+- [x] Restricted views as well as the whole field: the top 100 by price, and the top 100 by predicted
+      points. *All three views tell the same story, which is what makes it a finding rather than an artefact of one cut.*
+- [x] Sabotage: shuffle the predictions within a round and assert points-captured@11 collapses toward
+      the random baseline and Spearman toward 0. *Seeded xorshift, not `Math.random()` — an unseeded sabotage cannot be replayed. Spearman falls below 0.5, points-captured@11 below 80%.*
 
 ---
 
