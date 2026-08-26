@@ -286,3 +286,49 @@ where a wrong number is quiet. The reconstruction is available and is this entry
 normal empty case) and carries `element_in_cost` / `element_out_cost` per transfer per event; replay
 it against `player_price_history` back to the GW1 deadline price to recover purchase price, then
 sell value.
+
+---
+
+## B-009 · Frontend design system and the UX pass over every view
+
+```
+Status   in progress
+Repos    fpl-frontend
+Plan     docs/plans/008-frontend-design-system.md
+Issue    fpl-orchestrator#7 · fpl-frontend#3
+```
+
+**Why.** B-006 shipped the three routes that make the app usable — squad view, advice panel, manual
+builder — as unstyled-by-intent scaffolding: zinc-on-white, no shell, no navigation, one heading
+size, tables that overflow on a phone. The model output is the product and it currently reads like a
+debug dump. This entry is the design and usability pass over what already exists, frontend-only: no
+new endpoint, no new data, no new dependency.
+
+**One correctness item rides with it, and it is the reason this is not cosmetic.** `AGENTS.md` in
+`fpl-frontend` requires that *anything showing model output shows `meta.dataAsOfGw` and
+`generatedAt`* — and `apiFetch` throws the envelope's `meta` away at line 51, returning only
+`payload.data`. So every projection in the app today is rendered with no statement of which
+gameweek's data produced it, which the architecture contract names as the app's worst failure mode
+(§3, "a stale projection rendered as if it were live"). The redesign adds `apiFetchWithMeta` and a
+provenance line on every view carrying model numbers.
+
+**Established while planning, 2026-08-26 — do not re-derive.**
+
+- **There is no deadline anywhere in the HTTP contract.** No DTO carries one (checked against
+  `openapi.json`: `AdviceDto`, `SquadDto`, `PlayerListDto` all carry `gameweekId` and nothing
+  temporal). `AGENTS.md`'s rule about rendering deadlines in the user's zone therefore has no data
+  to act on, and the redesign renders **`generatedAt`** in local time with the zone named instead.
+  A deadline would be a backend change and is out of scope here.
+- **`status` and `news` — the injury flags — exist only on `PlayerListItemDto`.** Neither
+  `SquadPickDto` nor `AdvicePlayerDto` carries them, so a red flag on a pitch card would need a
+  second `/players` fetch and a join. Not done: the builder (which does have them) shows them, the
+  pitch does not, and that asymmetry is a contract gap rather than a design one.
+- **`SquadView` already holds both the squad and the advice**, so the pitch can show each player's
+  projected points and role by joining on `playerId` — new information, no new request.
+- **The position palette is validated, not chosen by eye.** Four categorical hues, run through the
+  `dataviz` validator on both surfaces: light `#B45309 #0891B2 #6D28D9 #BE123C`, dark
+  `#C67F00 #0E9CBE #9061F9 #F43F5E` — all six checks pass (lightness band, chroma floor, CVD
+  separation, normal-vision floor, contrast). Re-run the validator before changing any of them.
+- **The JS budget is feature JS, not total.** The floor is 172.9 KB gzipped on every route
+  (`fpl-performance-budget`, measured 2026-08-26); the builder costs 4.1 KB above it. A redesign
+  that stays server-rendered spends nothing. No charting library — the bars here are `div`s.
