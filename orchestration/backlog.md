@@ -284,9 +284,9 @@ attacker = **FWD + MID** vs defensive = **DEF + GKP** (option 2 below).
 ## B-012 · The bar the model is judged on — rank, decisions, and a simulated season
 
 ```
-Status   backlog
+Status   planned
 Repos    fpl-backend
-Plan     —
+Plan     docs/plans/010-decision-quality-bar.md
 Issue    —
 ```
 
@@ -329,6 +329,26 @@ returning players, new signings, first appearances — are the hardest ones. Sco
    projections that add) and emits no entry for a blank — verified 2026-08-27, `forecast.service.ts`
    lines 116–117. It is correct and nothing tests it. A season simulation walks straight into both,
    so both get a test here.
+
+**Established while planning, 2026-08-27 — do not re-derive.**
+
+- **`selectedBy` is stored per player per round** (`archive_player_gameweek`), so the crowd's squad is
+  derivable and becomes the fixed squad the XI comparison runs on, plus a proxy for the FPL average.
+  It has to be an **ILP maximising `selectedBy` under full legality**, not a top-15 sort: raw
+  ownership order breaks the position quotas, the 3-per-club cap and the budget. `buildLp` takes its
+  objective through `Candidate.ep`, so this is a reuse and not new solver code.
+- **The real FPL average cannot be recovered for archive seasons.** `Gameweek.averageScore` is the
+  live season only; upstream serves no past season's `bootstrap-static` and the archive carries no
+  per-round average. The template squad's season total is the honest proxy, labelled one.
+- **There is no archive fixtures table.** Blanks and doubles are inferred from the player rows
+  themselves — a team with no row in a round had no fixture, a player with two rows had a double — and
+  the inference is asserted against known 2025-26 rounds rather than trusted.
+- **`Observation` carries no player identity** (`metrics.ts`) — no `playerCode`, no team. Ordering
+  metrics, XI selection and the simulator all need it, so it is the first task in the plan.
+- **The fit does not go through `runBacktest`.** `fit.ts` reads `walkRounds` directly, so Phase 0 can
+  reshape the harness without moving a fitted parameter. Asserted by a test rather than assumed.
+- **Archive `value` is the player's price that round**, so price movement through a simulated season
+  comes free — but only where a row exists, so prices carry forward across blanks.
 
 **The bar for this entry.** Beat `form` on ordering **and** on simulated season points, or state the
 negative result in the report and leave `modelVersion` alone. The lesson from B-007 stands and is
