@@ -107,39 +107,6 @@ to FPL" paragraph — the answer is now that we handle no FPL cookies at all.
 
 ---
 
-## B-006 · Team input and advice — manual, import by manager id, or recommended
-
-```
-Status   in progress
-Repos    fpl-backend, fpl-frontend
-Plan     docs/plans/006-team-input-and-advice.md
-Issue    orchestrator#5 (parent), backend#8, frontend#1
-```
-
-**Why.** How a user gets a team in front of the optimizer, none of it a login (D-013):
-1. **Build manually**, like the FPL squad picker, enforcing the live rules client- and server-side.
-2. **Import by manager id** — a public `entry/{id}/…` fetch (no credential). Returns the last-locked
-   squad; a pre-deadline unsaved squad is not available without auth and is accepted as lost. The
-   manager id is a per-request import input, never stored as an identity.
-3. **Start from the recommended best team** (B-005's output).
-
-Given any team, the frontend shows the advice for the next GW with the evidence visible. Crosses the
-HTTP contract (backend endpoints + DTOs first, then regenerated types, then the frontend). Depends on
-B-005.
-
-**Scoped 2026-08-26, when the plan was written.** The advice this entry ships is **captain, vice,
-bench order, per-player projections with their evidence, and the points gap against the optimal 15** —
-**not** transfers and **not** chips, which are B-008 and depend on this. Where the transfer
-recommendation will go, the panel renders a disabled affordance; a naive stand-in is one nobody
-re-opens. Phased inside one plan: import + recommended + the advice view first, the manual squad
-builder last. Two further things the plan establishes and the implementing session should not
-re-derive: the contract pipeline **does not exist yet** (`@nestjs/swagger` is a dependency but is not
-wired, `pnpm generate:api` is an `exit 1` stub, `health` is the only controller), so Phase 0 builds
-it; and the import is an upstream call on a request path, which `fpl-api-reference` forbids as
-written, so the plan amends that skill with a narrow carve-out rather than quietly breaking it.
-
----
-
 ## B-007 · Projection model calibration
 
 ```

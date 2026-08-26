@@ -195,10 +195,10 @@ not passed), `FPL_UPSTREAM_UNAVAILABLE` (timeout or 5xx — ours, never theirs),
 
 ### Close-out (fpl-orchestrator, straight to `main`)
 
-- [ ] Amend the etiquette rule to carve out on-demand `entry/` imports with their conditions — `skills/agent/fpl-api-reference/SKILL.md`
-- [ ] **Re-baseline the JS budget against the measured floor.** The 150 KB figure was set before any page existed and the framework floor alone is 172.9 KB, so the check can only ever fail; and its stated measurement method — the `pnpm build` route table — no longer prints sizes under Turbopack. Restate it as feature JS above a floor, record the floor with its date, and record how to measure it (sum the gzipped chunks the served HTML references) — `skills/agent/fpl-performance-budget/SKILL.md`
-- [ ] Add the endpoints and the two new modules to the architecture contract's module list — `skills/agent/fpl-architecture-contract/SKILL.md`
+- [x] Amend the etiquette rule to carve out on-demand `entry/` imports with their conditions — `skills/agent/fpl-api-reference/SKILL.md`
+- [x] **Re-baseline the JS budget against the measured floor.** The 150 KB figure was set before any page existed and the framework floor alone is 172.9 KB, so the check can only ever fail; and its stated measurement method — the `pnpm build` route table — no longer prints sizes under Turbopack. Restate it as feature JS above a floor, record the floor with its date, and record how to measure it (sum the gzipped chunks the served HTML references) — `skills/agent/fpl-performance-budget/SKILL.md`
+- [x] Add the endpoints and the two new modules to the architecture contract's module list — `skills/agent/fpl-architecture-contract/SKILL.md`
 - [x] Note the nullable `sellValue` and its reconstruction path on B-008 — `orchestration/backlog.md` *(done up front, in the planning commit — the probe result would have been lost otherwise)*
-- [ ] Record the import-persistence and null-sell-value decisions — `docs/decisions.md`
-- [ ] Tick this file as each task lands and is verified, with deviations noted next to the task
-- [ ] Move B-006 to `archive.md` with the PR numbers and an outcome line — `orchestration/backlog.md`, `orchestration/archive.md`
+- [x] Record the import-persistence and null-sell-value decisions — `docs/decisions.md` *(D-014, plus D-015 for the JS budget floor)*
+- [x] Tick this file as each task lands and is verified, with deviations noted next to the task
+- [x] Move B-006 to `archive.md` with the PR numbers and an outcome line — `orchestration/backlog.md`, `orchestration/archive.md`

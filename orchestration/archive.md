@@ -33,6 +33,79 @@ arrived, and they are not always the same thing. Where they differ, say so in `O
 
 <!-- Entries land below this line, newest first. -->
 
+---
+
+## B-006 · Team input and advice — manual, import by manager id, or recommended — done 2026-08-26
+
+```
+Status   done
+Repos    fpl-backend, fpl-frontend
+Plan     docs/plans/006-team-input-and-advice.md
+Issue    orchestrator#5 (parent), backend#8, frontend#1
+Shipped  backend#9, frontend#2
+```
+
+**Why.** How a user gets a team in front of the optimizer, none of it a login (D-013):
+1. **Build manually**, like the FPL squad picker, enforcing the live rules client- and server-side.
+2. **Import by manager id** — a public `entry/{id}/…` fetch (no credential). Returns the last-locked
+   squad; a pre-deadline unsaved squad is not available without auth and is accepted as lost. The
+   manager id is a per-request import input, never stored as an identity.
+3. **Start from the recommended best team** (B-005's output).
+
+Given any team, the frontend shows the advice for the next GW with the evidence visible. Crosses the
+HTTP contract (backend endpoints + DTOs first, then regenerated types, then the frontend). Depends on
+B-005.
+
+**Scoped 2026-08-26, when the plan was written.** The advice this entry ships is **captain, vice,
+bench order, per-player projections with their evidence, and the points gap against the optimal 15** —
+**not** transfers and **not** chips, which are B-008 and depend on this. Where the transfer
+recommendation will go, the panel renders a disabled affordance; a naive stand-in is one nobody
+re-opens. Phased inside one plan: import + recommended + the advice view first, the manual squad
+builder last. Two further things the plan establishes and the implementing session should not
+re-derive: the contract pipeline **does not exist yet** (`@nestjs/swagger` is a dependency but is not
+wired, `pnpm generate:api` is an `exit 1` stub, `health` is the only controller), so Phase 0 builds
+it; and the import is an upstream call on a request path, which `fpl-api-reference` forbids as
+written, so the plan amends that skill with a narrow carve-out rather than quietly breaking it.
+
+**Outcome.** All three ways in work against live data, and the advice is honest about its limits.
+Importing manager 1 returns the 15 the public API serves with bank and value in tenths; a second
+import makes **no upstream call** (30 ms from Postgres); the advice captains the top-EP starter,
+orders the bench reserve-keeper-first then descending `pPlay × EP`, and reports a 109.98-point gap
+against the optimum — exactly **0** for the optimizer's own squad. The builder was clicked through in
+a browser: the local check catches an overspend and a fourth player from one club, the server refuses
+the squad in its own words when submitted anyway, and rebuilding the optimal 15 by hand yields a legal
+£97.1m squad and a 0.0 gap. 84 backend tests, two guards broken on purpose to watch them go red.
+
+Six things established that the next session should not re-derive:
+
+1. **No public endpoint carries a purchase or selling price.** `entry/{id}/event/{gw}/picks/` has
+   neither — verified live — and both live in `my-team/{id}/`, 403 without auth. `SquadPick.sellValue`
+   is nullable and left **null** on import (D-014). Filling it with `nowCost` would hand B-008 a wrong
+   number with no tell. B-008's entry carries the reconstruction path.
+2. **The contract pipeline did not exist.** `@nestjs/swagger` was an unwired dependency and
+   `pnpm generate:api` was an `exit 1` stub. It exists now, and because every response leaves through
+   an interceptor, an endpoint without `ApiEnvelopeResponse` documents the *unwrapped* payload — the
+   frontend would generate types for a shape that never arrives. `pnpm openapi:emit` writes
+   `openapi.json` from an app context that never listens, so regenerating types needs a build, not a
+   running backend and a healthy database.
+3. **The `entry/` import is a carve-out, not an exception.** `fpl-api-reference` forbade upstream
+   calls on a request path; it now names this one, with four conditions (5 s timeout, single attempt,
+   upstream failure mapped to our own `errorCode`, result persisted). Anything else wanting to call
+   upstream while a user waits is a new decision.
+4. **The 150 KB JS budget was unmeetable.** The Next 16 App Router floor is 172.9 KB on *every*
+   route, including a static landing page. Re-baselined onto feature JS above a dated floor (D-015);
+   the app's only client component costs 4.1 KB.
+5. **`arrangeSquad` and `buildUniverse` are shared out of the optimizer** so a squad it did not solve
+   is arranged and scored against identical numbers. A negative gap is therefore impossible and is
+   asserted as such — if one ever appears, the two sides were built from different universes.
+6. **A null projection is not a zero.** `GET /api/players` returns `epNextGw: null` for a player the
+   model has not reached, and there were 614 players against 612 projections on day one.
+
+Transfers and chips were deliberately **not** built — B-008. The UI carries a disabled, labelled
+affordance where they will go, and the advice payload's `notAdvisedOn` says so in the response.
+
+---
+
 ## B-005 · Squad optimizer — best legal squad from scratch — done 2026-08-26
 
 ```
