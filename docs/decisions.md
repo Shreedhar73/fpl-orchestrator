@@ -425,3 +425,62 @@ players; 10 rows in 2025-26 are byte-identical repeats; and goalkeepers have a d
 count of 0 however much they clear. It also **confirmed the FWD defcon threshold at 12**, which GW1
 could not — no forward reached it — while across 2025-26 forwards at 10 and 11 went unpaid and 12 was
 paid.
+
+---
+
+## D-017 · 2026-08-26 · The projection model is fitted, and the fixture input had to change to allow it
+
+**The fixture input is no longer FDR, and that was forced rather than chosen.** `attackMultiplier`,
+`cleanSheetProb` and `expectedGoalsConceded` all took FPL's FDR digit. The archive carries no FDR and
+historical FDR cannot be obtained, so those curves could never have been fitted — and a curve fitted
+on one input scale then served against another is a calibration error that no test catches, because
+each side looks fine alone. The fixture input is now **lagged rolling team strength**, computed by one
+function over either source: a team's xG for a fixture is the sum of its players' `expectedGoals`,
+which the archive and `player_gameweek_stats` both carry. FDR survives only as a cold-start prior.
+
+A consequence worth keeping: **P(clean sheet) is `exp(−λ_against)`**, off the same λ that prices goals
+conceded, so those two terms can no longer disagree the way two hand-drawn curves could.
+
+**Four scoring terms were wrong independently of any constant** — the expectation of a function is not
+the function of the expectation. Appearance points thresholded an expected minute count, paying a
+rotation risk like a certainty; saves and goals conceded took `floor(E[X])/d` where the rules pay
+`E[floor(X/d)]` (for a keeper facing two expected saves, 0.67 points against 0.34); and the defensive
+contribution used a linear ramp where the rule asks for a tail probability, which over-paid exactly
+the high-rate players who make up the premium head B-007 was opened to explain.
+
+**The verdict, on the held-out 2025-26 season: split, and recorded as such.** MAE 1.130 against the
+v1-shaped 1.232, RMSE 2.027 against 2.073, bias −0.019 against +0.158. It **beats both baselines on
+RMSE and bias and loses to `form` on MAE**. That is not a caveat: MAE is minimised by the conditional
+median, and most rows are players who barely featured, so predicting everyone low wins MAE while being
+useless to an optimiser that ranks players against each other. Every fit objective is RMSE for this
+reason — the first search, on MAE, drove all four shape parameters to their grid edges in the
+direction of smaller predictions.
+
+Bias in the `> £11.0m` band moved from **−1.545 to +0.033**.
+
+**What fitting exposed that inspection had not:**
+
+- The training seasons were being scored with the **current season's rules**, giving every player a
+  defensive-contribution term in seasons that had no such category. Reconstructed tables for 2023-24
+  and 2024-25 now price it at 0, and all 86,755 rows across all three seasons reproduce their official
+  totals exactly.
+- The start curve fitted to a slope of **7.3e8** — complete separation running to a step function,
+  which moved MAE almost not at all. The honest slope is 0.467: a lagged start rate must be regressed
+  toward the middle, not used directly as v1 did.
+- The defensive-contribution shape parameter was being validated on a season **without the category**,
+  where all eight candidates scored identically to four decimal places while looking converged.
+
+**What is not fitted, and must not be reported as if it were.** The availability half of the minutes
+model — the injury and doubt multiplier — cannot be fitted from the archive at all, because it carries
+no per-gameweek `status` or `chance_of_playing`. It waits on `player_deadline_snapshot` accumulating
+live gameweeks, which is B-007 Phase 2 and is calendar-bound.
+
+**Two results reported rather than smoothed over.** Both fixture elasticities fitted to 0 and the
+strength shrinkage ran to the top of its grid, so at single-gameweek granularity the fixture signal
+does not improve RMSE — team strength still drives clean sheets and goals conceded through λ_against.
+Neither says anything about a multi-gameweek horizon, which this backtest does not measure.
+
+**`modelVersion` is not bumped by this.** The fitted parameters are not yet wired into
+`ProjectionsService`, which still runs the v1 path — that is the remaining Phase 4 work, and the bar
+(beat the baselines) is met on RMSE and bias but not on MAE, so the decision to serve it is the
+maintainer's rather than automatic.
