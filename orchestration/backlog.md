@@ -107,28 +107,6 @@ to FPL" paragraph — the answer is now that we handle no FPL cookies at all.
 
 ---
 
-## B-005 · Squad optimizer — best legal squad from scratch
-
-```
-Status   in progress
-Repos    fpl-backend
-Plan     docs/plans/005-squad-optimizer.md
-Issue    orchestrator#4 (parent), backend#6
-```
-
-**Why.** Turns projections into the optimal 15 under the **full squad ruleset**: £100m budget, 2/5/5/3
-squad, a valid starting formation, max 3 players per club, captain and bench order — an integer linear
-program, not a greedy picker (greedy on points-per-million is provably wrong under a budget + 3-per-club
-cap). Objective over the horizon (`Σ EP × decay^i`), single-GW as a special case. Each solve logged to
-`OptimizerRun` with inputs and reasoning. Depends on B-004 (done).
-
-**Scope narrowed 2026-08-26.** Transfer planning (one free transfer, −4 hits, chip windows) was split
-out to **B-008** — it needs an *owned* squad to plan from, which only arrives with B-006's import, so
-it is built and verified against a real squad there rather than a mock here. Solver:
-`javascript-lp-solver` (pure JS, handles 612 binaries in well under a second).
-
----
-
 ## B-006 · Team input and advice — manual, import by manager id, or recommended
 
 ```

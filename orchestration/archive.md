@@ -33,6 +33,49 @@ arrived, and they are not always the same thing. Where they differ, say so in `O
 
 <!-- Entries land below this line, newest first. -->
 
+## B-005 · Squad optimizer — best legal squad from scratch — done 2026-08-26
+
+```
+Status   done
+Repos    fpl-backend
+Plan     docs/plans/005-squad-optimizer.md
+Issue    orchestrator#4 (parent), backend#6
+Shipped  backend#7
+```
+
+**Why.** Turns projections into the optimal 15 under the **full squad ruleset**: £100m budget, 2/5/5/3
+squad, a valid starting formation, max 3 players per club, captain and bench order — an integer linear
+program, not a greedy picker (greedy on points-per-million is provably wrong under a budget + 3-per-club
+cap). Objective over the horizon (`Σ EP × decay^i`), single-GW as a special case. Each solve logged to
+`OptimizerRun`. Depends on B-004 (done). Transfer planning was split to B-008 (needs an owned squad
+from B-006).
+
+**Outcome.** `pnpm optimize` returns the optimal legal 15, verified against real data: a 3-5-2 at
+**£97.1m** (≤ £100m), exactly 2/5/5/3, **max 2 per club**, captain = the top-EP starter, objective
+303.89 in ~110 ms; persisted to `optimizer_runs`. 37 tests pass. Four things established that the next
+session should not re-derive:
+
+1. **`javascript-lp-solver` returns non-optimal integer solutions — do not use it.** On a
+   three-variable isolation test it picked a 21-point pair over the optimal 45-point one under a slack
+   budget, and in the real solve it underspent by £36m and benched the studs. Replaced mid-build by
+   **HiGHS** (`highs`, the Edinburgh solver compiled to WASM), which loads in Node and in Jest and
+   solves to optimality. HiGHS takes a **CPLEX LP-format string**, not a model object — `ilp.ts` emits
+   it. A synthetic-universe test now asserts optimality, so a silent solver regression goes red.
+2. **One binary per player, not two.** The textbook x (in-15) / y (in-XI) / c (captain) formulation
+   overwhelmed the solver. The ILP now selects only the 15 (maximise Σ horizon EP under
+   budget/quota/club); the XI, captain and bench are chosen from the 15 by an exact enumeration over
+   the legal formations (`pickBestXi`). Smaller, exact, and far faster.
+3. **From-scratch buys at market price** (`now_cost`) — sell value only exists for an owned squad
+   (B-008). The candidate pool is pruned to top-EP-per-position ∪ cheapest-per-position before the
+   solve; a player outside both is dominated and never optimal, so pruning keeps it fast without
+   changing the answer.
+4. **Position quotas now live in `scoring_config.positions`** (from `element_types`, persisted by the
+   sync), so 2/5/5/3 and the XI min/max come from config, never a constant. A `Rules` accessor reads
+   them; the break-on-purpose test cuts `squad_total_spend` and watches the squad get cheaper.
+
+The optimizer is exact given its inputs; the odd-looking squad (a premium benched) is B-004's
+projection miscalibration (B-007), not an optimizer fault.
+
 ## B-004 · Projection model — expected points per player per gameweek — done 2026-08-26
 
 ```
