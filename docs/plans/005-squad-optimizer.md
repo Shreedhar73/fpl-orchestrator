@@ -85,5 +85,5 @@ Captain is the XI's highest-EP player; vice the next.
 
 ### Close-out — same session the work lands
 - [x] Checklist ticked; the HiGHS switch and the single-variable reformulation noted as deviations.
-- [ ] `/fpl:track-work` done (issues open). `/fpl:ship` next; update entry, plan and issue in step.
+- [x] Shipped as backend#7 (squash-merged). Child #6 and parent orchestrator#4 closed; B-005 archived.
       plan and issue in step.
