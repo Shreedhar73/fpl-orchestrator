@@ -232,3 +232,9 @@ closes in roughly October — so a single branch would sit unmerged for two mont
 carrying `Closes #10` would shut the child three phases early. Therefore: **each phase ships its own
 PR off `feat/10-projection-model-calibration`, and interim PRs say `Part of #10`. Only the Phase 4 PR
 says `Closes #10`.**
+
+**And the branch is recreated after each merge, not reused.** This repo merges with `gh pr merge
+--squash`, which replaces a phase's commits with one new commit on `main` — the phase branch still
+carries the originals, so a second PR off the same branch re-proposes commits that are already merged
+and conflicts. After each phase merges: delete the branch and cut a fresh one from `main`. A phase
+still in flight when the previous one merges is rebased onto `main` first.

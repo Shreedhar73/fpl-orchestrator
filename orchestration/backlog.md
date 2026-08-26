@@ -110,10 +110,11 @@ to FPL" paragraph — the answer is now that we handle no FPL cookies at all.
 ## B-007 · Projection model calibration
 
 ```
-Status   planned
+Status   in progress
 Repos    fpl-backend
 Plan     docs/plans/007-projection-model-calibration.md
 Issue    fpl-orchestrator#6 · fpl-backend#10
+PRs      fpl-backend#11 (Phase 1, open)
 ```
 
 **Why.** B-004 shipped a v1 projection engine that **over-projects the premium head** — the top ~30
