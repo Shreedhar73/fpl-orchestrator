@@ -33,6 +33,54 @@ arrived, and they are not always the same thing. Where they differ, say so in `O
 
 <!-- Entries land below this line, newest first. -->
 
+## B-003 · FPL public-data ingest (sync) — done 2026-08-26
+
+```
+Status   done
+Repos    fpl-backend
+Plan     docs/plans/003-fpl-sync.md
+Issue    orchestrator#2 (parent), backend#2
+Shipped  backend#3
+```
+
+**Why.** Everything downstream (projection, optimizer) reads from Postgres, not from FPL live —
+`bootstrap-static/` is ~1.6 MB with no SLA and player-gameweek history is one request per player, so
+it cannot sit on a request path (D-002). The optimizer needs players, prices, positions, teams,
+fixtures and per-player gameweek stats in the store, kept current on a schedule, with `SyncRun`
+recording each pass. The schema already models this (Player, Team, Fixture, PlayerGameweekStat,
+PlayerPriceHistory, PlayerOwnershipHistory, SyncRun). Read-only, unauthenticated, no manager data —
+this is the global public dataset only. First dependency of the whole product.
+
+**Outcome.** The sync exists and is verified against a real Postgres, not just compiled. `pnpm
+sync:fpl` populates 20 teams / 38 gameweeks / 612 players / 380 fixtures; a re-run hash-skips both
+endpoints with 0 new price rows; `pnpm sync:fpl -- --full` backfills a finished gameweek (610
+`player_gameweek_stats` rows, decimals stored as `Decimal`) and is idempotent on re-run. Six things
+established that the next session should not re-derive:
+
+1. **`--live` is unbuilt on purpose.** `event/{gw}/live/` carries neither the fixture-scoped
+   `was_home`/`opponent_team` nor the price a stat row needs, and can only be verified against an
+   in-progress gameweek. `--full` (element-summary) is the clean per-fixture source and covers every
+   finished gameweek. Build live only when real-time mid-gameweek data is actually wanted.
+2. **The Prisma 7 generated client uses ESM `.js` import specifiers.** `ts-node` under CJS cannot
+   resolve them (`Cannot find module './internal/class.js'`), and the `ts-node/esm` loader hits a
+   require-cycle on the client. The working path is compiled output — `pnpm sync:fpl` is
+   `nest build && node dist/scripts/sync.js`. Same root cause as the Jest `.js` moduleNameMapper (D-005).
+3. **`prisma.config.ts` at the repo root broke the build layout.** Being compiled, it pushed tsc's
+   `rootDir` to the repo root and emitted everything under `dist/src/`, so `start:prod` (`node
+   dist/main`) pointed at nothing. Fixed by excluding it from `tsconfig.build.json` (the Prisma CLI
+   reads it from source). Shipped in the same PR.
+4. **Idempotency is by construction, not by luck.** Snapshots upsert on `fplId`; price/ownership
+   history append **only when the value changed** from the latest row (ownership too, not every run —
+   a deviation from the plan that is what keeps a re-run idempotent); an unchanged payload hash skips
+   the writes entirely and is recorded as a `skipped` run.
+5. **`ScoringConfig` holds both `scoring` and `rules` JSON** (keyed by season), so no separate
+   `rules_config` table was needed — `game_config.scoring`/`.rules` land there, never hardcoded.
+6. **The `team.strength` field arrives `null` preseason.** The column is non-null; the mapper
+   coalesces to 0. A recorded-payload test caught it — hand-made objects would not have.
+
+The stale auth framing this pivot left in `fpl-api-reference` (posting a password to the dead
+`users.premierleague.com`) was corrected in the same session (D-013).
+
 ## B-002 · The work register and the issue-first loop — done 2026-08-26
 
 ```

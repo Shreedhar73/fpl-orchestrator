@@ -107,29 +107,6 @@ to FPL" paragraph — the answer is now that we handle no FPL cookies at all.
 
 ---
 
-## B-003 · FPL public-data ingest (sync)
-
-```
-Status   in progress
-Repos    fpl-backend
-Plan     docs/plans/003-fpl-sync.md
-Issue    orchestrator#2 (parent), backend#2
-```
-
-> **In progress 2026-08-26.** Incremental + `--full` sync built on `feat/2-fpl-sync` and verified
-> against the live API and a real Postgres (see plan 003). `--live` deferred within this entry with
-> its reason. Not yet shipped — awaiting `/fpl:ship` (PR `Closes #2`) and the register close-out.
-
-**Why.** Everything downstream (projection, optimizer) reads from Postgres, not from FPL live —
-`bootstrap-static/` is ~1.6 MB with no SLA and player-gameweek history is one request per player, so
-it cannot sit on a request path (D-002). The optimizer needs players, prices, positions, teams,
-fixtures and per-player gameweek stats in the store, kept current on a schedule, with `SyncRun`
-recording each pass. The schema already models this (Player, Team, Fixture, PlayerGameweekStat,
-PlayerPriceHistory, PlayerOwnershipHistory, SyncRun). Read-only, unauthenticated, no manager data —
-this is the global public dataset only. First dependency of the whole product.
-
----
-
 ## B-004 · Projection model — expected points per player per gameweek
 
 ```

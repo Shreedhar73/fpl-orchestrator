@@ -103,4 +103,6 @@ sync is off the request path.
 
 ### Close-out — same session the work lands
 - [x] Checklist ticked with deviations noted.
-- [ ] `/fpl:ship` the backend branch (PR `Closes #2`), then close the register — pending the user.
+- [x] Shipped as backend#3 (squash-merged). Child #2 and parent orchestrator#2 closed; B-003 moved
+      to `archive.md`. Same PR fixed the `dist/src` build layout and corrected the `fpl-api-reference`
+      auth section for D-013.
