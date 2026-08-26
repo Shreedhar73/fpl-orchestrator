@@ -15,10 +15,40 @@ budget.
 | Any single SQL query | **< 30 ms** | `EXPLAIN ANALYZE`, Prisma query log |
 | Page TTFB (local) | **< 200 ms** | browser network panel |
 | Interaction to visual feedback | **< 100 ms** | perceived; anything slower needs an optimistic update |
-| Frontend JS shipped per route | **< 150 KB** gzipped | `pnpm build` route table |
+| Frontend **feature** JS per route | **< 30 KB** gzipped above the framework floor | see below |
 | Optimizer solve | **< 1 s** | logged into `optimizer_runs` |
 
 Exceed one deliberately and write down why, next to the code.
+
+### The framework floor, and why the JS budget is measured against it
+
+The JS line used to read "< 150 KB gzipped, measured from the `pnpm build` route table". Both halves
+were wrong by 2026-08-26 and it was re-baselined when B-006 shipped:
+
+- **The floor is 172.9 KB.** Measured on 2026-08-26: eight chunks, gzipped, on *every* route
+  including a landing page that is static markup with no interactivity at all. That is the Next 16
+  App Router client runtime. A 150 KB budget could not be met by any page in this app, however
+  perfectly written — a budget nothing can pass is not a budget, it is a line nobody reads twice.
+- **Turbopack's route table no longer prints sizes**, so the stated measurement method does not
+  exist either.
+
+So the budget is now on **feature JS: the route's total minus the floor**. On the same date the
+squad builder — the app's only `'use client'` component, with filtering, selection state and two
+submit calls — cost **4.1 KB** against that floor. 30 KB is generous against a real number rather
+than invented against none.
+
+Measure it by summing the chunks the served HTML actually references:
+
+```bash
+# with `next start` running
+curl -s http://localhost:4000/<route> -o page.html
+for c in $(grep -o '/_next/static/chunks/[a-zA-Z0-9_-]*\.js' page.html | sed 's|/_next/|.next/|' | sort -u); do
+  gzip -c "$c" | wc -c
+done | awk '{s+=$1} END {printf "%.1f KB gzipped\n", s/1024}'
+```
+
+Re-measure the floor against a route with no client component whenever Next is upgraded, and update
+the number here with its date. A floor quoted without a date is a guess again.
 
 ## Where "fast" comes from here
 

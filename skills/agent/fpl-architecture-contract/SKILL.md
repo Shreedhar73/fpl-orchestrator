@@ -54,8 +54,30 @@ Cross-cutting code lives in `src/common/` (interceptors, filters, guards, envelo
 `src/infra/` (`PrismaService`, the FPL HTTP client, the scheduler). A module must not import another
 module's `repository` or `dto/` internals — go through the other module's exported service.
 
-**Planned modules:** `fpl-sync` (ingest), `players`, `fixtures`, `teams`, `squad` (the user's team),
-`projections` (expected points), `optimizer` (squad + transfer solving), `insights` (the "why").
+**Modules that exist:** `health`, `fpl-sync` (ingest), `projections` (expected points), `optimizer`
+(squad solving), `squad` (import by manager id, persistence, legality), `players` (the pick-from
+universe), `insights` (the "why"). **Still planned:** `fixtures`, `teams`.
+
+The HTTP surface, all through the envelope, all documented at `/api-docs-json`:
+
+| Method | Path | Module |
+|---|---|---|
+| `POST` | `/api/squad/import` | `squad` — the one endpoint that calls upstream on a request path |
+| `POST` | `/api/squad/validate` | `squad` — every broken rule, not the first |
+| `GET` | `/api/squad/recommended` | `squad` — the optimizer's 15, unpersisted |
+| `GET` | `/api/squad/{managerId}` | `squad` — from Postgres, no upstream call |
+| `POST` | `/api/insights/advice` | `insights` — a hand-built 15 |
+| `GET` | `/api/insights/advice/recommended` | `insights` |
+| `GET` | `/api/insights/advice/{managerId}` | `insights` |
+| `GET` | `/api/players` | `players` |
+
+**Declare static routes before parameter routes.** `/api/squad/recommended` and
+`/api/squad/{managerId}` collide — Nest matches in declaration order, and the wrong order fails
+inside `ParseIntPipe` with an error naming the wrong problem entirely.
+
+**Error codes live in `src/common/error-codes.ts`**, not in the module that raises them: they are
+part of the HTTP contract, `insights` documents `SQUAD_NOT_IMPORTED` on its own routes, and the
+frontend switches on all of them.
 
 ## 3. The response envelope
 

@@ -320,3 +320,65 @@ there are no writes back to FPL, now or planned.
 - Docs of record are patched to drop "manager for one user": AGENTS.md's opening and MAP.md's "What
   the system is". A fuller MAP pass (diagram labels, scattered "for one user") is a tracked doc task,
   not rushed here.
+
+---
+
+## D-014 · 2026-08-26 · The imported squad is persisted; sell value is null until B-008
+
+**Decision.** Two things, settled while building B-006's import.
+
+**A squad imported from a public manager id is written to `squads` + `squad_picks`**, keyed by the
+existing `@@unique([managerId, gameweekId, isPlanned])` with `isPlanned: false`. The import
+short-circuits: if the store already holds that manager's squad for the latest gameweek whose
+deadline has passed, no upstream call is made at all.
+
+**`SquadPick.sellValue` is nullable, and an import leaves it null.** It is not filled with `nowCost`.
+
+**Why persist.** It keeps the upstream call to once per manager per gameweek rather than once per
+page view, which is what makes the `entry/` carve-out in `fpl-api-reference` defensible at all. Picks
+are locked once their deadline passes, so a stored squad cannot go stale — a re-fetch could only
+return the identical payload. The manager id remains an import input and is **not** an identity
+(D-013); the only thing kept under it is the squad it produced, and the manager's display name is
+deliberately not stored.
+
+**Why null rather than an approximation.** Probed against the live API on 2026-08-26:
+`entry/{id}/event/{gw}/picks/` returns per pick only
+`{ element, position, multiplier, is_captain, is_vice_captain, element_type }` — **no
+`purchase_price`, no `selling_price`**. Both live in `my-team/{id}/`, which is 403 without
+authentication, and we never authenticate. B-006 never reads sell value; the only consumer is B-008's
+transfer planner, whose entire job is that sell value differs from market price. An approximation
+written now is a wrong number consumed there with no tell, where a null is loud and stops the
+planner until it is filled properly.
+
+**Consequences.**
+- B-008's first task is reconstruction: `entry/{id}/transfers/` exists (probed — it returns `[]` for
+  a manager with no transfers, which is the normal empty case) and carries `element_in_cost` /
+  `element_out_cost` per transfer per event. Replay it against `player_price_history` back to the GW1
+  deadline price to recover purchase price, then sell value. Recorded on the B-008 backlog entry.
+- Anything reading `sellValue` must handle null as "not known yet", never as zero or as market price.
+
+---
+
+## D-015 · 2026-08-26 · The frontend JS budget is measured against a framework floor
+
+**Decision.** The "< 150 KB gzipped per route" line in `fpl-performance-budget` is replaced by
+"< 30 KB of **feature** JS above the measured framework floor", with the floor recorded at
+**172.9 KB on 2026-08-26** and re-measured whenever Next is upgraded.
+
+**Why.** The 150 KB figure was set before any page existed. Measured when B-006's frontend landed,
+every route ships 172.9 KB gzipped — including a landing page that is static markup with no
+interactivity at all, which loads the identical eight chunks. That is the Next 16 App Router client
+runtime, and no page in this app can come in under 150 KB however well written. A budget nothing can
+pass is not a budget; it is a line that gets read once and ignored, which is worse than no line
+because it looks like control.
+
+The stated measurement method had also gone: Turbopack's `pnpm build` route table no longer prints
+sizes. The skill now carries a shell snippet that sums the gzipped chunks the served HTML actually
+references.
+
+**Consequences.**
+- The number that matters is now the delta. On the same date the squad builder — the app's only
+  `'use client'` component — measured **4.1 KB** above the floor, so 30 KB is generous against a real
+  measurement rather than invented against none.
+- The floor is quoted with its date. A floor without one is a guess again.
+- Reducing the floor is a framework decision (leaving the App Router), not a code-review finding.

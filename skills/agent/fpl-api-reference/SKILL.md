@@ -87,7 +87,31 @@ No published rate limit, and no SLA either. We are a guest.
   `element-summary` backfills, with a short delay between batches.
 - Send a real `User-Agent` identifying the app.
 - Cache by `event` + a content hash; skip the write when nothing changed.
-- **Never** put an upstream call on a user request path. The sync job writes to Postgres; the API
-  reads Postgres. A 502 from FPL must never become a 502 from us.
+- **Never** put an upstream call on a user request path — with the one carve-out below. The sync job
+  writes to Postgres; the API reads Postgres. A 502 from FPL must never become a 502 from us.
 - Around a deadline the payload changes minute to minute. That is the window to tighten the poll,
   not to hammer it.
+
+### The one carve-out: on-demand `entry/` reads
+
+**The `entry/{id}` import is allowed on a request path**, because it cannot be anywhere else: it is a
+manager id nobody has typed yet, so there is nothing to pre-sync. Added 2026-08-26 when B-006 shipped
+the import; the rule above had forbidden it outright, and its reason — 1.6 MB payloads with no SLA —
+does not describe a small per-user read.
+
+It is a carve-out, not a licence, and it holds only on these conditions
+(`fpl-backend/src/modules/squad/`):
+
+- **Only `entry/{id}/` and `entry/{id}/event/{gw}/picks/`.** Never `bootstrap-static/`,
+  `fixtures/`, `event/{gw}/live/` or an `element-summary` backfill, which stay sync-only.
+- **A short timeout and a single attempt** — 5 s and no retry, against the bulk endpoints' 30 s and
+  four. Someone is waiting, and a retry storm is the opposite of being a good guest.
+- **Upstream failure becomes our own `errorCode`, never a passthrough.** A 404 on the entry is
+  `MANAGER_NOT_FOUND` and is the user's mistake; a timeout or 5xx is `FPL_UPSTREAM_UNAVAILABLE` and
+  is not. Collapsing the two tells someone their id is wrong when FPL is simply down.
+- **Persist the result**, so the second visit is a database read. The importer checks the store for
+  the latest gameweek whose deadline has passed before it calls out at all — picks are locked once
+  their deadline passes, so a re-fetch could only return the identical payload.
+
+Anything else that wants to call upstream while a user waits is a new decision, not an extension of
+this one.
