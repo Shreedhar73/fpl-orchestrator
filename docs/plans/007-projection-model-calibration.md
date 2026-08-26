@@ -229,9 +229,9 @@ These are wrong independently of any fitting, and fitting on top of them would t
 
 ### 4c. What the archive can fit, and what it cannot
 
-- [x] Minutes fitted. **`startSlope` 0.467, not the identity v1 assumed** — a lagged start rate must be regressed toward the middle. The first attempt returned 7.3e8 (complete separation, a step function, barely moving MAE); the fit now carries a ridge penalty, damped steps and a sanity bound
+- [x] Minutes fitted. **`startSlope` 0.485, not the identity v1 assumed** — a lagged start rate must be regressed toward the middle. The first attempt returned 7.3e8 (complete separation, a step function, barely moving MAE); the fit now carries a ridge penalty, damped steps and a sanity bound
 - [x] **The availability half stays heuristic and is labelled so** in `fitted.ts`, `model-v2.ts`, the harness and every report
-- [x] Attacking fitted: `goalsPerXg` 0.988, `assistsPerXa` 1.415. **Both fixture elasticities fitted to 0** — at single-gameweek granularity the fixture signal does not improve RMSE. Reported, not smoothed over; it says nothing about a multi-gameweek horizon, which this backtest does not measure
+- [x] Attacking fitted: `goalsPerXg` 0.989, `assistsPerXa` 1.395. **Both fixture elasticities fitted to 0** — at single-gameweek granularity the fixture signal does not improve RMSE. Reported, not smoothed over; it says nothing about a multi-gameweek horizon, which this backtest does not measure
 - [x] Clean sheets and goals conceded run off λ_against from lagged strength. *`confidenceMatches` reached the top of its grid — held-out RMSE keeps improving as team strength shrinks toward the league average*
 - [x] Bonus is a BPS model — 0.0415 points per BPS, capped at 3 — replacing the attacking-output placeholder
 - [x] Positional shrinkage targets measured rather than guessed, and reported by `pnpm fit:model`
@@ -240,8 +240,8 @@ These are wrong independently of any fitting, and fitting on top of them would t
 
 ### 4d. Train and test must not be the same rows
 
-- [x] **Fit on 2023-24 + 2024-25 (51,286 rows), shape parameters chosen on held-out 2024-25 rounds 20+ (14,540), evaluated on 2025-26 (29,482 scored).**
-- [x] **Defcon split inside its one season** — fitted on rounds 1–12, shape parameter chosen on 13–19, 20–38 untouched by it, and every report carries the caveat. *Found doing this: the parameter had been validated on a season with no such category, where all eight candidates scored identically to four decimals while looking converged.*
+- [x] **Fit on 2023-24 + 2024-25 (42,468 rows), shape parameters chosen on held-out 2024-25 rounds 20+ (14,540), evaluated on 2025-26 (29,482 scored).** *Corrected in the same session: the defcon rows from 2025-26 had been folded into the training set, where the frequency measurements iterated them too — so 8,818 rows of the held-out season silently informed every measured parameter while the provenance claimed only the defcon term was affected. They are now passed separately and read by the defcon parameters alone.*
+- [x] **Defcon split inside its one season** — dispersion fitted on rounds 1–12, shape parameter chosen on 13–19, 20–38 untouched, and **those rows reach no other parameter**. Every report carries the caveat. *Found doing this: the parameter had been validated on a season with no such category, where all eight candidates scored identically to four decimals while looking converged.*
 - [x] **Live 2026/27 untouched** by the fit and the evaluation both
 - [x] `fitted.ts` carries the constants, a before/after table per knob, and provenance. `pnpm fit:model` **prints** rather than writes — a script that rewrites its own source changes the model in a commit nobody reads
 
@@ -252,7 +252,7 @@ These are wrong independently of any fitting, and fitting on top of them would t
 | | MAE | RMSE | bias |
 |---|---:|---:|---:|
 | v1-shaped constants | 1.232 | 2.073 | +0.158 |
-| **fitted** | **1.130** | **2.027** | **−0.019** |
+| **fitted** | **1.124** | **2.026** | **−0.025** |
 | baseline: `form` | 1.042 | 2.131 | +0.012 |
 | baseline: last season pts/90 | 3.152 | 3.665 | +1.939 |
 

@@ -448,8 +448,8 @@ rotation risk like a certainty; saves and goals conceded took `floor(E[X])/d` wh
 contribution used a linear ramp where the rule asks for a tail probability, which over-paid exactly
 the high-rate players who make up the premium head B-007 was opened to explain.
 
-**The verdict, on the held-out 2025-26 season: split, and recorded as such.** MAE 1.130 against the
-v1-shaped 1.232, RMSE 2.027 against 2.073, bias −0.019 against +0.158. It **beats both baselines on
+**The verdict, on the held-out 2025-26 season: split, and recorded as such.** MAE 1.124 against the
+v1-shaped 1.232, RMSE 2.026 against 2.073, bias −0.025 against +0.158. It **beats both baselines on
 RMSE and bias and loses to `form` on MAE**. That is not a caveat: MAE is minimised by the conditional
 median, and most rows are players who barely featured, so predicting everyone low wins MAE while being
 useless to an optimiser that ranks players against each other. Every fit objective is RMSE for this
@@ -465,10 +465,18 @@ Bias in the `> £11.0m` band moved from **−1.545 to +0.033**.
   and 2024-25 now price it at 0, and all 86,755 rows across all three seasons reproduce their official
   totals exactly.
 - The start curve fitted to a slope of **7.3e8** — complete separation running to a step function,
-  which moved MAE almost not at all. The honest slope is 0.467: a lagged start rate must be regressed
+  which moved MAE almost not at all. The honest slope is 0.485: a lagged start rate must be regressed
   toward the middle, not used directly as v1 did.
 - The defensive-contribution shape parameter was being validated on a season **without the category**,
   where all eight candidates scored identically to four decimal places while looking converged.
+
+**A fifth, found by checking the holdout claim rather than trusting it.** The rows that let the
+defensive-contribution parameters be fitted at all — 2025-26 rounds 1–12, since no earlier season has
+the category — were folded into the training set, where the frequency measurements iterated them too.
+So 8,818 rows of the "held-out" season informed `goalsPerXg`, the start curve, home advantage, the
+bonus regression and the shrinkage targets, while the provenance said only the defcon term was
+affected. They are now passed separately and read by the defcon parameters alone. Re-fitting moved the
+headline from 1.130 to 1.124 — which is the expected size of the effect, and not the point.
 
 **What is not fitted, and must not be reported as if it were.** The availability half of the minutes
 model — the injury and doubt multiplier — cannot be fitted from the archive at all, because it carries
