@@ -39,61 +39,68 @@ sync is off the request path.
 ## Tasks
 
 ### Client and module scaffold
-- [ ] `FplApiClient` — typed reads against `fantasy.premierleague.com/api/`: real `User-Agent`, one
-      in-flight request for bulk endpoints, a ≤4 concurrency cap with a small delay for
-      `element-summary` backfills, timeout + bounded retry/backoff, and a content hash per payload —
-      `src/modules/fpl-sync/fpl-api.client.ts` (`fpl-api-reference` §etiquette).
-- [ ] `FplSyncModule` registered in `src/app.module.ts`; depends on `PrismaModule` and
-      `@nestjs/axios` — `src/modules/fpl-sync/fpl-sync.module.ts`.
+- [x] `FplApiClient` — real `User-Agent`, ≤4 concurrency cap + delay for backfills, timeout + bounded
+      retry (429/5xx only), payload content hash. **Deviation:** lives in `src/infra/fpl/fpl-api.client.ts`,
+      not the module — the FPL client is cross-cutting infra (`fpl-architecture-contract` §2). Uses
+      `axios` directly, not `@nestjs/axios`.
+- [x] `FplSyncModule` registered in `src/app.module.ts` (with `ScheduleModule.forRoot()`); imports
+      `PrismaModule` + `FplInfraModule` — `src/modules/fpl-sync/fpl-sync.module.ts`.
 
-### Field mapping — parse at the sync boundary (`fpl-api-reference` §gotchas, `fpl-data-model`)
-- [ ] One mapper per upstream shape converting to the stored form: `now_cost`/`value` → integer
-      tenths; `element_type` → `Position`; keep `team` (fpl id) **and** `team_code` (stable); every
-      `expected_*` / ICT decimal-string → `Decimal`; `chance_of_playing_*` `null` → fit; nullable
-      `event` / `kickoff_time` preserved; `selected_by_percent` string parsed; `status` letter kept —
-      `src/modules/fpl-sync/mappers/`.
+### Field mapping — parse at the sync boundary
+- [x] Boundary mappers verified against real rows: `now_cost`/`value` integer tenths; `element_type`
+      → `Position` (via `element_types.singular_name_short`); `expected_*`/ICT kept as exact decimal
+      **strings** and stored `Decimal`; `chance_of_playing` `null` → **null** (fit), distinct from a
+      real `0`; nullable `event`/`kickoff_time` preserved; `selected_by_percent` kept as its exact
+      string; `status` letter kept; `strength: null` → 0. **Deviation:** one `mappers.ts`, not a
+      `mappers/` dir. Team `code` is persisted on `teams`; players join on team `fplId`.
 
 ### Incremental sync — the default mode
-- [ ] `bootstrap-static/` → **upsert** snapshots on `fpl_id`: `teams`, `players`, `gameweeks`,
-      positions from `element_types`; populate `scoring_config` (and `rules_config` if the schema
-      needs it — check `fpl-data-model`) from `game_config` — `src/modules/fpl-sync/sync.service.ts`.
-- [ ] `fixtures/` → upsert `fixtures` on `fpl_id`, both difficulty ratings, nullable `event`/kickoff.
-- [ ] Append `player_price_history` **only when** `now_cost` differs from the last row; append
-      `player_ownership_history` each run (`selected_by_percent`, transfers in/out this event).
-- [ ] Idempotency: upsert snapshots, guard every history insert with its unique key, skip the write on
-      an unchanged payload hash. Re-running produces identical rows — the property tested in step 2.
+- [x] `bootstrap-static/` upserts `teams`, `players`, `gameweeks`; `scoring_config` gets both
+      `scoring` and `rules` from `game_config` (the schema's `ScoringConfig` holds both JSON columns,
+      so no `rules_config` table was needed). **Verified:** empty DB → 20 teams, 38 gameweeks, 612 players.
+- [x] `fixtures/` upserts 380 fixtures on `fplId`, both difficulties, nullable event/kickoff. **Verified.**
+- [x] `player_price_history` appends only on a changed `now_cost`; `player_ownership_history` appends
+      only on a changed value. **Deviation (improvement):** ownership is gated on change too, not
+      written every run — that is what keeps a re-run idempotent rather than growing the table.
+- [x] Idempotency **verified against the real DB:** an immediate re-run recorded both endpoints as
+      `skipped`, 0 rows, 0 new price rows (payload-hash short-circuit).
 
 ### Live and full modes
-- [ ] `--live` → `event/{gw}/live/` into `player_gameweek_stats` including the `explain` breakdown
-      (the "why" the model and UI need) — keyed `(player_id, gameweek_id, fixture_id)` for double
-      gameweeks.
-- [ ] `--full` → `element-summary/{id}/` per player, backfilling this season's per-gameweek history,
-      rate-limited at ≤4 concurrency. Confirm before running (hundreds of requests).
+- [ ] `--live` — **not implemented this pass, deferred within B-003.** `event/{gw}/live/` carries
+      neither the fixture-scoped `was_home`/`opponent_team` nor the price a `player_gameweek_stats`
+      row needs, and can only be verified against a genuinely in-progress gameweek (none available:
+      GW1 finished, GW2 not started). `--full` already covers every finished gameweek. The CLI exits
+      with a clear "not implemented" message rather than crashing.
+- [x] `--full` → `element-summary/{id}/` per player, ≤4 concurrency + 500 ms between batches.
+      **Verified:** backfilled finished GW1 → 610 `player_gameweek_stats` rows, 0 players failed,
+      decimals stored as real `Decimal` (xG 1.47, xA 0.21), `value` in tenths.
 
 ### SyncRun accounting
-- [ ] Write a `sync_runs` row per endpoint per pass: endpoint, mode, started/finished, rows written,
-      outcome (success/partial/failed), payload hash. A partial or failed sync must say so — a sync
-      that reports success while half the rows are missing is the failure mode this table exists to
-      catch — `src/modules/fpl-sync/sync.service.ts`.
+- [x] A `sync_runs` row per endpoint per pass with `success` / `skipped` / `partial` / `failed`,
+      rows written and payload hash. `--full` reports `partial` if any player fetch fails. **Verified:**
+      4 rows after two incremental runs (2 success, 2 skipped, same hash).
 
 ### CLI entry point
-- [ ] `src/scripts/sync.ts` — the target of `pnpm sync:fpl` (already in `package.json`): boot a
-      standalone Nest context, parse `--live` / `--full`, run the service, print the resulting
-      `sync_runs` summary (what changed, not just that it ran).
+- [x] `src/scripts/sync.ts`, target of `pnpm sync:fpl`, prints a per-endpoint summary and exits
+      non-zero on failure. **Deviation:** the script is `nest build && node dist/src/scripts/sync.js`,
+      not raw `ts-node` — the Prisma 7 generated client uses ESM `.js` import specifiers that
+      `ts-node` under CJS cannot resolve (same root cause as the Jest `.js` mapper in D-005). Loads
+      `dotenv/config` at entry.
 
 ### Scheduling
-- [ ] `@nestjs/schedule` hourly incremental cron (dep already present) — `src/modules/fpl-sync/`.
-- [ ] *(optional tail)* Tighten to every 5 min in the 2 h before a gameweek deadline. Cut → follow-up.
+- [x] `@nestjs/schedule` hourly incremental cron with an overlap guard — `sync.scheduler.ts`. Wired
+      and typechecked; not runtime-verified (would need to wait for the top of the hour). It calls the
+      same `runIncremental()` that is verified above.
+- [ ] *(optional tail)* Pre-deadline 5-min tightening — deferred as planned.
 
-### Tests (`fpl-testing-contract`) — against recorded payloads, deterministic
-- [ ] Idempotency: run the incremental sync twice over the same recorded payload → identical rows, no
-      duplicate history.
-- [ ] Field mapping: tenths, `element_type` → position, decimal-string → `Decimal`,
-      `chance_of_playing` `null` → fit, `team_code` persisted.
-- [ ] `player_price_history` appends on a changed `now_cost` and **not** on an unchanged one.
-- [ ] A `sync_runs` row is written with the right outcome, including on a simulated mid-sync failure.
+### Tests (`fpl-testing-contract`)
+- [x] Field mapping — 13 tests in `__tests__/mappers.spec.ts` against **recorded** payloads trimmed
+      into `test/fixtures/`. Includes the null-chance-vs-0 distinction, and the guard was **broken on
+      purpose** (null→0) to confirm it goes red, then restored (13/13 green).
+- [x] Idempotency, price-append-on-change, and `sync_runs` outcomes — **verified by live runs against
+      the real DB** (see above), not yet as DB-backed repository tests. **Follow-up:** a repository-layer
+      test with a test database (and a simulated mid-sync failure) once a DB test harness exists.
 
 ### Close-out — same session the work lands
-- [ ] Tick this checklist as tasks land; note deviations inline.
-- [ ] `/fpl:track-work` for B-003 (parent issue + backend child); update the B-003 entry and this plan
-      to `in progress` / `done` in step.
+- [x] Checklist ticked with deviations noted.
+- [ ] `/fpl:ship` the backend branch (PR `Closes #2`), then close the register — pending the user.
