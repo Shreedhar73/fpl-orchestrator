@@ -150,8 +150,16 @@ every model then fields an XI and a captain from the *same* fifteen.
 - [ ] Per round, per squad, per model: field the best XI by projected points (`pickBestXi`, which
       already enumerates the legal formations exactly), pick the captain, apply auto-subs, and score
       against realised points
-- [ ] **Captain regret** — the realised points of the model's captain against the best realised score
-      in that squad that round. A pure decision metric, and the one a human feels most
+- [ ] **Bench order is part of the decision and each model owns its own.** The bench is ordered by
+      that model's `pPlay × EP` (`fpl-optimizer`), which is what decides who comes on when a starter
+      blanks. Stated because two models fielding the same XI can still score differently, and a reader
+      would otherwise read that gap as noise
+- [ ] **Auto-subs are a standalone pure function here**, written in this phase and reused unchanged by
+      the simulator in Phase 3 — so the rule is implemented once, tested once, and Phase 2 stays
+      honestly independent of Phase 3
+- [ ] **Captain regret, with the denominator pinned: the best realised score in the fielded XI**, not
+      in the fifteen. A bench player's haul is an XI decision, not an armband decision, and folding it
+      in makes two reports incomparable
 - [ ] Report per model and per baseline, on identical squads and identical rounds
 
 ---
@@ -191,6 +199,10 @@ The number the guide (§6) asks for, and the harness B-008 will be measured in. 
       rather than assuming a rule that has changed before has not
 - [ ] The FT bank of five holds for 2024-25 onward; a season simulated before that gets its own bank
       rule or is not simulated. State which
+- [ ] **Neither shipped policy ever takes a hit**, so the −4-inside-the-objective path is exercised by
+      Phase 5's unit test and never by a walked season. Acceptable here and said out loud in the
+      report: B-008 is what exercises it for real, and a season total produced by a policy that cannot
+      take a hit is a floor on what a policy could do, not an estimate of it
 - [ ] Runs **inside `walkRounds`** — invariant 2. No per-round re-query
 - [ ] Asserts `projections` **and** `optimizer_runs` row counts unmoved — invariant 1
 
@@ -200,6 +212,15 @@ The number the guide (§6) asks for, and the harness B-008 will be measured in. 
 
 - [ ] The same simulation, driven by `form` and by last season's points-per-90, under an identical
       policy. **This is the comparison the entry exists to make**
+- [ ] **The baseline cold start, decided here because it lands at the worst possible moment.** `form`
+      is **null for every player at round 1** — which is exactly when the squad the `no-transfer`
+      policy then holds for 38 rounds gets picked. The form-driven sim picks its GW1 squad by **last
+      season's points-per-90**, its only knowable signal at that point and the guide's own naive
+      baseline, and form takes over from round 2 as trailing rounds accumulate. Stated in the report,
+      because a baseline handed a better opening squad than it could have chosen is not a baseline
+- [ ] **A null predictor for an owned player at decision time counts as 0 for that decision** — the
+      decision has to be made and there is nothing to make it with. The *metrics* stay
+      intersection-based (Phase 0); this rule is about the simulator, which cannot skip a round
 - [ ] **The template squad's season total, as the crowd proxy** — the squad from Phase 2, held with
       the same policy. Labelled a **proxy**, because it is
 - [ ] **The real FPL average is unavailable for archive seasons and the report says so.**
@@ -255,8 +276,10 @@ Every item below is a rule the simulator could get wrong in a way that makes the
 Phase 0 first and it gates everything: every later number is a comparison, and comparisons on
 different populations are not comparisons.
 
-Phases 1 and 2 land next and are worth shipping on their own — they are cheap, they need no simulator,
-and they already answer "is the ranking better" which is most of the question. **Phase 3 is the large
+Phases 1 and 2 land next and are worth shipping on their own — they are cheap and they already answer
+"is the ranking better", which is most of the question. Phase 2 does need auto-subs, which is
+simulator machinery; that is why auto-subs are written there as a standalone pure function and reused
+by Phase 3 rather than being built twice or deferred. **Phase 3 is the large
 one** and should not hold them back; a PR carrying Phases 0–2 is a real improvement to the report
 whatever happens to the simulator.
 
