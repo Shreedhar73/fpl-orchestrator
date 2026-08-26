@@ -582,3 +582,45 @@ of those six values changes.
 HTTP 200 under `next start`, whether `notFound()` is called in the page, in `generateMetadata`, or in
 both — while an unmatched route still answers 404. That is Next 16.3 behaviour on a dynamic segment.
 It is documented in the route rather than papered over.
+
+---
+
+## D-020 · 2026-08-27 · The model is judged on decisions, not on mean absolute error
+
+**B-007 measured the projection model honestly and against the wrong target.** Its bar was MAE and a
+calibration curve versus three baselines. On the held-out 2025-26 season (29,482 rows,
+`fpl-backend/reports/calibration-fitted.md`) the fitted model returns MAE **1.124** against `form`'s
+**1.042**, RMSE **2.026** against **2.131**, bias **−0.025** against **+0.012**. Read as the plan
+wrote it, that is a failure. Read correctly, the metric is at fault.
+
+**MAE is minimised by the conditional median, and 20,496 of those 29,482 rows are ≤£5.0m players who
+mostly did not feature.** Predicting near-zero for everyone wins MAE and tells a squad optimiser
+nothing. RMSE is minimised by the conditional mean, which is what the model claims to estimate — and
+the fit objective was chosen as RMSE for the same reason, after an MAE search shrank every parameter
+toward predicting that nobody scores.
+
+**The decision.** The bar becomes **ordering and decision quality**: rank correlation and precision@k
+over the candidates the optimiser actually ranks, realised points of the XI and captain the model
+would pick against those a baseline would pick, and a **full-season simulation under the real rules**
+— free transfers banked to five, −4 hits, the 50% sell-on fee, auto-subs in bench order, captain
+fallback. This is what `docs/fpl-agent-guide.md` §6 asked for from the start and what
+`calibration/metrics.ts` does not compute. Error metrics stay in the report as diagnostics; they stop
+being the verdict. B-012 builds it.
+
+**A second decision, forced by a rule that could not fire.** Plan 007 said: if the model does not beat
+the baselines, leave `modelVersion` at v1. The same plan's serving consolidation **deleted v1**, so
+`v2-fitted-2026-08-26` serves — justified, since it beats v1's own constants on every metric measured
+on identical rows (MAE 1.232 → 1.124, bias +0.158 → −0.025), but not by the rule that was written.
+**A fallback that is deleted in the release that makes it apply is not a fallback.** The rule now
+reads: the serving version stays until its successor beats it on the bar above, and a version is not
+deleted until its successor has.
+
+**Consequence, and it corrects a published finding.** B-004's "the model over-projects the premium
+head 2–4× `ep_next`" — the defect B-007 was opened for — is **false against realised points**, and was
+false of v1 too. Bias by price band, fitted: `£7.1–9.0m` −0.497, `£9.1–11.0m` −0.444, `> £11.0m`
++0.080. Both models *under*-project the head. The original number was measured against `ep_next`,
+which is FPL's own model output; **a disagreement with another model is not an error**, and the
+direction was never checked against what players scored. The archive entry carries the correction.
+
+**What this does not excuse.** The external-baseline promise is still unmet, and moves to B-012 rather
+than being written off. Beating `form` on RMSE while losing on MAE is a split verdict, not a win.

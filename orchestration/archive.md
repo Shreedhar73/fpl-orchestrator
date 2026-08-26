@@ -35,6 +35,239 @@ arrived, and they are not always the same thing. Where they differ, say so in `O
 
 ---
 
+## B-007 · Projection model calibration — done 2026-08-27
+
+```
+Status   done
+Repos    fpl-backend
+Plan     docs/plans/007-projection-model-calibration.md
+Issue    fpl-orchestrator#6 · fpl-backend#10
+Shipped  fpl-backend#11 (Phase 1) · #12 (2b) · #15 (3-4, replaced #13) · #14 (Phase 2 + serving) — all merged 2026-08-26
+```
+
+**Why.** B-004 shipped a v1 projection engine that **over-projects the premium head** — the top ~30
+nailed starters read 2–4× their `ep_next`, from a too-generous defensive-contribution hit-rate and
+attacking terms (archive B-004, finding 1). It was deliberately not tuned to `ep_next` (that fits
+FPL's own model rather than improving ours), and honest calibration needs several `data_checked`
+gameweeks — of which there was one on 2026-08-26. When the season has enough checked gameweeks: run
+the DB-backed backtest with the strict time-cut (`backtest.ts` already provides the leak-safe filter),
+fit the knobs (defcon threshold curve, attacking multiplier, clean-sheet/conceded curves) against
+realised points, replace the placeholder bonus term with a BPS/90 model, and report MAE and
+calibration against `ep_next` / `form` / last-season. Bump `modelVersion` so old projections stay
+comparable. Depends on B-004 (done) and enough elapsed gameweeks.
+
+**Promoted to the next piece of work, 2026-08-26 — maintainer-directed.** Accuracy comes before more
+features: a transfer planner (B-008) built on skewed expected points bakes the skew into every
+recommendation it makes, and the skew is known — the premium head reads 2–4× `ep_next`. **B-008 now
+waits on this**, reversing the order the register implied.
+
+**The constraint, measured 2026-08-26 — do not re-derive it:**
+
+| Table | Rows | Reach |
+|---|---|---|
+| `player_gameweek_stats` | 610 | **one gameweek.** This is the fact table a per-gameweek backtest needs |
+| `player_season_history` | 2062 | 20 seasons, 2006/07–2025/26, but **season totals only** |
+| `player_price_history` | 614 | grows per sync |
+| `player_ownership_history` | 4970 | grows per sync |
+| `projections` | 3060 | 612 players × the 5-gameweek horizon |
+
+There is **no per-gameweek archive for past seasons in the official API** —
+`element-summary/{id}/history_past` returns totals, and that is the whole of it (`fpl-api-reference`).
+
+**Corrected 2026-08-26: that sentence originally said "no public per-gameweek archive", which is
+false.** The community archive [vaastav/Fantasy-Premier-League](https://github.com/vaastav/Fantasy-Premier-League)
+carries per-gameweek player rows from 2016-17 onward. Maintainer decision the same day: **hold the
+last three completed seasons — 2023-24, 2024-25, 2025-26, 87,087 player-gameweek rows** — ingested
+into `archive_*` tables and joined on the stable `code` (both `Player.code` and `Team.code` are
+`@unique`), never on names. Plan Phase 2b.
+
+Three limits, verified against the archive itself, and none of them removes work already agreed:
+its `xP` is **post-match contaminated** (the archive's own README documents the scrape as running
+after each gameweek and advises shifting or dropping it), so `ep_next` stays a current-season-only
+baseline reachable only through our own snapshots; weekly updates **stopped after 2024-25**, leaving
+three updates a season, so it is a training corpus and never a live source; and it carries **no
+per-gameweek `chance_of_playing_next_round` or `status`**, so the minutes model's availability input
+is as perishable as it ever was.
+
+**The split that makes this workable now.** The model is two halves and only one of them is
+calendar-bound:
+
+1. **The scoring engine is verifiable today, with the one gameweek we have.** `event/{gw}/live/`
+   carries an `explain` block per player breaking the official points down by identifier — the answer
+   key is upstream. `fpl-testing-contract` already names this as the highest-value test in the
+   project: reproduce the official `total_points` for **every** player in a finished gameweek, not a
+   sample. If our scoring disagrees with FPL's on GW1, no amount of rate-fitting will save the
+   projections, and we would be tuning knobs on top of a broken adder.
+2. **The rate and minutes model is genuinely calendar-bound.** Fitting `defcon` hit-rates, the
+   attacking multiplier and the clean-sheet curves against realised points needs several
+   `data_checked` gameweeks. GW1 is the only checked one; roughly one arrives per week.
+
+So: do (1) first — it is available immediately and gates (2).
+
+**Collect now, because it cannot be collected later.** Some of what calibration will want is
+*current-state-only* upstream and is lost the moment it changes. Before the GW2 deadline
+(**2026-08-28 17:30 UTC** — this entry was right the first time. It was "corrected" to 11:45 earlier on
+2026-08-26 by reading the stored `deadlineTime`, and the stored value was the corrupted one: every
+timestamptz Prisma wrote was shifted by the machine's UTC offset. `deadline_time_epoch` from upstream
+settles it — 1787938200, which is 17:30 UTC. Fixed in `fpl-backend` `045dafc`.):
+
+- **`event/{gw}/live/` explain blocks, captured every gameweek.** The sync's `--live` mode is
+  unimplemented (`SyncService.runLive` rejects; B-003 follow-up). Without it we keep totals and lose
+  the per-identifier breakdown, which is exactly the answer key.
+- **Ownership and price snapshots at a useful cadence** — already appended per sync, so this is a
+  question of sync frequency around deadlines, not new code.
+- **`chance_of_playing_next_round` and `status` at deadline time.** These are overwritten as news
+  changes; a minutes model cannot be honestly backtested against them after the fact, because by
+  then they say what was true *after* the games.
+- Consider whether the projections we serve should be snapshotted at deadline for later scoring
+  against reality — `projections` rows exist per model version, so this may already hold.
+
+**The baselines are perishable too — found while planning, 2026-08-26.** This list was incomplete.
+`epNext` and `form` are scalars on `players` (`prisma/schema.prisma:76–80`), upserted every sync,
+with **no history table and no public archive to backfill from**. The bar below is "beat `ep_next` /
+`form` / last season" — so without capturing them at each deadline, the headline comparison is
+unmeasurable for every gameweek that has already passed. `form` is derivable from stored
+`player_gameweek_stats`; `epNext` is not derivable from anything. Set-piece order
+(`penaltiesOrder`, `directFreekicksOrder`, `cornersOrder`) is the same kind of scalar and belongs in
+the same snapshot.
+
+**GW2 is hedged, not lost — maintainer-approved 2026-08-26.** Building the snapshot table cannot land
+before the GW2 deadline, so a zero-code `\copy players TO CSV` dump is committed under
+`fpl-backend/reports/snapshots/` instead: once on 2026-08-26 as a floor, once as late as practical
+before 17:30 UTC on the 28th. It is a flat file, not a queryable snapshot, and Phase 3 must read it
+explicitly or GW2 gets skipped like any snapshot-less gameweek.
+
+**Edge cases the calibration and the model must face** — write the plan against these rather than
+discovering them one at a time:
+
+- **Double gameweeks** — one player, one gameweek, two fixtures. The schema already keys
+  `player_gameweek_stats` by fixture for this reason; the model must sum, not overwrite.
+- **Blank gameweeks** — a player whose club has no fixture. Distinct from a benched player and from a
+  zero.
+- **Postponements and rescheduling** — `kickoff_time` null, `event` null; a fixture can move between
+  gameweeks after projections were written.
+- **`finished` is not final.** Bonus and stat corrections land afterwards; only `dataChecked` means
+  the numbers stopped moving. Training on `finished` trains on numbers that did not exist at decision
+  time.
+- **New signings and promoted-club players** with no Premier League history — the prior has nothing
+  to shrink toward.
+- **Mid-season transfers between PL clubs** — the player's history is real, the fixtures and team
+  strength behind it are not theirs any more.
+- **`removed: true` players** — out of the game mid-season, and they still sit in imported squads.
+- **`chance_of_playing_next_round: null` means fully fit**, not unknown. Treating null as 0 benches
+  every healthy player.
+- **Suspensions and red cards** — a ban is knowable in advance and is not an injury.
+- **Rotation and cup congestion** — the minutes model's hardest case, and minutes dominate everything.
+- **Price changes between projection and deadline** — the optimizer buys at `nowCost`, which moves.
+- **Set-piece and penalty order changes** — a large, cheap rate signal that flips without notice.
+- **Goalkeepers** — saves and clean sheets behave unlike every other position, and FPL changed
+  goalkeeper goal scoring within two seasons.
+- **The defensive-contribution category is new for 2025/26**, which is precisely where the current
+  over-projection comes from. **Corrected 2026-08-26:** "no multi-season prior at all" overstated it —
+  the live season is 2026/27, so 2025/26 is *last* season and the archive carries all 38 of its
+  gameweeks, with the components (CBI, tackles, recoveries) beside the total. One season, not none.
+  The column is a **count of qualifying actions, not points**: verified on 2025-26 GW1, Reinildo
+  Mandava, CBI 6 + tackles 2 = 8, under the DEF threshold of 10, and his 6 points are 2 for minutes
+  plus 4 for the clean sheet with no defcon component.
+
+**How we will know it worked** — a calibration that cannot fail is worse than none. The bar:
+reproduce official `total_points` exactly for every player in a checked gameweek; report MAE and a
+calibration curve against three baselines (`ep_next`, `form`, last season's points) and beat them or
+say plainly that we did not; assert calibration, not just error — if the model says 40% blank,
+roughly 40% should blank. Strict time cut throughout: predicting gameweek *k* may read only `< k`.
+
+---
+
+**Outcome — 2026-08-27. Four PRs, a working calibration harness, and a split verdict that is the
+finding rather than a caveat.**
+
+Shipped: `fpl-backend` #11 (points engine), #12 (three-season archive), #14 (deadline snapshot +
+serving consolidation), #15 (calibration harness + fit). What is true now that was not before:
+
+1. **The points engine is exact.** `pointsFor(stats, position, scoring)` reproduces the official
+   `total_points` for **all 610** players in GW1 compared per `explain` identifier, and for all
+   **29,747** rows of archive 2025-26. The allowlist is empty and a test asserts it stays empty. Every
+   value is read from `scoring_config`. This is the foundation everything else stands on and it no
+   longer needs re-checking.
+2. **A three-season corpus exists** — `archive_player_gameweek`, 86,755 rows, joined on the stable
+   `code`, `xP` deliberately not stored (D-016).
+3. **A leak-safe calibration harness exists** — `pnpm calibrate` / `pnpm calibrate unfitted`,
+   `(season, round)` time cut tested by inversion, features materialised as data rather than closed
+   over live accumulators (the leak that fix closed produced no error and no wrong-looking output),
+   and the `projections` row count asserted unmoved before and after every run.
+4. **The model is fitted, and v1 is deleted.** `v2-fitted-2026-08-26` serves.
+
+**The verdict, on held-out 2025-26 (29,482 scored rows) — `reports/calibration-fitted.md`:**
+
+| | MAE | RMSE | bias |
+|---|---:|---:|---:|
+| v1-shaped constants | 1.232 | 2.073 | +0.158 |
+| **fitted (serving)** | **1.124** | **2.026** | **−0.025** |
+| baseline: `form` (trailing 4) | 1.042 | 2.131 | +0.012 |
+| baseline: last season pts/90 | 3.152 | 3.665 | +1.939 |
+
+**Beats both baselines on RMSE and bias; loses to `form` on MAE.** MAE is minimised by the conditional
+median and 20,496 of the 29,482 rows are ≤£5.0m players who barely feature, so predicting everyone low
+wins MAE while being useless to an optimiser that ranks players against each other. RMSE is minimised
+by the conditional mean, which is what the model claims to estimate. `ep_next` is not among the
+baselines and could not be — the archive's `xP` is post-match contaminated (D-016), so `ep_next` is
+scoreable only against live gameweeks with a captured deadline snapshot, of which there is one.
+
+**B-004's finding 1 is now false and is corrected in place in this file.** The premium head is no
+longer over-projected 2–4×; the fitted model *under*-projects it. Bias by price band: `£7.1–9.0m`
+**−0.497**, `£9.1–11.0m` **−0.444**, `> £11.0m` **+0.080** (n=76). The defect this entry was opened for
+is gone; the residual error there is large (MAE 2.35–3.76) but no longer directional.
+
+**Two things this entry got wrong about itself, recorded so they are not repeated.**
+
+- **The "do not bump on a negative result" rule was made unenforceable by the same work.** Plan item
+  285 says: if the model does not beat the baselines, leave `modelVersion` at v1. The serving
+  consolidation then **deleted v1**, so there was no v1 to leave it at, and `v2-fitted-2026-08-26` is
+  what the GW2 optimizer run used. The honest reading — and the maintainer can veto it — is that v2
+  serves because it beats **v1** on every measured metric, and that the external-baseline bar was
+  never met and now moves to **B-012**, restated as a decision-level bar. A guard whose fallback is
+  deleted in the same release is a guard that cannot fire.
+- **MAE over every row was the wrong bar to have set.** The guide (`docs/fpl-agent-guide.md` §6) asks
+  for rank correlation, calibration curves for P(start)/P(CS)/P(DefCon)/P(bonus≥1) and Brier scores on
+  the binaries; `calibration/metrics.ts` computes none of them. The entry measured error and called it
+  calibration. B-012 and B-013 replace the bar rather than retrying it.
+
+**Established during the work, and worth not re-deriving:**
+
+- **Both fixture elasticities fitted to 0.** At single-gameweek granularity the opponent gives the
+  attacking terms no measurable signal. Team strength still reaches clean sheets and conceded points
+  through λ_against.
+- **`strength.confidenceMatches` reached the top of its search grid (96).** Held-out RMSE keeps
+  improving as team strength is shrunk toward the league average — the strength model, as built, is
+  close to carrying no information. Same root cause as the elasticities. → **B-014**.
+- **The minutes start term needed regressing, hard.** `startSlope` **0.485**, not the identity v1
+  assumed. The first fit returned 7.3e8 — complete separation, a step function, barely moving MAE.
+- **The availability multiplier is not fitted and is labelled heuristic everywhere it is used.** The
+  archive carries no per-gameweek `status` or `chance_of_playing_next_round`; nothing can change that
+  retroactively. → **B-015**.
+- **`defcon` dispersion 1.5** — defensive actions cluster, so a negative binomial tail, not a ramp. Its
+  parameters are the one exception to the holdout (fitted inside 2025-26 rounds 1–19, passed
+  separately, read by no other parameter) because the category exists in no earlier season.
+- **RMSE was chosen as the fit objective deliberately.** An MAE search shrank every parameter toward
+  predicting that nobody scores.
+- **Bonus is a real BPS model now** — 0.0415 points per BPS, capped at 3 — not the attacking-output
+  placeholder B-004 shipped.
+- **A timezone bug was found by this work and fixed** (D-018): every `timestamptz` Prisma wrote was
+  shifted by the machine's UTC offset, which had already produced a wrong GW2 deadline in this very
+  entry.
+
+**Carried forward, not dropped.** Plan 007's unticked items go to the successor entries rather than
+staying in a closed plan: the strength/elasticity rebuild to **B-014**; goalkeepers fitted separately
+and the archive/live strength-agreement test to **B-014**; availability to **B-015**; the
+`/fpl:plan-gameweek` snapshot assertion, `explain`-block retention before season rollover and the
+`SyncService.runLive` decision to **B-016**. Plan item 169 (source, licence and the three limits in
+`docs/decisions.md`) is already satisfied by **D-016** and is ticked as such.
+
+**Issues.** `fpl-orchestrator#6` and `fpl-backend#10` are closed with a comment pointing at this
+outcome and at B-012–B-017.
+
+---
+
 ## B-009 · Frontend design system and the UX pass over every view — done 2026-08-26
 
 ```
@@ -253,6 +486,17 @@ team-strength fixture model. Seven things established that the next session shou
    bug (every term is in `components`; injured → 0). It was deliberately **not** tuned to match
    `ep_next` — that fits FPL's own model rather than improving ours — and real calibration needs
    several `data_checked` gameweeks, of which there is one.
+
+   > **Corrected 2026-08-27 by B-007, which was opened for this finding.** The claim held for the v1
+   > engine and is **false of the model that serves today.** Measured on the held-out 2025-26 season
+   > (29,482 rows, `fpl-backend/reports/calibration-fitted.md`), the fitted model *under*-projects the
+   > premium head: bias `£7.1–9.0m` **−0.497**, `£9.1–11.0m` **−0.444**, `> £11.0m` **+0.080** (n=76).
+   > For the v1-shaped constants on identical rows the same bands read **−0.903 / −0.827 / −1.545** —
+   > so even v1 under-projected the head *against realised points*. The "2–4×" was measured against
+   > `ep_next`, which is FPL's own model and not the truth; the direction of the error was never
+   > checked against what players actually scored. **A defect measured against another model's output
+   > is a disagreement, not an error.** The residual error in those bands is still the largest in the
+   > table (MAE 2.35–3.76) — it is dispersion, not skew, and it belongs to B-013.
 2. **Opponent strength is real but thin right now, and that is not fixable today.** FPL's own
    attack/defence ratings read **0** this early (uncalibrated); past-season **team** xG is **not
    reconstructable** because `history_past` is per player and players change clubs; and early-season

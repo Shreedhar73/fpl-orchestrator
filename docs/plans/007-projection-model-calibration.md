@@ -166,7 +166,7 @@ source. The raw CSVs are cached outside git.
 - [x] The "GW35 expected points data is wrong (all values are 0)" erratum needs no handling — **it is about `xP`, which we do not store.** Dropping the contaminated column made the erratum moot rather than something to pin
 - [x] The per-season scoring table, hand-entered for **2025-26** and proved by reproducing all 29,747 of that season's `total_points` with zero mismatches. *Deviation: it lives in code (`archive-scoring.ts`), not the `archive_season_scoring` table the plan named — a reconstruction that must be reviewed in a diff belongs in a file, not a row. The table stays in the schema for when a season needs storing rather than declaring. 2023-24 and 2024-25 are deliberately unentered and reported as unverified.*
 - [x] Fetch into `.archive-cache/`, gitignored — `fpl-backend/.gitignore`
-- [ ] Source, licence and the three limits recorded in `docs/decisions.md`
+- [x] Source, licence and the three limits recorded in `docs/decisions.md` — **D-016**, which carries the `NOASSERTION`/no-redistribution finding and all three limits. Ticked 2026-08-27 on inspection; it was already satisfied when written.
 
 ## Phase 3 — the calibration harness
 
@@ -280,10 +280,10 @@ estimate. `ep_next` is not among the baselines and cannot be until live snapshot
 Bias by price band, v1-shaped → fitted: `> £11.0m` **−1.545 → +0.033**; `≤ £5.0m` **+0.335 → +0.084**.
 The premium head is the defect this entry was opened for.
 
-- [ ] Run the Phase 3 harness against the fitted model; compare to all three baselines
-- [ ] **If it beats them:** bump `modelVersion` to `v2`, re-run `pnpm project`, confirm the served version changed (`createdAt desc` handles it) and that v1 rows stay for comparison
-- [ ] **If it does not:** leave `modelVersion` at v1, commit the report saying so, archive B-007 with the negative outcome (maintainer decision 2026-08-26)
-- [ ] Update `docs/decisions.md` with what calibration established, and correct B-004's finding 1 in the archive with the measured number
+- [x] Run the Phase 3 harness against the fitted model; compare to all three baselines. *Two of three: `reports/calibration-fitted.md` and `reports/calibration-unfitted.md` score `form` and last-season points/90 on identical rows. **`ep_next` was impossible and remains so** — the archive's `xP` is post-match contaminated (D-016), so it is scoreable only against live gameweeks with a captured deadline snapshot, of which there is one. That comparison moves to B-016.*
+- [x] **If it beats them:** bump `modelVersion` to `v2`, re-run `pnpm project`, confirm the served version changed (`createdAt desc` handles it) and that v1 rows stay for comparison. *This is what happened — `v2-fitted-2026-08-26` serves, 3,070 rows, and `v1-fdr-blend`'s 3,060 rows are still there. It happened on the strength of beating **v1**, not the baselines. See the item below.*
+- [x] **If it does not:** leave `modelVersion` at v1, commit the report saying so, archive B-007 with the negative outcome (maintainer decision 2026-08-26). *Half-honoured, and the half that failed is the finding. The reports say plainly that the baselines were not beaten on MAE, and B-007 is archived on that outcome. But **`modelVersion` could not be left at v1: the serving consolidation in this same plan deleted v1.** The rule had no fallback to fall back to. Recorded in the archive entry and carried into B-012 as a structural rule — keep the serving version alive until its successor beats it.*
+- [x] Update `docs/decisions.md` with what calibration established, and correct B-004's finding 1 in the archive with the measured number — **D-020** (2026-08-27) and the correction block on B-004 in `archive.md`. *The correction reversed the finding rather than sizing it: the fitted model **under**-projects the premium head (bias −0.497 / −0.444 / +0.080 by band), and so did v1 against realised points. The original 2–4× was measured against `ep_next`, which is FPL's model and not the truth.*
 
 ---
 
@@ -324,3 +324,28 @@ untouched — only the PR and its review thread were lost.
 carries the originals, so a second PR off the same branch re-proposes commits that are already merged
 and conflicts. After each phase merges: delete the branch and cut a fresh one from `main`. A phase
 still in flight when the previous one merges is rebased onto `main` first.
+
+---
+
+## Closed 2026-08-27
+
+B-007 is archived (`orchestration/archive.md`) and this plan is closed. The verdict, the two things
+the entry got wrong about itself, and everything established are in the archive entry — not repeated
+here.
+
+**Six items were left unticked and none is dropped.** They were carried into the successor entries
+rather than left in a closed plan, where nobody would look for them:
+
+| Left unticked here | Went to |
+|---|---|
+| 4a — pin that archive and live sources agree on the shared strength definition (items 219, 262) | **B-014** |
+| 4c — goalkeepers fitted separately (items 238, 263) | **B-014** |
+| 4c — the availability multiplier, still heuristic | **B-015** |
+| 2 — the snapshot assertion in `/fpl:plan-gameweek` step 2 (item 139) | **B-016** |
+| 2 — `explain`-block retention before season rollover (item 140) | **B-016** |
+| 2 — the `SyncService.runLive` decision (item 141) | **B-016** |
+
+The bar this plan set — MAE and a calibration curve against three baselines — is replaced rather than
+retried. **B-012** (ordering metrics and a simulated season under the real rules) and **B-013**
+(per-component reliability curves and Brier scores) are what the guide asked for in §6 and what this
+plan measured the wrong half of.

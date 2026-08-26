@@ -50,6 +50,17 @@ attack and defence strength estimated from `expected_goals` and `expected_goals_
 rolling window, with a home advantage term. Ship the FDR baseline first and measure the replacement
 against it — an unmeasured "better" model is a preference, not an improvement.
 
+> **Measured, and it is a warning rather than a confirmation (2026-08-27, `fpl-backend/reports/
+> calibration-fitted.md`).** The replacement was built and fitted on three seasons, and on held-out
+> data **both fixture elasticities fitted to 0** and the team-strength shrinkage parameter ran to the
+> top of its search grid — held-out error kept improving as team strength was shrunk toward the
+> league average. Read together: strength estimated as *the sum of a team's players' `expected_goals`*
+> carries close to no signal at single-gameweek granularity, and an elasticity fitted on top of a
+> signal-free estimate fits to zero whatever the true fixture effect is. The fixture effect is real;
+> that construction of it is not. Estimate strength from **team goals and match results** (Dixon-Coles
+> or a rolling bivariate Poisson, home/away split) before concluding the opponent does not matter.
+> Open as B-014.
+
 **Horizon.** Transfers are decisions about the future, so project N gameweeks (default 5) and
 discount: `Σ EP(gw+i) × decay^i`, `decay ≈ 0.84`. Optimising for the next gameweek alone is how you
 sell a player the week before a run of easy fixtures. Handle double gameweeks (two fixtures in one
@@ -105,11 +116,32 @@ random-number generator.
   `< k`, and only rows where `data_checked = true` — bonus and stat corrections land *after*
   `finished` flips, so training on "finished" data leaks numbers that did not exist at decision time.
   This is the leak that makes a broken model look excellent.
-- **Baselines, always.** Report the model against: last season's points, current `form`, `ep_next`
-  (FPL's own projection), and template-ownership. A model that does not beat `ep_next` has not earned
-  a page in the UI.
+- **Baselines, always — and judge on decisions, not on MAE.** Report the model against last season's
+  points, current `form`, `ep_next` (FPL's own projection), and template-ownership. **The verdict is
+  ordering and decision quality**: rank correlation and precision@k over the candidates the optimiser
+  ranks, the realised points of the XI and captain the model picks against those a baseline picks,
+  and a full-season simulation under the real rules. Error metrics are diagnostics beside those, not
+  the verdict — **MAE in particular is a trap here** (D-020, measured 2026-08-27): it is minimised by
+  the conditional median, and roughly 70% of player-gameweeks are cheap players who barely feature,
+  so a model that predicts near-zero for everyone wins MAE while being useless to an optimiser. Fit
+  and judge on RMSE, which is minimised by the conditional mean — the thing the model claims to
+  estimate.
+- **`ep_next` is a baseline, never a target, and never the truth.** A disagreement with it is a
+  disagreement with FPL's own model, not a measured error. Sizing a defect against it is how this
+  project spent a cycle chasing an over-projection that turned out, against realised points, to be an
+  *under*-projection (D-020). Fitting to it reproduces FPL's model instead of improving on ours.
+- **Never delete the serving model version until its successor has beaten it.** A rule that says
+  "don't ship the new model on a negative result" needs something to fall back to; deleting the old
+  version in the same change makes the rule unfireable, which is exactly what happened in B-007
+  (D-020). Keep both versions' rows — they are what makes "better" checkable at all.
 - **Report the distribution, not the point estimate.** "8.2 expected, 40% chance of a blank" is a
-  decision; "8.2" is a number.
+  decision; "8.2" is a number. *Currently unmet: `projections` carries no dispersion of any kind, so
+  every consumer treats a nailed premium's 6.0 and a rotation risk's 6.0 as the same value. B-017.*
+- **Calibrate each component, not just the total.** The model is decomposed, so an error in one term
+  is invisible in the aggregate — an overall bias of −0.025 sat on top of a curve that is
+  over-confident at both tails and under-confident in the middle. Reliability curves and Brier scores
+  belong on every binary the model emits: `P(start)`, `P(60+)`, `P(clean sheet)`,
+  `P(defcon ≥ threshold)`, `P(bonus ≥ 1)`. B-013.
 - **Persist every projection and every solve** with its `model_version` and inputs. A recommendation
   you cannot reconstruct is a recommendation you cannot debug — and the UI's "why" panel reads
   straight out of `optimizer_runs`.
