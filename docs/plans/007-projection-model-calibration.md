@@ -35,6 +35,31 @@ claim), `fpl-data-model` (Phase 2 schema), `fpl-api-reference` (the `explain` bl
 - **Fitting to `ep_next` as a target.** `ep_next` is a *baseline to beat*, never a label to fit. Fitting
   it reproduces FPL's model instead of improving on ours (B-004).
 
+**Amended 2026-08-26 — a per-gameweek history exists after all.** The entry was written believing there
+is no public per-gameweek archive for past seasons. That is true of the **official API** and false in
+general: the community archive [vaastav/Fantasy-Premier-League](https://github.com/vaastav/Fantasy-Premier-League)
+carries per-gameweek player rows from 2016-17 onward. Maintainer decision: **hold the last three
+completed seasons — 2023-24, 2024-25, 2025-26 — 87,087 player-gameweek rows.** This unblocks Phase 4
+now rather than in October, and it corrects a second claim in the entry: defensive contribution is not
+without a prior. 2025/26 is *last* season (the live one is 2026/27), so a full 38 gameweeks of it exist.
+
+Three limits, each verified against the archive itself, and none of them removes work already agreed:
+
+1. **`xP` is contaminated — it cannot be the `ep_next` baseline.** The archive's own README documents
+   it: `xP` comes from `ep_this`, scraped *after* each gameweek ends. Their measurements — live
+   `ep_this` vs `form` ≈ 0.98, scraped `xP` vs `form` ≈ 0.75, `xP` rolling-3 vs same-gameweek
+   `total_points` ≈ 0.40, "unusually high for a genuinely pre-match feature" — and their advice is to
+   `shift(1)` or drop the column. **We drop it.** Of the three baselines, `form` and last season's
+   points-per-90 are computable from realised rows; **`ep_next` remains current-season-only, through
+   our own deadline snapshots.** Phase 2 is not replaced by this discovery.
+2. **The archive is not a live source.** Weekly updates stopped after 2024-25; there are now three
+   updates a season (start, January window, end). Last push was 2026-08-21 08:21 UTC, *before* GW1
+   kicked off, so no 2026-27 per-gameweek data exists and none will until January. Our sync stays the
+   only live path.
+3. **No per-gameweek `chance_of_playing_next_round` or `status`.** `players_raw.csv` is one snapshot
+   per season. The minutes model's availability input is still perishable, Phase 2 still builds
+   `player_deadline_snapshot`, and **Friday's second CSV capture is still owed.**
+
 **Plan invariants** — hold across every phase:
 1. **The backtest never persists a projection.** Results live in memory and reach disk only as a report.
    A backtest row written to `projections` for a past gameweek becomes the newest by `createdAt`, so
@@ -47,6 +72,10 @@ claim), `fpl-data-model` (Phase 2 schema), `fpl-api-reference` (the `explain` bl
    `finished` flips, so training on it trains on numbers that did not exist at decision time.
 3. **A gameweek with no captured deadline snapshot is skipped loudly**, never scored with today's
    values. See the Phase 3 leak note.
+4. **Archive rows never mix with our own.** They live in their own tables, prefixed `archive_`, joined
+   to ours only by the stable `code`. Nothing in the serving path reads them. The archive is a
+   third-party scrape, licensed `NOASSERTION`, and a row that cannot be traced back to which source
+   produced it is a row nobody can audit later.
 
 **How we will know it works**
 - **Phase 1 bar:** our points engine reproduces the official `total_points` for **every** player in a
@@ -106,6 +135,27 @@ gameweek of backtest.
   - **Second capture still owed, before 2026-08-28 11:45 UTC.** Run `/fpl:sync-fpl` first — a stale dump captures stale news, which is the one thing this file exists to avoid
 - [ ] Phase 3's loader must read the CSV hedge for GW2 specifically, or GW2 is skipped loudly like any other snapshot-less gameweek — the file is not in `player_deadline_snapshot` and no query finds it by accident
 
+## Phase 2b — ingest three seasons of per-gameweek history
+
+Added by the 2026-08-26 amendment. **2023-24, 2024-25, 2025-26** — 29,725 + 27,605 + 29,757 = **87,087
+player-gameweek rows**, all three carrying the expected-goals family and `starts`, and 2025-26 carrying
+`defensive_contribution` for all 38 gameweeks.
+
+Not vendored: the source repo is ~182 MB under `NOASSERTION`, so we fetch and store rows, and cite the
+source. The raw CSVs are cached outside git.
+
+- [ ] `archive_player_gameweek` — one row per player per fixture per season, keyed `@@unique([season, playerCode, round, fixtureId])` so a double gameweek is two rows, exactly as `player_gameweek_stats` is — `fpl-backend/prisma/schema.prisma`
+- [ ] Join on the **stable codes, never names**: gws `element` → that season's `players_raw.id` → `code` → our `Player.code` (`@unique`); `opponent_team` → that season's `teams.id` → `code` → our `Team.code` (`@unique`). Names collide and change with transfers; `code` does not
+- [ ] Store `playerCode` / `opponentTeamCode` as the archive's own values, plus a nullable FK to our row. A player who has since left the league has no `Player` row and **must still import** — a not-null FK would silently drop exactly the population the fit needs
+- [ ] Report the join rate per season, and fail the import if it falls below a stated floor. An import that quietly matches 60% of rows looks identical to one that matched all of them
+- [ ] **Drop `xP` on import.** It is post-match contaminated (see the amendment note). Not stored, so it cannot be reached for by a later session that has not read this
+- [ ] Import `clearances_blocks_interceptions`, `tackles`, `recoveries` alongside `defensive_contribution` — the components are what a threshold model fits; the total is what it predicts
+- [ ] `defensive_contribution` is a **count of qualifying actions, not points.** Verified on 2025-26 GW1: Reinildo Mandava, CBI 6 + tackles 2 = 8, below the DEF threshold of 10, and his `total_points` of 6 is 2 (60 min) + 4 (clean sheet) with no defcon component. Assert this in the importer, because reading it as points inflates every defender
+- [ ] Handle the archive's stated erratum — "GW35 expected points data is wrong (all values are 0)" — season unspecified upstream. Pin which season, and exclude or flag those rows
+- [ ] `archive_season_scoring` — the scoring table per season, since `scoring_config` is keyed by `season` (`@unique`) and holds only 2026/27. Hand-enter **2025-26** and prove it by reproducing that season's `total_points`; earlier seasons are optional depth, not required
+- [ ] Fetch into a gitignored cache directory, not the repo — `fpl-backend/.gitignore`
+- [ ] Source, licence and the three limits recorded in `docs/decisions.md`
+
 ## Phase 3 — the calibration harness, built before there is data to feed it
 
 Buildable today with one gameweek — it will be noisy and that is fine. The harness must exist before
@@ -119,17 +169,24 @@ calibration that cannot fail gets shipped.
 - [ ] A gameweek with no snapshot row is **skipped loudly** — named in the report, never silently scored with today's values, never quietly dropped from a mean
 - [ ] MAE, RMSE and bias, overall and split by position and by price band — the known defect is head-specific, so a single mean would hide it
 - [ ] Calibration curve: bucket predicted EP, plot realised mean per bucket. Assert calibration, not only error — a model that says 40% blank should blank ~40% of the time
-- [ ] Baselines scored the same way over the same players: `epNext` and `form` from the snapshot, last season's points-per-90 from `player_season_history`
+- [ ] Baselines scored the same way over the same players: `form` and last season's points-per-90 are computable from realised rows and therefore available for archive seasons too; **`epNext` is available only for current-season gameweeks with a captured snapshot** — the archive's `xP` is contaminated and is not a substitute. Report which baselines a given gameweek could be scored against, rather than quietly comparing against two in one row and three in another
 - [ ] Report written to `fpl-backend/reports/calibration-GW<k>.md`, committed — the record of what the model was when
 - [ ] **Nothing is written to `projections`.** A test asserts the row count is unchanged across a calibration run (invariant 1)
 - [ ] Sabotage run: feed the harness a deliberately terrible model, confirm the report says so rather than reporting a flattering MAE
 
-## Phase 4 — fit the knobs (calendar-bound, ~1 `data_checked` gameweek per week)
+## Phase 4 — fit the knobs (unblocked by the archive; validation still calendar-bound)
 
-Cannot start meaningfully until several checked gameweeks exist; one existed on 2026-08-26. Every knob
-below is a first estimate in `model.ts`, never fitted to anything.
+Every knob below is a first estimate in `model.ts`, never fitted to anything. Before the 2026-08-26
+amendment this phase waited on ~1 `data_checked` gameweek a week; with Phase 2b it fits on 87,087
+archive player-gameweeks and can start as soon as 2b lands.
 
-- [ ] `defconThresholdProb` — `clamp01((expectedCount / threshold) * 0.7)`, `model.ts:120`. The 0.7 is a guess and the defensive-contribution category is **new for 2025/26**, so there is no multi-season prior at all. This is the prime suspect for the premium-head over-projection
+**Fitting and validating are not the same wait.** Fit on the archive; hold the live 2026/27 season out
+entirely as the honest test set, because the archive is where the knobs were chosen and a model scored
+on the seasons it was fitted to grades its own homework. So Phase 4's fit is unblocked now, and its
+"beat the baselines" verdict still accumulates a gameweek a week — with the difference that the model
+being validated is a fitted one rather than a guessed one.
+
+- [ ] `defconThresholdProb` — `clamp01((expectedCount / threshold) * 0.7)`, `model.ts:120`. The 0.7 is a guess, and this is the prime suspect for the premium-head over-projection. **Fittable now**: 2025-26 carries the category across all 38 gameweeks with its components (CBI, tackles, recoveries), so the threshold curve is fitted on ~29,757 rows rather than one gameweek. Still only one season — the category did not exist before 2025/26
 - [ ] `attackMultiplier` — `1 + (3 - difficulty) * 0.15`, `model.ts:104`
 - [ ] `cleanSheetProb` and `expectedGoalsConceded` — `model.ts:109`, `model.ts:114`
 - [ ] Replace `estimateBonus` — `Math.min(1.5, (xg90 + xa90) * 0.6)`, `projections.service.ts:210`, labelled a placeholder in its own comment — with a BPS/90 model fitted on stored `bps`
@@ -149,9 +206,16 @@ below is a first estimate in `model.ts`, never fitted to anything.
 
 ## Sequencing
 
-Phase 1 → Phase 2 → Phase 3 are all buildable now, in that order. Phase 4 waits on the calendar.
-B-008 stays blocked until this entry closes (maintainer decision 2026-08-26), which on ~1 checked
-gameweek per week puts the earliest realistic close in October.
+Phase 1 → Phase 2 → Phase 2b → Phase 3 → Phase 4's fit are all buildable now, in that order. Only
+Phase 4's *verdict* waits on the calendar, since the live 2026/27 season is held out as the test set.
+
+Phase 1 stays first and still gates everything, including the archive: reproducing 2025-26's
+`total_points` from archive rows is how Phase 2b proves its import and its hand-entered scoring table,
+and that check needs the points engine to exist.
+
+B-008 stays blocked until this entry closes (maintainer decision 2026-08-26). That was set when the
+close looked like October; the amendment compresses the fit but not the held-out validation, so the
+question is open and the maintainer's to answer — the block stands until they say otherwise.
 
 **Deviation from `/fpl:track-work`, deliberate.** That skill assumes one PR per repo per item and puts
 `Closes #<child>` in its body. Here one child (`fpl-backend#10`) spans four phases and the last of them

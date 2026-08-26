@@ -142,9 +142,23 @@ waits on this**, reversing the order the register implied.
 | `player_ownership_history` | 4970 | grows per sync |
 | `projections` | 3060 | 612 players × the 5-gameweek horizon |
 
-There is **no public per-gameweek archive for past seasons** — `element-summary/{id}/history_past`
-returns totals, and that is the whole of it (`fpl-api-reference`). So twenty seasons of data cannot
-be turned into one gameweek of backtest.
+There is **no per-gameweek archive for past seasons in the official API** —
+`element-summary/{id}/history_past` returns totals, and that is the whole of it (`fpl-api-reference`).
+
+**Corrected 2026-08-26: that sentence originally said "no public per-gameweek archive", which is
+false.** The community archive [vaastav/Fantasy-Premier-League](https://github.com/vaastav/Fantasy-Premier-League)
+carries per-gameweek player rows from 2016-17 onward. Maintainer decision the same day: **hold the
+last three completed seasons — 2023-24, 2024-25, 2025-26, 87,087 player-gameweek rows** — ingested
+into `archive_*` tables and joined on the stable `code` (both `Player.code` and `Team.code` are
+`@unique`), never on names. Plan Phase 2b.
+
+Three limits, verified against the archive itself, and none of them removes work already agreed:
+its `xP` is **post-match contaminated** (the archive's own README documents the scrape as running
+after each gameweek and advises shifting or dropping it), so `ep_next` stays a current-season-only
+baseline reachable only through our own snapshots; weekly updates **stopped after 2024-25**, leaving
+three updates a season, so it is a training corpus and never a live source; and it carries **no
+per-gameweek `chance_of_playing_next_round` or `status`**, so the minutes model's availability input
+is as perishable as it ever was.
 
 **The split that makes this workable now.** The model is two halves and only one of them is
 calendar-bound:
@@ -217,8 +231,13 @@ discovering them one at a time:
 - **Set-piece and penalty order changes** — a large, cheap rate signal that flips without notice.
 - **Goalkeepers** — saves and clean sheets behave unlike every other position, and FPL changed
   goalkeeper goal scoring within two seasons.
-- **The defensive-contribution category is new for 2025/26** — there is no multi-season prior for it
-  at all, which is precisely where the current over-projection comes from.
+- **The defensive-contribution category is new for 2025/26**, which is precisely where the current
+  over-projection comes from. **Corrected 2026-08-26:** "no multi-season prior at all" overstated it —
+  the live season is 2026/27, so 2025/26 is *last* season and the archive carries all 38 of its
+  gameweeks, with the components (CBI, tackles, recoveries) beside the total. One season, not none.
+  The column is a **count of qualifying actions, not points**: verified on 2025-26 GW1, Reinildo
+  Mandava, CBI 6 + tackles 2 = 8, under the DEF threshold of 10, and his 6 points are 2 for minutes
+  plus 4 for the clean sheet with no defcon component.
 
 **How we will know it worked** — a calibration that cannot fail is worse than none. The bar:
 reproduce official `total_points` exactly for every player in a checked gameweek; report MAE and a
