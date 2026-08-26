@@ -1,6 +1,6 @@
 ---
 name: fpl-api-reference
-description: "The official Fantasy Premier League HTTP API: every endpoint we use, its exact payload shape, which fields are current-state-only, the auth boundary (reads are open, writes need the user's session cookie), rate/etiquette rules, and the gotchas that cost a day each (element_type vs position, now_cost in tenths, kickoff_time null for unscheduled fixtures, event/live explain blocks). Load BEFORE writing or changing any code under fpl-backend/src/modules/fpl-sync/, before adding a field to the Prisma schema that comes from upstream, before writing a fetch against fantasy.premierleague.com, or whenever you need to know what an FPL field actually contains."
+description: "The official Fantasy Premier League HTTP API: every endpoint we use, its exact payload shape, which fields are current-state-only, the auth boundary (reads are open; the product never authenticates — D-013, no writes, no cookies), rate/etiquette rules, and the gotchas that cost a day each (element_type vs position, now_cost in tenths, kickoff_time null for unscheduled fixtures, event/live explain blocks). Load BEFORE writing or changing any code under fpl-backend/src/modules/fpl-sync/, before adding a field to the Prisma schema that comes from upstream, before writing a fetch against fantasy.premierleague.com, or whenever you need to know what an FPL field actually contains."
 ---
 
 # FPL API reference
@@ -33,12 +33,16 @@ here, `curl` the endpoint and read it — then add it here.
 
 **Anything private or mutating does.** `my-team/{manager_id}/` — the pre-deadline picks including
 the bench and chip state — returns **403** unauthenticated (verified). Same for making a transfer or
-setting a lineup. Both need the user's own `pl_profile` session cookie obtained by posting their
-email and password to `https://users.premierleague.com/accounts/login/`.
+setting a lineup. All of it needs a user's own FPL session credential.
 
-That is a real credential belonging to a real person and is **deliberately not built**. The app
-recommends; the user applies the change on the official site. Do not add cookie handling without an
-explicit decision written into `orchestration/MAP.md`.
+**We never authenticate — out of scope by product definition (`docs/decisions.md` D-013).** The
+product is a public-data squad optimizer, not a manager tool: it reads only the open endpoints above.
+The old `https://users.premierleague.com/accounts/login/` host every FPL tutorial names is **gone**
+(no DNS A record, probed 2026-08-26), and the current PingOne login is bot-gated — relaying a password
+through it would be credential harvesting. So there is no `my-team/`, no writes, and no cookie
+handling: the app recommends and the user applies the change on the official site. Adding any of it
+would be a new decision superseding D-013, recorded first. The one place a manager id appears is a
+public `entry/{id}/` **import** (B-006) — an input, never a login.
 
 ## Field gotchas
 
