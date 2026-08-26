@@ -612,3 +612,176 @@ Three things this work established that are worth not re-deriving:
 
 Not covered here: FPL authentication, which stays in `backlog.md` as `B-001` with its probe results
 and no plan.
+
+---
+
+## B-010 · Minimum-appearances floor on who can be recommended — done 2026-08-27
+
+```
+Status   done
+Repos    fpl-backend
+Plan     docs/plans/009-recommendation-guards.md (shared with B-011)
+Issue    orchestrator#8 (parent), backend#16
+```
+
+**Why.** Maintainer-directed 2026-08-26: a player with almost no Premier League history should not be
+recommendable, however good the projection looks. With one gameweek played, a promoted-club player
+who scored in GW1 has a rate estimated from that one match, shrunk toward a positional mean
+(`features.ts`, `RATE_SHRINK_MINUTES = 270`) — shrinkage bounds the error, it does not remove it, and
+the optimizer is a maximiser, so it hunts exactly the players whose estimate is most inflated by
+noise. The floor is a deliberate refusal to bet on unmeasured players, not a claim they are bad.
+
+**Measured 2026-08-26 on the live database — do not re-derive.** The rule bites, and it bites the
+squad we are serving today. The last `optimizer_runs` row (GW2, `v2-fitted-2026-08-26`) picks three
+players with **one** career appearance in stored history, one of them a starter:
+
+| Player | Pos | Role | EP | Appearances |
+|---|---|---|---|---|
+| Tzolakis (HUL) | GKP | **starter** | 12.86 | 1 |
+| Emersonn (IPS) | FWD | **starter** | 16.84 | 1 |
+| Mendy (HUL) | DEF | bench | 14.33 | 1 |
+
+Appearance counted as a gameweek row with `minutes > 0`, over `archive_player_gameweek`
+(2023-24, 2024-25, 2025-26 — 86,755 rows) plus `player_gameweek_stats` (this season), joined on the
+stable `Player.code`. Note `Accumulator.matches` in `features.ts` counts **every** row including
+unused-sub zeros, so it is not the same number and cannot be reused unchanged.
+
+Distribution over the 614 non-removed players, and the feasibility check:
+
+| Appearances | Players | Note |
+|---|---|---|
+| 0 | 92 | no PL history at all |
+| 1–5 | 107 | |
+| 6–10 | 28 | |
+| 11–20 | 38 | |
+| 21+ | 349 | |
+
+- A `>10` floor (**≥11**) excludes **227 of 614 — 37%**.
+- **No premium is lost.** The most expensive excluded player is £6.5m (Munoz, Tzolis). Every
+  £7.0m+ asset survives the filter.
+- **The squad stays feasible with room to spare.** Cheapest legal 15 from the eligible pool is
+  **£65.5m** against a £100.0m budget.
+- **Bench fodder is what the floor actually costs.** At ≤£4.5m the eligible pool holds 10 GKP,
+  61 DEF, **5 MID and 0 FWD** (against 46/126/31/12 unfiltered). The third forward gets more
+  expensive, and that is the price of the rule.
+
+**Decided 2026-08-26 (maintainer).** The filter applies to the **optimizer candidate pool only** —
+option 1 below. Threshold and reporting as written.
+
+1. **Where the filter applies.** Recommended: filter the **optimizer candidate pool**, and keep
+   projecting every player. `insights` scores a user-brought squad over the same `Universe`
+   (`optimizer.service.ts`), so suppressing projection rows breaks squad scoring the moment a user
+   owns a new signing. Under this reading everyone is still *projected*; only *recommendation* is
+   gated. If the maintainer wants projections suppressed too, that trade has to be taken explicitly.
+2. **Threshold in config, not a constant** — it is a policy number, and calibration will want to
+   move it.
+3. **The exclusion must be reported.** The count, and the excluded players that would otherwise have
+   made the 15, belong in `optimizer_runs.reasoning` (`fpl-optimizer` honesty rules). A filter that
+   silently drops a third of the league is a filter nobody can audit.
+
+**What the floor is not.** It excludes every newcomer, not only promoted-club players — a £6.5m
+summer signing from abroad is filtered on the same evidence. Accepted as the cost of "just to be
+safe"; it should be stated in the UI wherever the recommendation is shown.
+
+---
+
+**Outcome — shipped 2026-08-27, backend#16 on `feat/16-recommendation-guards`.** The floor lives in
+`optimizer/policy.ts` as `MIN_APPEARANCES = 11` and applies in `prunePool` and nowhere else, so every
+player keeps a projection row and a user squad holding a new signing still scores. On the live GW2
+solve all three one-appearance players are gone — Tzolakis and Emersonn were *starters* — replaced by
+Trafford/Roefs, Richarlison and Ballard. **It costs 3.41 horizon expected points of the 4.48 the two
+guards cost together** (`fpl-backend/reports/guards-009.md`).
+
+**The thing worth not re-deriving: the floor makes B-011's problem worse on its own.** With the floor
+on and the collision penalty off, pairs held in the 15 go from 4 to 6 — removing the cheap unmeasured
+players pushes the budget into premium attackers and their opponents' defenders. The two guards are
+not independent and neither should be reverted without re-measuring the other.
+
+Also settled: appearances are counted as gameweek rows with `minutes > 0`, one grouped query per side
+(archive on `Player.code`, live on `Player.id`) — **not** `Accumulator.matches` in `features.ts`,
+which counts unused-sub zeros. Same word, different number.
+
+---
+
+## B-011 · Do not recommend both sides of the same fixture — done 2026-08-27
+
+```
+Status   done
+Repos    fpl-backend
+Plan     docs/plans/009-recommendation-guards.md (shared with B-010)
+Issue    orchestrator#8 (parent), backend#16
+```
+
+**Why.** Maintainer-directed 2026-08-26: the optimizer picks attackers of one club and defenders of
+the club they play next, so the squad bets on both outcomes of one match. The projection is right
+marginally and the *squad* is still wrong: a defender's clean sheet and the opposing attacker's goal
+are close to mutually exclusive, so the pair cannot both pay out. The EP objective is linear and
+cannot see it — `sum(EP)` is identical whether the picks are correlated or opposed.
+
+**Measured 2026-08-26 — the live GW2 recommendation does exactly this, twice.**
+
+| Fixture | On one side | On the other |
+|---|---|---|
+| BHA vs CHE | De Cuyper (BHA DEF, starter, 15.92) · Wieffer (BHA DEF, starter, 15.43) | **Palmer (CHE MID, captain, 21.12)** · João Pedro (CHE FWD, bench, 16.58) |
+| MUN vs IPS | Mbeumo (MUN MID, starter, 18.23) | Emersonn (IPS FWD, starter, 16.84) |
+
+The captain is the clearest case: the armband pays double precisely in the outcome that kills both
+starting defenders' clean sheet.
+
+**Established, from the code — do not re-derive.**
+
+- The constraint belongs in `ilp.ts` (`buildLp`): one term per conflicting pair over the existing
+  `x` binaries. The pool is pruned to ~160 candidates (`POOL_TOP = 32`, `POOL_CHEAP = 8` per
+  position), so pairwise terms stay small and the solve stays sub-second.
+- **`OptimizerRepository` loads no fixtures today.** It loads rules, players and projections only —
+  the entry needs a fixtures query returning the team pairs of the target gameweek. The table is
+  there (`fixtures`, indexed on `(homeTeamId, gameweekId)` and `(awayTeamId, gameweekId)`).
+- `pickBestXi` chooses the XI and the captain *after* the solve, so a constraint on the 15 does not
+  by itself stop a conflicting XI. Both layers have to agree or the rule leaks.
+
+**Decided 2026-08-26 (maintainer).** A **tunable penalty**, not a hard exclusion (option 1 below), and
+attacker = **FWD + MID** vs defensive = **DEF + GKP** (option 2 below).
+
+1. **Hard exclusion, or a penalty?** A hard `x_i + x_j <= 1` can only cost horizon EP, and on a
+   fixture where both sides are genuinely the best available it costs a lot. The linear-safe middle
+   is a pair indicator `z_ij >= x_i + x_j - 1` with `- lambda * z_ij` in the objective: the solver
+   may still take the pair when it is worth more than lambda. Third option: allow it and only warn
+   in `reasoning`.
+2. **Who counts as an attacker.** FWD-only would have missed the measured case entirely — Palmer is
+   a MID. Recommended: attacker = FWD + MID, defensive = DEF + GKP.
+3. **Which gameweek.** Keyed off the **first** gameweek of the 5-gameweek horizon only. Collisions in
+   GW+2 onward are answered by a transfer, not by refusing to own the player (B-008).
+4. **Not a variance model.** The honest version prices the joint distribution
+   (`projections/distributions.ts` already models blanks); this entry is the cheap structural rule.
+   Say so, rather than claiming the squad is now variance-aware.
+
+---
+
+**Outcome — shipped 2026-08-27, backend#16, and the measurement did not support the rule.** The
+penalty is linearised into the ILP (`x_i + x_j - z_ij <= 1`, objective `- LAMBDA * z_ij`, `z`
+continuous), applied again in `pickBestXi` by exact subset enumeration, and reported in
+`optimizer_runs.reasoning.collisions`. `pickBestXi` had to stop being top-EP-per-position: a pairwise
+penalty breaks separability, so the penalty-optimal XI can want the 4th defender over the 3rd, and a
+greedy pick can never reach that.
+
+**The captain case was the one that mattered most and is fixed by construction.** The captain is now
+chosen *inside* the XI enumeration with his collision counted twice — the armband doubles the stake on
+the correlated outcome, not only the reward. On the live GW2 solve the armband moves off Palmer
+(21.12 EP, facing two of our own Brighton defenders) onto Saka (20.51), and Palmer still starts.
+
+**λ was swept over 103 archived gameweeks and earned no number** (`fpl-backend/reports/guards-009.md`,
+`pnpm sweep:collision`). At λ = 1 the paired gain is **+0.59 ± 0.92** realised points per gameweek —
+inside its own noise. The per-season sign flips: 2023-24 **−2.41 ± 2.14**, 2024-25 **+2.34 ± 1.10**,
+2025-26 **+0.97 ± 1.61**, so the pooled number is a cancellation rather than an agreement. And the
+*downside* the rule was argued for as insurance got **worse** — worst decile 32.0 → 30.0, worst single
+gameweek 21 → 12.
+
+The knob is also close to binary: every value from 0.5 to 4 lands within 0.13 points of the others, so
+there is no interior optimum and "fitting λ" is not work worth doing. **The rule stays on at λ = 1 as
+an explicit policy choice** — a squad that bets on a clean sheet and against it at the same time is not
+one we want to defend to a user — and `policy.ts` says so where the number is defined rather than
+letting a later session read it as measured.
+
+Caveat on the sweep, stated in the report: each gameweek is solved from scratch at that week's prices,
+with no transfers, no hits, no sell-on fee and **no auto-subs**. Those omissions are held constant
+across λ, which makes the columns comparable; it does not make any column a season. That is B-012.
