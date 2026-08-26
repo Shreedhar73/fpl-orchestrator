@@ -146,23 +146,26 @@ gameweek of backtest.
 
 ## Phase 2b — ingest three seasons of per-gameweek history
 
-Added by the 2026-08-26 amendment. **2023-24, 2024-25, 2025-26** — 29,725 + 27,605 + 29,757 = **87,087
-player-gameweek rows**, all three carrying the expected-goals family and `starts`, and 2025-26 carrying
-`defensive_contribution` for all 38 gameweeks.
+**Landed 2026-08-26 — `fpl-backend` `5b39dcb`, PR #12. 86,755 rows held, all three seasons resolving at
+100%, and all 29,747 rows of 2025-26 reproduced exactly by our own points engine.**
+
+Added by the 2026-08-26 amendment. **2023-24, 2024-25, 2025-26**. The CSVs carry 87,087 rows; 86,755
+import, the difference being 322 Assistant Manager rows in 2024-25 (not players) and 10 byte-identical
+repeats in 2025-26.
 
 Not vendored: the source repo is ~182 MB under `NOASSERTION`, so we fetch and store rows, and cite the
 source. The raw CSVs are cached outside git.
 
-- [ ] `archive_player_gameweek` — one row per player per fixture per season, keyed `@@unique([season, playerCode, round, fixtureId])` so a double gameweek is two rows, exactly as `player_gameweek_stats` is — `fpl-backend/prisma/schema.prisma`
-- [ ] Join on the **stable codes, never names**: gws `element` → that season's `players_raw.id` → `code` → our `Player.code` (`@unique`); `opponent_team` → that season's `teams.id` → `code` → our `Team.code` (`@unique`). Names collide and change with transfers; `code` does not
-- [ ] Store `playerCode` / `opponentTeamCode` as the archive's own values, plus a nullable FK to our row. A player who has since left the league has no `Player` row and **must still import** — a not-null FK would silently drop exactly the population the fit needs
-- [ ] Report the join rate per season, and fail the import if it falls below a stated floor. An import that quietly matches 60% of rows looks identical to one that matched all of them
-- [ ] **Drop `xP` on import.** It is post-match contaminated (see the amendment note). Not stored, so it cannot be reached for by a later session that has not read this
-- [ ] Import `clearances_blocks_interceptions`, `tackles`, `recoveries` alongside `defensive_contribution` — the components are what a threshold model fits; the total is what it predicts
-- [ ] `defensive_contribution` is a **count of qualifying actions, not points.** Verified on 2025-26 GW1: Reinildo Mandava, CBI 6 + tackles 2 = 8, below the DEF threshold of 10, and his `total_points` of 6 is 2 (60 min) + 4 (clean sheet) with no defcon component. Assert this in the importer, because reading it as points inflates every defender
-- [ ] Handle the archive's stated erratum — "GW35 expected points data is wrong (all values are 0)" — season unspecified upstream. Pin which season, and exclude or flag those rows
-- [ ] `archive_season_scoring` — the scoring table per season, since `scoring_config` is keyed by `season` (`@unique`) and holds only 2026/27. Hand-enter **2025-26** and prove it by reproducing that season's `total_points`; earlier seasons are optional depth, not required
-- [ ] Fetch into a gitignored cache directory, not the repo — `fpl-backend/.gitignore`
+- [x] `archive_player_gameweek`, keyed `@@unique([season, playerCode, round, fixture])` so a double gameweek is two rows — `fpl-backend/prisma/schema.prisma`, migration `20260826161328_archive_per_gameweek_history`
+- [x] Join on the **stable codes, never names**: gws `element` → that season's `players_raw.id` → `code` → our `Player.code`; `opponent_team` → that season's `teams.id` → `code` → our `Team.code`
+- [x] Store `playerCode` / `opponentTeamCode` plus a nullable FK to our row. *Confirmed necessary: only 35.1% / 47.4% / 57.4% of rows link to a current player, so a not-null FK would have dropped roughly half the corpus.*
+- [x] Report the rate per season and gate on it. *Deviation, and it matters: the plan conflated two rates. **Resolve rate** (archive rows that mapped) is the gate at 99% — all three seasons hit 100%. **Link rate** (mapped rows matching a current player) is reported only, because a player leaving the league is not a defect. Gating on the link rate would have failed every season.*
+- [x] **`xP` dropped** — absent from the schema entirely, with the reason on the model, and a test asserting the mapper never reads it
+- [x] Import `clearances_blocks_interceptions`, `tackles`, `recoveries` alongside `defensive_contribution`. *Nullable, not 0, for the two seasons where the category did not exist — "did not exist yet" and "did nothing" are different facts.*
+- [x] `defensive_contribution` asserted as a **count, not points**, on every row carrying components — 29,747 of them. *One correction the data forced: goalkeepers count 0 however much they clear. The importer caught it on its first real run.*
+- [x] The "GW35 expected points data is wrong (all values are 0)" erratum needs no handling — **it is about `xP`, which we do not store.** Dropping the contaminated column made the erratum moot rather than something to pin
+- [x] The per-season scoring table, hand-entered for **2025-26** and proved by reproducing all 29,747 of that season's `total_points` with zero mismatches. *Deviation: it lives in code (`archive-scoring.ts`), not the `archive_season_scoring` table the plan named — a reconstruction that must be reviewed in a diff belongs in a file, not a row. The table stays in the schema for when a season needs storing rather than declaring. 2023-24 and 2024-25 are deliberately unentered and reported as unverified.*
+- [x] Fetch into `.archive-cache/`, gitignored — `fpl-backend/.gitignore`
 - [ ] Source, licence and the three limits recorded in `docs/decisions.md`
 
 ## Phase 3 — the calibration harness, built before there is data to feed it

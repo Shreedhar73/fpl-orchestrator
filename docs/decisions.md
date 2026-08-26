@@ -382,3 +382,46 @@ references.
   measurement rather than invented against none.
 - The floor is quoted with its date. A floor without one is a guess again.
 - Reducing the floor is a framework decision (leaving the App Router), not a code-review finding.
+
+---
+
+## D-016 · 2026-08-26 · Past-season per-gameweek history comes from a third-party archive
+
+**The claim B-007 was built on was wrong.** The entry stated there is no public per-gameweek archive
+for past seasons. That is true of the **official API** — `element-summary/{id}/history_past` serves
+season totals and nothing else — and false in general. The community archive
+[vaastav/Fantasy-Premier-League](https://github.com/vaastav/Fantasy-Premier-League) has carried
+per-gameweek player rows since 2016-17.
+
+**We hold the last three completed seasons** — 2023-24, 2024-25, 2025-26 — **86,755 player-gameweeks**,
+in `archive_player_gameweek` (`fpl-backend`, PR #12). Before this the projection model could be fitted
+on the one gameweek this season had produced.
+
+**It is not vendored.** The source repo is ~182 MB under `NOASSERTION` — no licence, so no
+redistribution. Rows are fetched into a gitignored cache, stored, and the source cited. They live in
+their own table, join to ours only through the stable `code`, and nothing on the serving path reads
+them: a row that cannot be traced to the source that produced it is a row nobody can audit later.
+
+**Three limits, verified, that decide what it can and cannot be used for:**
+
+1. **`xP` is post-match contaminated and is not stored.** It is FPL's `ep_this` scraped *after* each
+   gameweek ends; the archive's own README documents this and advises shifting or dropping it. So
+   `ep_next` remains a **current-season-only** baseline, reachable only through our own deadline
+   snapshots — the archive does not remove the need for B-007 Phase 2.
+2. **It is a training corpus, never a live source.** Weekly updates stopped after 2024-25; there are
+   now three updates a season (start, January window, end). `SyncService` remains the only live path.
+3. **No per-gameweek `chance_of_playing_next_round` or `status`.** `players_raw.csv` is one snapshot
+   per season, so the minutes model's availability input is as perishable as it ever was.
+
+**The import proves itself rather than reporting success.** `pointsFor` re-scores every row and must
+return the official `total_points` exactly; all 29,747 rows of 2025-26 do, which is what establishes
+the hand-entered scoring table for a past season. A season with no reconstructed table is reported as
+unverified, never counted as passing. The resolve rate is gated at 99%, because an import that quietly
+maps 60% of its rows looks identical to one that mapped all of them.
+
+**What the real data corrected, and what it settled.** The archive writes `GK` where we write `GKP`
+(matching on `GKP` drops every goalkeeper); 2024-25 carries 322 Assistant Manager rows that are not
+players; 10 rows in 2025-26 are byte-identical repeats; and goalkeepers have a defensive-contribution
+count of 0 however much they clear. It also **confirmed the FWD defcon threshold at 12**, which GW1
+could not — no forward reached it — while across 2025-26 forwards at 10 and 11 went unpaid and 12 was
+paid.
