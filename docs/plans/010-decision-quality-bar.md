@@ -228,7 +228,19 @@ The number the guide (§6) asks for, and the harness B-008 will be measured in. 
       (`features.ts`) counts *every* row including unused-sub zeros, so despite the name it is not
       an appearance count; and the live path joins on `Player.id` while the archive joins on
       `Player.code`.
-- [ ] **Tell the B-011 session that `collision-sweep.ts` is superseded** once this lands — their
+- [ ] **`collision-sweep.ts` is superseded once this lands** — and the B-011 session that owns it has
+      ended, so this is now a note to whoever picks it up rather than a message owed. They asked to
+      delete it rather than keep two half-simulators, and agreed to first rerun their lambda sweep
+      through `scoreLineup()` and amend `reports/guards-009.md`: that sweep scores an XI with a
+      doubled captain and **no auto-substitutions**, and the omission is **not neutral across
+      lambda** — the collision penalty pushes the squad toward players facing different fixtures, so
+      it changes how often the bench is actually needed. The corrected table could move the
+      comparison and not only its level.
+
+      **One thing they will hit:** `scoreLineup()` needs realised **minutes** per player per round,
+      not just points. Minutes are what trigger a substitution, and a bench player who also blanked
+      cannot come on. If `collision-sweep.ts` carries only points, that is the plumbing to add.
+- [ ] ~~Tell the B-011 session that `collision-sweep.ts` is superseded~~ once this lands — their
       lambda sweep is a simulator without transfers, hits, the sell-on fee or auto-subs, and they
       asked to delete it rather than keep two half-simulators. Owed from a peer message, recorded here
       because a promise living only in a message is a promise nobody inherits
