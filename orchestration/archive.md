@@ -1194,3 +1194,61 @@ winner whether or not its objective can distinguish the candidates. `xaFixtureEl
 1.9497 at every value from 1.0 to 2.0 and would have shipped as 1.5 on 0.0007 RMSE of evidence. See
 [D-023](../docs/decisions.md).
 
+---
+
+## B-020 · The non-linear terms are integrated over the count and not over the minutes
+
+```
+Status   done — shipped 2026-08-27
+Repos    fpl-backend
+Plan     docs/plans/013-integrate-over-minutes.md
+Issue    orchestrator#11, backend#25 · PR fpl-backend#26
+```
+
+**Why.** Opened 2026-08-27, mid-session, off B-013's measurement rather than off a proposal.
+`distributions.ts` exists to enforce one rule — *the expectation of a function is not the function of
+the expectation* — and v2 applied it to the **count** while leaving it broken one argument earlier, on
+the **minutes**. Every non-linear term was evaluated once at `expectedMinutes`, which is itself an
+expectation.
+
+A defender on 7.5 defensive actions per 90 who is 30% to start has `expectedMinutes ≈ 25`, so λ ≈ 1.9
+against a threshold of 10 and `P(reach it)` is nearly zero. What actually happens is that 30% of the
+time he plays 83 minutes at λ ≈ 6.9 with a real chance, and 70% of the time he plays nothing. A
+threshold is convex in λ, so averaging the minutes first destroys the tail.
+
+Riding with it, found while reading the same expression against `fpl-domain-rules`: **goals conceded
+was gated on 60 minutes and no such rule exists.** Only the clean sheet has that gate. The term
+charged nothing to a substitute who comes on and concedes, and priced a full match's λ for a player
+who plays twenty minutes.
+
+---
+
+**Outcome — shipped 2026-08-27, backend#26. The hypothesis held, and it was the whole defcon miss.**
+
+Defensive contribution, saves and goals conceded are evaluated inside each of the model's two fitted
+minutes states and mixed by state probability. Two states rather than a finer grid, because two is
+what the minutes model has fitted — a smoother distribution here would be structure the parameters do
+not carry.
+
+Base rate 0.054, same 29,482 held-out rows:
+
+| | predicted | reliability | skill |
+|---|---:|---:|---:|
+| before | 0.013 | 0.0022 | 0.058 |
+| shape fix only | 0.034 | 0.0016 | 0.135 |
+| + re-fit | **0.048** | **0.0005** | **0.163** |
+
+**The re-fit is the part worth carrying forward.** `defcon.ratePer90ToMatch` moved 0.9 → 1.0, and it
+had been absorbing part of the shape error: with the threshold evaluated once at average minutes, a
+lower rate was the least-bad compromise across nailed and rotated players. A constant fitted against a
+wrong shape is partly a correction for it, so a shape change obliges a re-fit even when no parameter
+is nominally involved.
+
+No component is an outlier any more — the worst term is `P(60+ minutes)` at 0.0015 against a mean of
+0.0007. Ordering spearman 0.531 → 0.533, captured @11 35.0% → 36.3%, @15 37.8% → 38.5%. Under
+`greedy-1ft` the season total goes 1924 → 1946 and the gap to the crowd's template squad closes to
+**20 points**, from 102 before B-019.
+
+Overall bias −0.002 → **+0.064**. The model was under-paying these terms and now pays them; that is a
+real change in level and it is stated rather than buried.
+
