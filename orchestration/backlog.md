@@ -114,7 +114,7 @@ Status   in progress
 Repos    fpl-backend
 Plan     docs/plans/007-projection-model-calibration.md
 Issue    fpl-orchestrator#6 · fpl-backend#10
-PRs      fpl-backend#11 (Phase 1, merged) · #12 (2b) · #13 (3-4) · #14 (Phase 2 + serving) — #12/#13/#14 open, stacked in that order
+PRs      fpl-backend#11 (Phase 1) · #12 (2b) · #15 (3-4, replaced #13) · #14 (Phase 2 + serving) — all merged 2026-08-26
 ```
 
 **Why.** B-004 shipped a v1 projection engine that **over-projects the premium head** — the top ~30

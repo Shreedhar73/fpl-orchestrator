@@ -313,6 +313,12 @@ carrying `Closes #10` would shut the child three phases early. Therefore: **each
 PR off `feat/10-projection-model-calibration`, and interim PRs say `Part of #10`. Only the Phase 4 PR
 says `Closes #10`.**
 
+**Retarget a stacked PR to `main` BEFORE merging its base with `--delete-branch`.** Learned the hard
+way on 2026-08-26: merging #12 with `--delete-branch` deleted `feat/10-archive-ingest`, and GitHub
+**closed** the child PR #13 that was based on it. A closed PR whose base branch is gone can be neither
+reopened nor retargeted, so #13's content had to be re-opened as #15. The branch and commits survived
+untouched — only the PR and its review thread were lost.
+
 **And the branch is recreated after each merge, not reused.** This repo merges with `gh pr merge
 --squash`, which replaces a phase's commits with one new commit on `main` — the phase branch still
 carries the originals, so a second PR off the same branch re-proposes commits that are already merged
