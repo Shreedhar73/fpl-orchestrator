@@ -160,11 +160,32 @@ sell value.
 ## B-012 · The bar the model is judged on — rank, decisions, and a simulated season
 
 ```
-Status   planned
+Status   in progress — Phases 0–2 built and committed, Phases 3–6 not started
 Repos    fpl-backend
 Plan     docs/plans/010-decision-quality-bar.md
-Issue    —
+Issue    —  (blocked, see below)
+Branch   fpl-backend `feat/decision-quality-bar`, in the worktree `../fpl-backend-b012`
 ```
+
+> **State as of 2026-08-27.** Phases 0, 1 and 2 are built, tested and committed —
+> `2eb1604`, `8902410`, `264de84`, plus plan ticks. 162 tests green, sabotage runs recorded per phase.
+> `pnpm decision-quality` writes `reports/decision-quality.md`. **Phases 3–6 (the season simulator,
+> its baselines, and the verdict) are not started**, deliberately: see the two blockers.
+>
+> **Blocker 1 — no issues exist.** `gh issue create` was denied by this session's permission
+> classifier, twice. The parent and child bodies are drafted and the exact commands are with the
+> maintainer. The branch is named `feat/decision-quality-bar` and must be renamed
+> `feat/<child>-decision-quality-bar` once the number exists (git rule 3).
+>
+> **Blocker 2 — a rebase is owed, and Phase 3 sits on top of it.** B-010/B-011 shipped in
+> `fpl-backend#17` (backend#16, parent orchestrator#8), unmerged at time of writing. It adds a
+> **required `appearances` field to `Candidate`**, which `fixed-squads.ts` constructs, and it rewrote
+> `pickBestXi` to enumerate subsets. Phase 3 builds on exactly that surface, so it is written after
+> the rebase, not before it and rebased.
+>
+> **Two sessions shared one `fpl-backend` working tree on 2026-08-27** and both sets of uncommitted
+> changes landed in it. Resolved by taking a worktree for this entry; the shared tree was restored to
+> the other session's branch. A second session on this repo should take a worktree first, not after.
 
 **Why.** B-007 measured the model and could not say whether it is good, because it measured the wrong
 thing. It reports MAE, RMSE and bias over every archive row and calls the result a split verdict:
@@ -225,6 +246,19 @@ returning players, new signings, first appearances — are the hardest ones. Sco
   reshape the harness without moving a fitted parameter. Asserted by a test rather than assumed.
 - **Archive `value` is the player's price that round**, so price movement through a simulated season
   comes free — but only where a row exists, so prices carry forward across blanks.
+
+**Measured 2026-08-27, Phases 0–2 — do not re-derive.**
+
+| Phase | Finding |
+|---|---|
+| 0 | **The comparison artefact was small.** On the rows `form` can reach, the model reads MAE **1.119** against the 1.124 B-007 reported. Its gap to `form` was real, not bookkeeping — this phase's own hypothesis, measured and wrong. |
+| 0 | **But the population split is large.** On the 11,648 rows carrying a prior-season baseline (450+ minutes last season), the model beats `form` **1.699 to 1.742**; over all 28,905 it loses 1.119 to 1.042. The difference is fringe players, where the outcome is usually zero and near-zero predictions are nearly unbeatable on MAE. |
+| 0 | **`fit.ts` DOES route through `runBacktest`** — the plan said it did not. Its grid search scores every candidate that way, so the common-row restriction would have moved every fitted constant silently. Guarded structurally and behaviourally; `pnpm fit:model` returns every constant byte-identical. |
+| 1 | **A split on ordering.** `form` wins whole-field Spearman **0.574 to 0.518**; the model wins points-captured **at every k in every view** (35.4% vs 33.5% @11, 43.2% vs 40.1% @30). Whole-field rank correlation is dominated by players who score nothing, which `form` ranks well by predicting nothing. The optimiser chooses at the top. |
+| 1 | **The fit is what put the model ahead there.** Unfitted v1 constants capture **32.6%** @11, *behind* `form`'s 33.5%; fitted captures 35.4%. MAE could not show this. |
+| 2 | **The XI decision is a null result.** Not one model-versus-`form` comparison clears two standard errors and the sign flips across squads (**+0.19** template, **−0.84** random #3). Given a fixed fifteen most of the XI picks itself; the ordering advantage should appear in *which* fifteen you own, which is Phase 3. |
+| 2 | **38 rounds is not enough to resolve a couple of points a week.** From the B-011 session's sweep (`reports/guards-009.md`): a +0.59 paired mean carried a 0.92 standard deviation and the per-season sign flipped across three seasons. Every difference this entry reports is paired by round and carries a standard error. Without that, Phase 2 would have reported a win. |
+| 2 | **Round 1 is absent from any common-row population** — `form` has no trailing round at a season's first deadline. Squads are built at round 1 and scored over the 37 rounds after it. |
 
 **The bar for this entry.** Beat `form` on ordering **and** on simulated season points, or state the
 negative result in the report and leave `modelVersion` alone. The lesson from B-007 stands and is

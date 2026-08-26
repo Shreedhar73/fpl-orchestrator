@@ -210,6 +210,14 @@ every model then fields an XI and a captain from the *same* fifteen.
 
 The number the guide (§6) asks for, and the harness B-008 will be measured in. Built once, here.
 
+- [ ] **Rebase onto `fpl-backend#17` first** (B-010/B-011). It adds a required `appearances` field to
+      `Candidate`, which `fixed-squads.ts` constructs, and rewrites `pickBestXi` to enumerate subsets.
+      Take the appearance count from that PR's own query rather than writing a second one. Phase 3
+      builds on this surface, so the rebase comes before the code, not after it
+- [ ] **Tell the B-011 session that `collision-sweep.ts` is superseded** once this lands — their
+      lambda sweep is a simulator without transfers, hits, the sell-on fee or auto-subs, and they
+      asked to delete it rather than keep two half-simulators. Owed from a peer message, recorded here
+      because a promise living only in a message is a promise nobody inherits
 - [ ] **`SeasonSimulator`, policy as a parameter** — `src/modules/calibration/season-sim.ts`. Two
       policies ship, both deliberately dumb and labelled so: **`no-transfer`** (pick at GW1, hold to
       GW38 — the floor that says how much of a season is just the opening squad) and **`greedy-1ft`**
