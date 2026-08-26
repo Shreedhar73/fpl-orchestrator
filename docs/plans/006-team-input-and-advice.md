@@ -136,34 +136,36 @@ not passed), `FPL_UPSTREAM_UNAVAILABLE` (timeout or 5xx — ours, never theirs),
 
 ### Phase 0 — the contract pipeline (backend, then frontend)
 
-- [ ] Wire Swagger into the backend and serve the OpenAPI document at `/api-docs-json` — `fpl-backend/src/main.ts`
-- [ ] Confirm the envelope interceptor and exception filter are reflected in the generated document, or document the deliberate gap — `fpl-backend/src/common/interceptors/response-envelope.interceptor.ts`, `fpl-backend/src/common/filters/all-exceptions.filter.ts`
-- [ ] Add `openapi-typescript` and replace the `exit 1` stub so `pnpm generate:api` writes `src/lib/api/types.gen.ts` — `fpl-frontend/package.json`
-- [ ] Generate `types.gen.ts` for the first time against the running backend and confirm `pnpm typecheck` passes — `fpl-frontend/src/lib/api/types.gen.ts`
-- [ ] Point `apiClient` at the generated types; keep the hand-written envelope types as the only hand-written shapes — `fpl-frontend/src/lib/api/client.ts`, `fpl-frontend/src/lib/api/types.ts`
+- [x] Wire Swagger into the backend and serve the OpenAPI document at `/api-docs-json` — `fpl-backend/src/main.ts`, `fpl-backend/src/common/swagger/document.ts`
+- [x] Confirm the envelope interceptor and exception filter are reflected in the generated document, or document the deliberate gap — `fpl-backend/src/common/swagger/api-envelope.decorator.ts` *(deviation: confirming was not enough. Swagger sees the controller's return type, so an undecorated endpoint documents the **unwrapped** payload and the generated types would describe a shape that never arrives. Added `ApiEnvelopeResponse` / `ApiEnvelopeError` decorators that compose the envelope schema, and every endpoint from Phase 1 carries one. Verified in `openapi.json`: the health response is `allOf: [ApiEnvelopeDto, { data: HealthDto }]`.)*
+- [x] Add `openapi-typescript` and replace the `exit 1` stub so `pnpm generate:api` writes `src/lib/api/types.gen.ts` — `fpl-frontend/package.json`
+- [x] Generate `types.gen.ts` for the first time against the running backend and confirm `pnpm typecheck` passes — `fpl-frontend/src/lib/api/types.gen.ts` *(deviation: generation reads `../fpl-backend/openapi.json`, not a running server. New `pnpm openapi:emit` writes that file from a Nest app context that never listens, so regenerating types needs a build rather than a live backend and a healthy Postgres — runnable in CI and on a machine where the database is down. The document is still served at `/api-docs-json` for a human, from the same builder so the two cannot drift.)*
+- [x] Point `apiClient` at the generated types; keep the hand-written envelope types as the only hand-written shapes — `fpl-frontend/src/lib/api/client.ts`, `fpl-frontend/src/lib/api/types.ts` *(added the `Schema<'Name'>` shorthand over `components['schemas']`)*
+- [x] **Unplanned, found here:** `health.controller.ts` claimed to be "excluded from the envelope contract". It is not — the interceptor is global, verified against the running server. Corrected the comment in both repos and gave health a `HealthDto` so the document is not schema-less — `fpl-backend/src/modules/health/`, `fpl-frontend/src/lib/api/client.ts`
+- [x] **Unplanned, found here:** `pnpm typecheck` in the frontend failed on `.next/types` being stale or absent (`Cannot find name 'LayoutProps'`). It now runs `next typegen && tsc --noEmit`, so it is self-sufficient — `fpl-frontend/package.json`
 
 ### Phase 1a — backend: import and persistence
 
-- [ ] Make `SquadPick.sellValue` nullable and migrate, with the reason in a schema comment — `fpl-backend/prisma/schema.prisma`, `fpl-backend/prisma/migrations/`
-- [ ] Add `entry/{id}/` and `entry/{id}/event/{gw}/picks/` to the FPL client with a short timeout and typed responses — `fpl-backend/src/infra/fpl/fpl-api.client.ts`, `fpl-backend/src/infra/fpl/fpl.types.ts`
-- [ ] Scaffold the `squad` module — controller, service, repository, `dto/`, module — `fpl-backend/src/modules/squad/`
-- [ ] `SquadDto` + `ImportSquadDto` with class-validator rules on `managerId` (positive integer) — `fpl-backend/src/modules/squad/dto/`
-- [ ] Import service: resolve `current_event`, fetch picks, map element ids to `Player`, upsert `squads` + `squad_picks` with `isPlanned: false` — `fpl-backend/src/modules/squad/squad.service.ts`, `fpl-backend/src/modules/squad/squad.repository.ts`
-- [ ] Map every upstream failure to an `errorCode` — 404, `current_event` null, pre-deadline gameweek, timeout, unknown element — `fpl-backend/src/modules/squad/squad.service.ts`
-- [ ] `POST /api/squad/import` and `GET /api/squad/:managerId` — `fpl-backend/src/modules/squad/squad.controller.ts`
-- [ ] `GET /api/squad/recommended` returning the optimizer's 15 in `SquadDto` shape with `managerId: null`, not persisted to `squads` — `fpl-backend/src/modules/squad/squad.controller.ts`
-- [ ] Tests: import mapping against a recorded real `picks/` payload; the second-import-hits-Postgres path; each error code — `fpl-backend/src/modules/squad/__tests__/`
+- [x] Make `SquadPick.sellValue` nullable and migrate, with the reason in a schema comment — `fpl-backend/prisma/schema.prisma`, `fpl-backend/prisma/migrations/20260826115339_squad_pick_sell_value_nullable/`
+- [x] Add `entry/{id}/` and `entry/{id}/event/{gw}/picks/` to the FPL client with a short timeout and typed responses — `fpl-backend/src/infra/fpl/fpl-api.client.ts`, `fpl-backend/src/infra/fpl/fpl.types.ts` *(5 s timeout and a single attempt for these two, against the bulk endpoints' 30 s and four. Added `FplHttpError` carrying the upstream status, without which a 404 and a timeout are the same string.)*
+- [x] Scaffold the `squad` module — controller, service, repository, `dto/`, module — `fpl-backend/src/modules/squad/`
+- [x] `SquadDto` + `ImportSquadDto` with class-validator rules on `managerId` (positive integer) — `fpl-backend/src/modules/squad/dto/` *(the pick's slot is `slot`, not `position`: upstream calls it `position` and a pick already has a position in the GKP/DEF/MID/FWD sense)*
+- [x] Import service: resolve `current_event`, fetch picks, map element ids to `Player`, upsert `squads` + `squad_picks` with `isPlanned: false` — `fpl-backend/src/modules/squad/squad.service.ts`, `fpl-backend/src/modules/squad/squad.repository.ts`
+- [x] Map every upstream failure to an `errorCode` — 404, `current_event` null, pre-deadline gameweek, timeout, unknown element — `fpl-backend/src/modules/squad/squad.errors.ts` *(a 404 on the **picks** after the entry resolved is `SQUAD_NOT_AVAILABLE_YET`, not `MANAGER_NOT_FOUND` — the manager plainly exists, we just fetched them)*
+- [x] `POST /api/squad/import` and `GET /api/squad/:managerId` — `fpl-backend/src/modules/squad/squad.controller.ts` *(added, unplanned: import short-circuits when the store already holds this manager's squad for the latest gameweek whose deadline has passed, which is what actually satisfies check 2 below — picks are locked post-deadline, so a re-fetch could only return the identical payload)*
+- [x] `GET /api/squad/recommended` returning the optimizer's 15 in `SquadDto` shape with `managerId: null`, not persisted to `squads` — `fpl-backend/src/modules/squad/squad.controller.ts`
+- [x] Tests: import mapping against a recorded real `picks/` payload; the second-import-hits-Postgres path; each error code — `fpl-backend/src/modules/squad/__tests__/`
 
 ### Phase 1b — backend: the advice
 
-- [ ] Expose the XI / captain / bench selection on `OptimizerService` so `insights` can call it for a squad it did not solve — `fpl-backend/src/modules/optimizer/optimizer.service.ts`
-- [ ] Scaffold the `insights` module — controller, service, `dto/`, module — `fpl-backend/src/modules/insights/`
-- [ ] `AdviceDto`: captain, vice, bench order, per-player EP with its evidence, and the comparison block against the optimal 15 — `fpl-backend/src/modules/insights/dto/`
-- [ ] Advice service: best XI + captain from the given 15, then the gap against a fresh optimal solve for the same gameweek — `fpl-backend/src/modules/insights/insights.service.ts`
-- [ ] Set `meta.dataAsOfGw` on every advice response — `fpl-backend/src/modules/insights/insights.controller.ts`
-- [ ] `GET /api/insights/advice/:managerId` and `GET /api/insights/advice/recommended` — `fpl-backend/src/modules/insights/insights.controller.ts`
-- [ ] Tests: the gap is `≥ 0` for any legal squad and exactly `0` for the optimizer's own — `fpl-backend/src/modules/insights/__tests__/`
-- [ ] Break-on-purpose: a squad with a deliberately wrong captain must make the advice disagree with it — `fpl-backend/src/modules/insights/__tests__/`
+- [x] Expose the XI / captain / bench selection on `OptimizerService` so `insights` can call it for a squad it did not solve — `fpl-backend/src/modules/optimizer/optimizer.service.ts` *(extracted as the exported `arrangeSquad`. `buildUniverse` had to come with it: both sides of the comparison must be measured against identical expected points, or the gap is partly an artefact of two builds disagreeing. Also added `run({ persist: false })` — the advice endpoint solves on every request and would otherwise bury real solves in `optimizer_runs`.)*
+- [x] Scaffold the `insights` module — controller, service, `dto/`, module — `fpl-backend/src/modules/insights/` *(with its own repository: the per-term `components` that make a projection explainable are not in the optimizer's candidate universe, which only ever needed the total)*
+- [x] `AdviceDto`: captain, vice, bench order, per-player EP with its evidence, and the comparison block against the optimal 15 — `fpl-backend/src/modules/insights/dto/advice.dto.ts` *(plus `notAdvisedOn`, which states in the payload that transfers and chips are B-008 — the gap is visible in the response, not only in this file)*
+- [x] Advice service: best XI + captain from the given 15, then the gap against a fresh optimal solve for the same gameweek — `fpl-backend/src/modules/insights/insights.service.ts`, `fpl-backend/src/modules/insights/advice.ts`
+- [x] Set `meta.dataAsOfGw` on every advice response — `fpl-backend/src/common/data-as-of.ts`, `fpl-backend/src/common/interceptors/response-envelope.interceptor.ts` *(the interceptor had no mechanism for it at all; a controller now stamps the request and the interceptor reads it back, since the gameweek is only known once the handler has run. `GET /api/squad/recommended` stamps it too — it is a solve.)*
+- [x] `GET /api/insights/advice/:managerId` and `GET /api/insights/advice/recommended` — `fpl-backend/src/modules/insights/insights.controller.ts`
+- [x] Tests: the gap is `≥ 0` for any legal squad and exactly `0` for the optimizer's own — `fpl-backend/src/modules/insights/__tests__/`
+- [x] Break-on-purpose: a squad with a deliberately wrong captain must make the advice disagree with it — `fpl-backend/src/modules/insights/__tests__/insights.service.spec.ts` *(and two guards were broken on purpose and watched go red: defaulting `sellValue` to `nowCost`, and inverting the bench sort)*
 
 ### Phase 1c — frontend: the squad view (server components only)
 
