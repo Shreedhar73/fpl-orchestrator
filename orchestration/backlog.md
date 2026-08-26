@@ -110,10 +110,10 @@ to FPL" paragraph — the answer is now that we handle no FPL cookies at all.
 ## B-005 · Squad optimizer — best legal squad from scratch
 
 ```
-Status   planned
+Status   in progress
 Repos    fpl-backend
 Plan     docs/plans/005-squad-optimizer.md
-Issue    —
+Issue    orchestrator#4 (parent), backend#6
 ```
 
 **Why.** Turns projections into the optimal 15 under the **full squad ruleset**: £100m budget, 2/5/5/3
