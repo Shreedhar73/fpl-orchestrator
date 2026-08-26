@@ -178,8 +178,10 @@ So: do (1) first — it is available immediately and gates (2).
 
 **Collect now, because it cannot be collected later.** Some of what calibration will want is
 *current-state-only* upstream and is lost the moment it changes. Before the GW2 deadline
-(**2026-08-28 11:45 UTC** — corrected 2026-08-26: `deadlineTime` is timestamptz and the 17:30 first
-written here was the +05:45 local wall clock read as UTC):
+(**2026-08-28 17:30 UTC** — this entry was right the first time. It was "corrected" to 11:45 earlier on
+2026-08-26 by reading the stored `deadlineTime`, and the stored value was the corrupted one: every
+timestamptz Prisma wrote was shifted by the machine's UTC offset. `deadline_time_epoch` from upstream
+settles it — 1787938200, which is 17:30 UTC. Fixed in `fpl-backend` `045dafc`.):
 
 - **`event/{gw}/live/` explain blocks, captured every gameweek.** The sync's `--live` mode is
   unimplemented (`SyncService.runLive` rejects; B-003 follow-up). Without it we keep totals and lose
@@ -204,7 +206,7 @@ the same snapshot.
 **GW2 is hedged, not lost — maintainer-approved 2026-08-26.** Building the snapshot table cannot land
 before the GW2 deadline, so a zero-code `\copy players TO CSV` dump is committed under
 `fpl-backend/reports/snapshots/` instead: once on 2026-08-26 as a floor, once as late as practical
-before 11:45 UTC on the 28th. It is a flat file, not a queryable snapshot, and Phase 3 must read it
+before 17:30 UTC on the 28th. It is a flat file, not a queryable snapshot, and Phase 3 must read it
 explicitly or GW2 gets skipped like any snapshot-less gameweek.
 
 **Edge cases the calibration and the model must face** — write the plan against these rather than

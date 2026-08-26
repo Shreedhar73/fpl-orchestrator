@@ -26,8 +26,8 @@ claim), `fpl-data-model` (Phase 2 schema), `fpl-api-reference` (the `explain` bl
 **Out of scope**
 - **Any UI.** No endpoint, no page, no DTO. The report is a committed artifact under `fpl-backend`.
 - **Built GW2 deadline capture** — maintainer decision 2026-08-26. The GW2 deadline
-  (**2026-08-28 11:45 UTC** — `deadlineTime` is timestamptz and 17:30 is the +05:45 local wall clock;
-  the backlog entry's "17:30Z" was that mistake) arrives before Phase 2 can land. The zero-code CSV
+  (**2026-08-28 17:30 UTC** — the backlog entry was right; the "11:45" correction written here earlier
+  on 2026-08-26 came from reading a stored value that a timezone bug had shifted, fixed in `045dafc`) arrives before Phase 2 can land. The zero-code CSV
   hedge below is taken instead, so GW2 is **not** lost — but it is a flat file, not a queryable
   snapshot table, and the minutes model is not backtested against it. Honest minutes-model
   backtesting still starts at **GW3** (see the leak note under Phase 3).
@@ -139,9 +139,9 @@ gameweek of backtest.
 - [ ] Name the trigger so the table cannot sit empty: `/fpl:plan-gameweek` step 2 already runs `/fpl:sync-fpl` before each deadline. Add the snapshot assertion to that step — `skills/user/plan-gameweek/SKILL.md` (orchestrator repo)
 - [ ] Decide and implement `explain`-block retention before season rollover: a raw-JSON capture table, versus 38 committed fixtures at ~440 KB each (~17 MB in-repo, which argues for the table) — `prisma/schema.prisma`, `sync.service.ts`
 - [ ] `SyncService.runLive` currently rejects (`sync.service.ts:299`). Decide in this phase whether it is needed at all: `--full` re-reads finished gameweeks and `explain` persists within the season, so live sync may be unnecessary for calibration and only useful for in-play display. Record the decision either way — `docs/decisions.md`
-- [ ] **Zero-code hedge for GW2** — maintainer approved 2026-08-26. `\copy players TO CSV HEADER` into `fpl-backend/reports/snapshots/gw2-players-<UTC timestamp>.csv`, committed. Taken twice: once now as a floor, once as late as practical before **2026-08-28 11:45 UTC** — the last capture before the deadline is the one Phase 3 reads, since news moves until the deadline
+- [ ] **Zero-code hedge for GW2** — maintainer approved 2026-08-26. `\copy players TO CSV HEADER` into `fpl-backend/reports/snapshots/gw2-players-<UTC timestamp>.csv`, committed. Taken twice: once now as a floor, once as late as practical before **2026-08-28 17:30 UTC** — the last capture before the deadline is the one Phase 3 reads, since news moves until the deadline
   - **First capture done 2026-08-26 15:45 UTC** — 614 rows, `fpl-backend` `04e0150` on `feat/10-projection-model-calibration`, joined to `teams` and keyed on `fplId` so it survives a database reset. Source data was 1.5h old (last successful `bootstrap-static/` sync 14:15 UTC)
-  - **Second capture still owed, before 2026-08-28 11:45 UTC.** Run `/fpl:sync-fpl` first — a stale dump captures stale news, which is the one thing this file exists to avoid
+  - **Second capture still owed, before 2026-08-28 17:30 UTC.** Run `/fpl:sync-fpl` first — a stale dump captures stale news, which is the one thing this file exists to avoid
 - [ ] Phase 3's loader must read the CSV hedge for GW2 specifically, or GW2 is skipped loudly like any other snapshot-less gameweek — the file is not in `player_deadline_snapshot` and no query finds it by accident
 
 ## Phase 2b — ingest three seasons of per-gameweek history
