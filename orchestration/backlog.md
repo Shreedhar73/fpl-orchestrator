@@ -113,7 +113,7 @@ to FPL" paragraph — the answer is now that we handle no FPL cookies at all.
 ## B-008 · Transfer planning — one free transfer, hits, chip windows
 
 ```
-Status   backlog
+Status   backlog — unblocked 2026-08-27 (D-021)
 Repos    fpl-backend
 Plan     —
 Issue    —
@@ -136,7 +136,13 @@ premium head is no longer over-projected — see the correction on B-004 in `arc
 promise that replaced it — beat the baselines — **was not kept**. On held-out 2025-26 the model beats
 `form` on RMSE and bias and loses to it on MAE, and neither number is about a transfer decision.
 
-So the accuracy-first order stands and the condition changes: **this entry waits on B-012**, whose bar
+**Unblocked 2026-08-27.** B-012's verdict landed (D-021) and `season-sim.ts` exists — the harness this
+entry is measured in, with its transfer policy as a parameter so the planner plugs in rather than
+bringing one written to flatter it. Both shipped policies refuse hits, so every season total B-012
+reports is a **floor**; beating them is this entry's first job. Note what B-012 found on the way: the
+crowd's opening fifteen outscores ours, so a planner starting from our squad solve starts behind.
+
+The original condition, kept for the reasoning: **this entry waited on B-012**, whose bar
 is ordering quality and a simulated season under the real rules. Two reasons, and the second is the
 practical one. A hit is a −4 bet that a projected difference is real, so it is the most
 error-amplifying thing the product does. And **B-012 builds the season simulator this entry needs to
@@ -160,11 +166,11 @@ sell value.
 ## B-012 · The bar the model is judged on — rank, decisions, and a simulated season
 
 ```
-Status   in progress — Phases 0–2 shipped to PR, Phases 3–6 not started
+Status   in progress — all six phases built; PRs #18 and #19 open, awaiting merge
 Repos    fpl-backend
 Plan     docs/plans/010-decision-quality-bar.md
 Issue    —  (blocked, see below)
-PR       fpl-backend#18 — open 2026-08-27, Phases 0–2, rebased onto #17
+PR       fpl-backend#18 (Phases 0–2) · #19 (Phases 3–6, stacked on #18) — both open 2026-08-27
 Branch   fpl-backend `feat/decision-quality-bar`, in the worktree `../fpl-backend-b012`
 ```
 
@@ -268,6 +274,20 @@ returning players, new signings, first appearances — are the hardest ones. Sco
 | 2 | **The XI decision is a null result.** Not one model-versus-`form` comparison clears two standard errors and the sign flips across squads (**+0.19** template, **−0.84** random #3). Given a fixed fifteen most of the XI picks itself; the ordering advantage should appear in *which* fifteen you own, which is Phase 3. |
 | 2 | **38 rounds is not enough to resolve a couple of points a week.** From the B-011 session's sweep (`reports/guards-009.md`): a +0.59 paired mean carried a 0.92 standard deviation and the per-season sign flipped across three seasons. Every difference this entry reports is paired by round and carries a standard error. Without that, Phase 2 would have reported a win. |
 | 2 | **Round 1 is absent from any common-row population** — `form` has no trailing round at a season's first deadline. Squads are built at round 1 and scored over the 37 rounds after it. |
+
+**The verdict, 2026-08-27 — see [D-021](../docs/decisions.md).** The bar was: beat `form` on ordering
+**and** on simulated season points, or say plainly that we did not. **We did not.**
+
+| | model | `form` | template (crowd proxy) |
+|---|---:|---:|---:|
+| points captured @11 | **35.4%** | 33.5% | — |
+| season, no transfers | **1846** | 1172 | 1738 |
+| season, one free transfer a week | 1896 | 1807 | **1998** |
+
+Ordering, yes. Season points, **only when neither side may transfer** — give both a weekly transfer
+and the gap falls inside the noise floor. And the crowd's opening fifteen beats ours by 102 points
+under the same policy and the same projections, which says **the squad solve is what is behind, not
+obviously the projection**. `modelVersion` does not move; the serving version is not deleted.
 
 **The bar for this entry.** Beat `form` on ordering **and** on simulated season points, or state the
 negative result in the report and leave `modelVersion` alone. The lesson from B-007 stands and is

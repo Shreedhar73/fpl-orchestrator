@@ -624,3 +624,60 @@ direction was never checked against what players scored. The archive entry carri
 
 **What this does not excuse.** The external-baseline promise is still unmet, and moves to B-012 rather
 than being written off. Beating `form` on RMSE while losing on MAE is a split verdict, not a win.
+
+---
+
+## D-021 · 2026-08-27 · The model is not adopted, and the squad solve is what is behind
+
+**D-020 replaced mean absolute error with decision quality as the bar. B-012 built the bar and the
+model did not clear it.** Recorded here because the negative result is a decision — it is what stops
+a transfer planner being built on this model, and it names what to fix instead.
+
+**Measured on held-out 2025-26** (`fpl-backend/reports/decision-quality.md`, PRs #18 and #19):
+
+| | model | `form` | template (crowd proxy) |
+|---|---:|---:|---:|
+| ordering — points captured @11 | **35.4%** | 33.5% | — |
+| whole-field Spearman | 0.518 | **0.574** | — |
+| season, no transfers | **1846** | 1172 | 1738 |
+| season, one free transfer a week | 1896 | 1807 | **1998** |
+
+**Ordering: the model wins, and the fit is what won it.** Points captured in the top *k* is higher at
+every k in every view. `form` wins whole-field rank correlation, which is not a contradiction: a
+whole-field coefficient is dominated by the players who score nothing, and a squad optimiser never
+chooses between two players who will both blank. On identical rows the *unfitted* v1 constants capture
+32.6% @11 — behind `form` — against the fitted model's 35.4%. MAE reported the unfitted model as worse
+without ever saying whether the difference reached a decision.
+
+**Season points: the model wins only when neither side may transfer.** Held all season its opening
+fifteen is worth 674 points more than one picked by last season's points per 90 (+18.22 a round ±
+2.85). Give both a weekly transfer and `form` goes 1172 → 1807 while the model goes 1846 → 1896,
+leaving +2.41 a round ± 2.79 — **inside the noise.** The general lesson is worth more than the number:
+**a weekly transfer corrects a weak opening squad faster than it improves a strong one, so a model
+that is better only before the first deadline is worth much less than a season total suggests.**
+
+**The finding that redirects the work: the crowd's opening fifteen scores 1998 against our 1896**,
+under the same policy and the same projections. The only difference between those runs is the opening
+squad. **What is behind is the squad solve, not obviously the projection.**
+
+**Consequences.**
+1. **`modelVersion` does not move and `v2-fitted-2026-08-26` keeps serving.** It remains the best
+   thing we have — it beats v1 on every measured metric — and it is not deleted, per D-020's rule.
+2. **B-008 unblocks** on this verdict and inherits `season-sim.ts` as the harness it is measured in.
+   Its transfer policy is a parameter precisely so the planner plugs in rather than bringing a harness
+   written to flatter it. The two shipped policies never take a hit, so every total above is a
+   **floor** on what a policy could do.
+3. **B-013 and B-014 are the next work**, and now for a specific reason rather than a general one:
+   the question is why a squad built from these projections is worse than the crowd's.
+4. **38 rounds cannot resolve a couple of points a week.** Every difference reported is paired by
+   round and carries a standard error. Without that, two of these findings would have been reported
+   as wins.
+
+**A measurement rule that generalises beyond this project.** "No row this round" was being read as
+"had no fixture", which benches the player. Only rounds 31 and 34 of 2025-26 carry fewer than twenty
+clubs, so a *club* with no rows really did blank — but 690 players have a round-1 row and 820 have one
+by round 29, because squads are registered through the season. A *player* with no row was as often
+dropped or an unused substitute, none of it knowable before a deadline. Read as a blank, it quietly
+benched every player about to lose their place: worth several points a season, and **indistinguishable
+from a good minutes model**. Blanks are decided at club level; a dropped player keeps his last known
+projection. Any future backtest that infers availability from absence has this bug.

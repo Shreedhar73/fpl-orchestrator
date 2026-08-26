@@ -208,6 +208,42 @@ every model then fields an XI and a captain from the *same* fifteen.
 
 ## Phase 3 — the season simulator
 
+**Landed 2026-08-27 — `fpl-backend` `3690206`, PR #19 (stacked on #18). 201 tests, three sabotage runs.**
+
+**The verdict, on held-out 2025-26:**
+
+| policy | model | `form` | template (crowd proxy) |
+|---|---:|---:|---:|
+| `no-transfer` | **1846** | 1172 | 1738 |
+| `greedy-1ft` | **1896** | 1807 | **1998** |
+
+**Held all season the model's opening fifteen is worth 674 points more** than one picked by last
+season's points per 90 — **+18.22 a round ± 2.85**, clearing the noise floor comfortably. That is
+Phase 1's ordering advantage appearing exactly where Phase 2 said it would: **in which fifteen you
+own, not in how you arrange one you already have.**
+
+**Give both a transfer a week and most of it closes.** `form` goes 1172 → 1807, the model 1846 →
+1896, leaving **+2.41 a round ± 2.79 — not clearing the noise floor.** A weekly transfer corrects a
+weak opening squad faster than it improves a strong one, so a model that is better only before the
+first deadline is worth much less than the totals suggest.
+
+**And the headline: the crowd's opening fifteen, under the same policy and the same projections,
+scores 1998 against the model's 1896.** The only difference is the opening squad. Our squad solve is
+worse than owning what everyone else owned.
+
+**The bar is not met.** Ordering yes; season points only when neither side may transfer.
+`modelVersion` does not move, the serving version is not deleted (D-020).
+
+> **The leak this phase found, and it is the most important thing in it.** The plan said to infer
+> blanks from the rows, and that inference is only safe at **club** level. Measured 2026-08-27: only
+> rounds 31 and 34 of 2025-26 carry fewer than twenty clubs, so a club with no rows really did blank —
+> but **690 players have a round-1 row and 820 have one by round 29**, because squads are registered
+> through the season. A *player* with no row was as often dropped, injured or an unused substitute,
+> none of it knowable before a deadline. Read as a blank it **quietly benched every player about to
+> lose their place** — worth several points a season, and indistinguishable from a good minutes model.
+> Blanks are now decided at club level and a dropped player keeps his last known projection. **This
+> also corrects the Phase 2 numbers in #18.**
+
 The number the guide (§6) asks for, and the harness B-008 will be measured in. Built once, here.
 
 - [x] **Rebase onto `fpl-backend#17`** (B-010/B-011) — done 2026-08-27, `b2831ac`. *Merged as `88fa3f7`.
@@ -228,7 +264,7 @@ The number the guide (§6) asks for, and the harness B-008 will be measured in. 
       (`features.ts`) counts *every* row including unused-sub zeros, so despite the name it is not
       an appearance count; and the live path joins on `Player.id` while the archive joins on
       `Player.code`.
-- [ ] **`collision-sweep.ts` is superseded once this lands** — and the B-011 session that owns it has
+- [x] **`collision-sweep.ts` is superseded once this lands** — and the B-011 session that owns it has
       ended, so this is now a note to whoever picks it up rather than a message owed. They asked to
       delete it rather than keep two half-simulators, and agreed to first rerun their lambda sweep
       through `scoreLineup()` and amend `reports/guards-009.md`: that sweep scores an XI with a
@@ -244,62 +280,62 @@ The number the guide (§6) asks for, and the harness B-008 will be measured in. 
       lambda sweep is a simulator without transfers, hits, the sell-on fee or auto-subs, and they
       asked to delete it rather than keep two half-simulators. Owed from a peer message, recorded here
       because a promise living only in a message is a promise nobody inherits
-- [ ] **`SeasonSimulator`, policy as a parameter** — `src/modules/calibration/season-sim.ts`. Two
+- [x] **`SeasonSimulator`, policy as a parameter** — `season-sim.ts`. — `src/modules/calibration/season-sim.ts`. Two
       policies ship, both deliberately dumb and labelled so: **`no-transfer`** (pick at GW1, hold to
       GW38 — the floor that says how much of a season is just the opening squad) and **`greedy-1ft`**
       (each round, the single transfer that most improves decayed horizon EP, never a hit). Anything
       cleverer is B-008 plugging into this interface
-- [ ] **The rules, all of them, per simulated season** — `fpl-domain-rules` is the source, not memory:
+- [x] **The rules, all of them, per simulated season** — `fpl-domain-rules` is the source, not memory:
       one free transfer per round banked to a maximum of five; a transfer beyond the bank costs −4 and
       the cost sits **inside** the objective; sell price is purchase price plus half the profit rounded
       down to £0.1m; exactly 1 GKP / ≥3 DEF / ≥2 MID / ≥1 FWD in the XI; a four-player ordered bench
       with the GK in slot 1 replacing only the GK
-- [ ] **Auto-subs, simulated exactly.** Only **0 minutes** triggers a substitution — a player who plays
+- [x] **Auto-subs, simulated exactly** — reused from Phase 2's pure function, as planned. Only **0 minutes** triggers a substitution — a player who plays
       and scores 1 is never subbed. Bench players are tried in order and only if the formation stays
       legal. If the captain plays 0 minutes the vice is doubled; **if both play 0 minutes nobody is
       doubled**
-- [ ] **Blank rounds have no row, so prices must carry forward.** `value` exists only where a row
+- [x] **Blank rounds have no row, so prices must carry forward.** `value` exists only where a row
       exists. Last-known price per player, carried forward, and a blank is distinguished from a zero
       — a player with no row that round scores 0 and is a candidate for an auto-sub, not a player who
       was benched
-- [ ] **Blank and double detection from the rows themselves.** There is no archive fixtures table. A
+- [x] **Blank and double detection from the rows themselves** — *and this is where the plan was wrong in a way that mattered. See the leak note below.* There is no archive fixtures table. A
       team has no fixture in a round when none of its players has a row for that round; a player with
       two rows in a round had a double and the points **add**. Assert both against known 2025-26 rounds
       rather than trusting the inference
-- [ ] **An owned player who becomes unprojectable** (`matchesSample === 0` — a stranger the model has
+- [x] **An owned player who becomes unprojectable** (`matchesSample === 0` — a stranger the model has
       no inputs for) is **held at EP 0, not silently transferred out**. Stated because the alternative
       is defensible and the two produce different seasons; a policy that quietly rewrites the squad is
       a policy that hides its own failures
-- [ ] **Squad rules read from `scoring_config`, and the assumption checked.** The sim reads the current
+- [x] **Squad rules read from `scoring_config`, and the assumption checked.** The sim reads the current
       season's quotas. Assert that 2025-26's squad size, quotas, budget and club limit match them
       rather than assuming a rule that has changed before has not
-- [ ] The FT bank of five holds for 2024-25 onward; a season simulated before that gets its own bank
+- [x] The FT bank of five holds for 2024-25 onward — *the cap is a parameter, not a constant, and a test pins that.*; a season simulated before that gets its own bank
       rule or is not simulated. State which
-- [ ] **Neither shipped policy ever takes a hit**, so the −4-inside-the-objective path is exercised by
+- [x] **Neither shipped policy ever takes a hit**, so the −4-inside-the-objective path is exercised by
       Phase 5's unit test and never by a walked season. Acceptable here and said out loud in the
       report: B-008 is what exercises it for real, and a season total produced by a policy that cannot
       take a hit is a floor on what a policy could do, not an estimate of it
-- [ ] Runs **inside `walkRounds`** — invariant 2. No per-round re-query
-- [ ] Asserts `projections` **and** `optimizer_runs` row counts unmoved — invariant 1
+- [x] Runs **inside `walkRounds`** — invariant 2. No per-round re-query
+- [x] Asserts `projections` **and** `optimizer_runs` row counts unmoved — invariant 1
 
 ---
 
 ## Phase 4 — the baselines a season total can be compared to
 
-- [ ] The same simulation, driven by `form` and by last season's points-per-90, under an identical
+- [x] The same simulation, driven by `form` and by last season's points-per-90, under an identical
       policy. **This is the comparison the entry exists to make**
-- [ ] **The baseline cold start, decided here because it lands at the worst possible moment.** `form`
+- [x] **The baseline cold start, decided here because it lands at the worst possible moment.** `form`
       is **null for every player at round 1** — which is exactly when the squad the `no-transfer`
       policy then holds for 38 rounds gets picked. The form-driven sim picks its GW1 squad by **last
       season's points-per-90**, its only knowable signal at that point and the guide's own naive
       baseline, and form takes over from round 2 as trailing rounds accumulate. Stated in the report,
       because a baseline handed a better opening squad than it could have chosen is not a baseline
-- [ ] **A null predictor for an owned player at decision time counts as 0 for that decision** — the
+- [x] **A null predictor for an owned player at decision time counts as 0 for that decision** — the
       decision has to be made and there is nothing to make it with. The *metrics* stay
       intersection-based (Phase 0); this rule is about the simulator, which cannot skip a round
-- [ ] **The template squad's season total, as the crowd proxy** — the squad from Phase 2, held with
+- [x] **The template squad's season total, as the crowd proxy** — the squad from Phase 2, held with
       the same policy. Labelled a **proxy**, because it is
-- [ ] **The real FPL average is unavailable for archive seasons and the report says so.**
+- [x] **The real FPL average is unavailable for archive seasons and the report says so.**
       `Gameweek.averageScore` exists for the live season only; upstream serves no past season's
       `bootstrap-static`, and the archive carries no per-round average. Recording the absence is the
       honest move — an unavailable baseline quietly dropped reads as a baseline that was beaten
@@ -310,21 +346,21 @@ The number the guide (§6) asks for, and the harness B-008 will be measured in. 
 
 Every item below is a rule the simulator could get wrong in a way that makes the model look better.
 
-- [ ] Sell fee, pinned by example: buy at 50, price 53 → sells at **51**; buy at 50, price 48 → sells
+- [x] Sell fee, pinned by example: buy at 50, price 53 → sells at **51**; buy at 50, price 48 → sells
       at **48** (the whole loss is eaten)
-- [ ] FT bank: rolls, caps at **5**, and a transfer beyond it costs −4 each
-- [ ] Auto-subs: a 0-minute starter is replaced; a 1-point starter is **not**; a substitution that
+- [x] FT bank: rolls, caps at **5**, and a transfer beyond it costs −4 each
+- [x] Auto-subs: a 0-minute starter is replaced; a 1-point starter is **not**; a substitution that
       would break the formation is skipped and the next bench player tried; the bench GK replaces only
       the GK
-- [ ] Captain fallback: vice doubles only when the captain played 0 minutes; both at 0 → nobody doubled
-- [ ] **Double gameweek and blank, pinned on the serving path too.** `forecast.service.ts` already sums
+- [x] Captain fallback: vice doubles only when the captain played 0 minutes; both at 0 → nobody doubled
+- [x] **Double gameweek and blank, pinned on the serving path too** — *the fold was inline and unreachable from a test, so it was extracted (`foldFixture`) rather than tested through a mock that would have passed either way.* `forecast.service.ts` already sums
       a player's fixtures and emits no entry for a blank (lines 116–117, verified 2026-08-27) and
       **nothing tests it**. A season simulation walks into both every year
-- [ ] Sabotage, all recorded in the PR body: shuffled predictions crater points-captured@11 (Phase 1);
+- [x] Sabotage, all recorded in the PR body: shuffled predictions crater points-captured@11 (Phase 1);
       a deliberately terrible model loses the simulated season by a wide margin; auto-subs disabled
       changes the season total; the vice-fallback and both-blank rules each go red when inverted; the
       sell fee inverted (half the *loss* refunded) goes red
-- [ ] **Guard the guard.** Assert the simulated season is a plausible season at all — a total in the
+- [x] **Guard the guard.** Assert the simulated season is a plausible season at all — a total in the
       range a real FPL season produces, 38 rounds walked, 15 players held at every round, the budget
       never exceeded. A simulator that silently fields 10 players scores badly for a reason nobody
       would look for
@@ -333,16 +369,16 @@ Every item below is a rule the simulator could get wrong in a way that makes the
 
 ## Phase 6 — the verdict
 
-- [ ] `pnpm decision-quality` writes `reports/decision-quality.md`: ordering metrics, XI and captain
+- [x] `pnpm decision-quality` writes `reports/decision-quality.md`: ordering metrics, XI and captain
       quality, and simulated season totals for the model and every baseline, on identical rows,
       identical squads and identical policies
-- [ ] The Phase 0 finding stated plainly — what the common-row restriction did to the headline MAE gap
-- [ ] The **defcon caveat** (invariant 4) on the verdict, not only in the calibration reports
-- [ ] **If the model wins on ordering and on season points:** say so, with the margins, and B-008
+- [x] The Phase 0 finding stated plainly — what the common-row restriction did to the headline MAE gap
+- [x] The **defcon caveat** (invariant 4) on the verdict, not only in the calibration reports
+- [ ] ~~**If the model wins on ordering and on season points:**~~ — it did not, see below. say so, with the margins, and B-008
       unblocks
-- [ ] **If it does not:** the report says so, `modelVersion` does not move, the serving version is not
+- [x] **If it does not:** the report says so, `modelVersion` does not move, the serving version is not
       deleted, and B-013 and B-014 become the next work — they are the entries that say *why*
-- [ ] Correct `docs/decisions.md` if any of D-020's reasoning turns out to be wrong when measured
+- [x] Correct `docs/decisions.md` if any of D-020's reasoning turns out to be wrong — **D-021**. *D-020's reasoning held: MAE over the whole field was the wrong verdict, and the decision metrics found things it could not. What D-020 did not anticipate is that the decision metrics would also be the thing that stops the model being adopted.* when measured
       properly. It is a hypothesis about metrics until this plan tests it
 
 ---
@@ -383,3 +419,32 @@ already. That is the difference between this entry and B-015, and it is why this
 **B-008 unblocks on Phase 6's verdict, not on this plan's merge.** It also gains Phase 3's simulator
 as the harness it is measured in — which is the second reason the simulator is built here and not
 there.
+
+---
+
+## Closed 2026-08-27
+
+All six phases built. **`fpl-backend#18`** (Phases 0–2) and **`fpl-backend#19`** (Phases 3–6, stacked
+on it). 205 tests, thirteen recorded sabotage runs, five reports committed.
+
+**The bar was: beat `form` on ordering AND on simulated season points, or say plainly that we did
+not. We did not.** Ordering, yes — points captured at every k, in every view. Season points, only
+when neither side may transfer; once both can, the difference does not clear the noise floor.
+`modelVersion` does not move and the serving version is not deleted.
+
+**Three things this plan found that were not what it went looking for:**
+
+1. **A model that is better only before the first deadline is worth much less than a season total
+   suggests.** A weekly transfer corrects a weak opening squad faster than it improves a strong one.
+2. **The crowd's opening fifteen beats ours** — 1998 to 1896 under the same policy and the same
+   projections. The squad solve, not the projection, is the thing most obviously behind.
+3. **"No row" means two different things, and reading it as one is a leak** worth several points a
+   season that looks exactly like a good minutes model.
+
+**What this changes for the register.** The question is no longer "is the model better" but "why is a
+squad built from its own projections worse than the crowd's". **B-013** (which component is wrong) and
+**B-014** (team strength carries no signal; both fixture elasticities fitted to 0) are where that is
+answered, and both are now more clearly the next work than they were.
+
+**B-008 unblocks** on this plan's verdict, and inherits `season-sim.ts` as the harness it is measured
+in — with its transfer policy as a parameter, so the planner plugs in rather than bringing its own.
