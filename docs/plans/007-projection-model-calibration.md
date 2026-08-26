@@ -247,20 +247,19 @@ These are wrong independently of any fitting, and fitting on top of them would t
 
 ### 4e. The verdict
 
-**⚠ Owed, and it is a live footgun as of 2026-08-26: there are now TWO projection writers.**
+**The two-writer footgun, found and closed the same day — `fpl-backend` `c11e9fa`.**
 
-`pnpm forecast` writes `v2-fitted-<date>` rows and `pnpm project` still writes `v1-fdr-blend`. Serving
-picks by `createdAt desc` (`latestProjectionModelVersion()`), so **whichever ran last is the model the
-whole app serves** — optimizer, insights, and the frontend advice panel alike. Right now that is v2,
-because the forecast ran last. **Running `pnpm project` silently reverts the app to v1**, with no error
-and nothing in the UI to say so, and `/fpl:plan-gameweek` step 4 tells a session to run exactly that.
+For a few hours `pnpm forecast` wrote `v2-fitted-<date>` and `pnpm project` still wrote `v1-fdr-blend`.
+Serving picks by `createdAt desc`, so the two never conflicted — they took turns, and the app served
+whichever ran last. `/fpl:plan-gameweek` step 4 tells a session to run `pnpm project`, which would have
+reverted the whole app to v1 on the next weekly run with no error and nothing visible. The same
+`createdAt` trap as invariant 1 above, from the other direction: invariant 1 stops a *backtest* from
+becoming the served model, and nothing stopped two *legitimate* writers.
 
-This is the same `createdAt desc` trap written into invariant 1 at the top of this plan, arriving from
-the other direction: invariant 1 stopped a backtest from becoming the served model, and nothing stops
-two legitimate writers from taking turns.
-
-- [ ] **One projection entry point.** Either wire `FITTED_PARAMS` into `ProjectionsService` so `pnpm project` *is* the fitted path, or make `pnpm project` delegate to the forecast and keep one writer. Until then, do not run `pnpm project`
-- [ ] Pin the shared strength definition with a test that feeds archive and live rows through `buildLeague` and asserts they agree — the live path now maps into the same `HistoryRow` shape, so the claim is structural, but nothing checks it
+- [x] **One projection entry point.** `ProjectionsService` delegates to `ForecastService` and writes the fitted version; `pnpm forecast` is deleted. The forecast engine moved into `projections` (it is a serving concern), and the calibration harness reads history through the same repository — one definition of history, shared by the backtest and the served path
+- [x] **The v1 model is deleted, not shelved** — `model.ts`, `minutes.ts`, `team-strength.ts`, the rate-blending, and the six repository reads that fed them. A superseded model in the tree is a second writer waiting to be imported. `UNFITTED_PARAMS` restates its constants in the v2 shape, so what it did is still measurable
+- [x] Guarded structurally, since the failure is structural: a test pins the version to the fitted parameters, asserts `package.json` exposes no second projection entry point, and asserts the deleted files are still gone. Verified by restoring `pnpm forecast` — the guard goes red
+- [ ] Pin the shared strength definition with a test that feeds archive and live rows through `buildLeague` and asserts they agree — the live path maps into the same `HistoryRow` shape, so the claim is structural, but nothing checks it
 - [ ] Goalkeepers fitted separately
 
 **Measured 2026-08-26 on the held-out 2025-26 season, and it is a split verdict.**
