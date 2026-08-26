@@ -130,5 +130,6 @@ numbers against `ep_next` accrue as the season adds checked gameweeks.
 
 ### Close-out — same session the work lands
 - [x] Checklist ticked with deviations and the over-projection noted honestly.
+- [x] Shipped as backend#5 (squash-merged). Child #4 and parent orchestrator#3 closed; B-004 archived. Team-strength model added mid-build.
 - [ ] `/fpl:track-work` for B-004 (parent issue + backend child), then `/fpl:ship`; update the entry,
       plan and issue in step.

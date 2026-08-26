@@ -107,24 +107,6 @@ to FPL" paragraph — the answer is now that we handle no FPL cookies at all.
 
 ---
 
-## B-004 · Projection model — expected points per player per gameweek
-
-```
-Status   in progress
-Repos    fpl-backend
-Plan     docs/plans/004-projection-model.md
-Issue    orchestrator#3 (parent), backend#4
-```
-
-**Why.** The core signal. Projects expected points for each player for each upcoming gameweek from
-**player form** (recent minutes, returns, underlying numbers) and **team form** (attack/defence
-strength) weighted by **fixture** difficulty, for both the next GW and a season-long horizon. Writes
-to the `Projection` table; each run is reconstructable (the UI's "why" panel reads the inputs). No
-optimizer decision is trustworthy without this, and it is where the product's accuracy lives.
-Depends on B-003.
-
----
-
 ## B-005 · Squad optimizer — best legal squad and transfer plan
 
 ```

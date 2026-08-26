@@ -33,6 +33,54 @@ arrived, and they are not always the same thing. Where they differ, say so in `O
 
 <!-- Entries land below this line, newest first. -->
 
+## B-004 · Projection model — expected points per player per gameweek — done 2026-08-26
+
+```
+Status   done
+Repos    fpl-backend
+Plan     docs/plans/004-projection-model.md
+Issue    orchestrator#3 (parent), backend#4
+Shipped  backend#5
+```
+
+**Why.** The core signal. Projects expected points for each player for each upcoming gameweek from
+**player form** (recent minutes, returns, underlying numbers) and **team form** (attack/defence
+strength) weighted by **fixture** difficulty, for both the next GW and a season-long horizon. Writes
+to the `Projection` table; each run is reconstructable (the UI's "why" panel reads the inputs). No
+optimizer decision is trustworthy without this, and it is where the product's accuracy lives.
+Depends on B-003.
+
+**Outcome.** A minutes-first projection engine exists and is verified against a real Postgres:
+`pnpm project` writes 3060 projections (612 players × 5 gameweeks), idempotent, MAE 0.84 vs `ep_next`,
+injured players → 0, 30 tests. The build grew twice on the maintainer's asks, both folded in: prior
+seasons (`history_past` → `player_season_history`, as an early-season prior + baseline) and a
+team-strength fixture model. Seven things established that the next session should not re-derive:
+
+1. **The model over-projects the premium head** — top ~30 nailed starters read 2–4× `ep_next`, from a
+   too-generous defensive-contribution hit-rate and attacking terms. It is v1 calibration, **not** a
+   bug (every term is in `components`; injured → 0). It was deliberately **not** tuned to match
+   `ep_next` — that fits FPL's own model rather than improving ours — and real calibration needs
+   several `data_checked` gameweeks, of which there is one.
+2. **Opponent strength is real but thin right now, and that is not fixable today.** FPL's own
+   attack/defence ratings read **0** this early (uncalibrated); past-season **team** xG is **not
+   reconstructable** because `history_past` is per player and players change clubs; and early-season
+   **FDR already encodes last season's table**. So the team-strength model blends rolling-xG difficulty
+   with FDR by a confidence that grows with matches — ~80% FDR at one match, xG-dominated by mid-season.
+   Building a pure strength model now would rest on one match and be worse than FDR.
+3. **FDR conflates attacking and defensive difficulty; xG splits them.** Scoring difficulty comes from
+   the opponent's defence, clean-sheet difficulty from the opponent's attack — the model carries both.
+4. **Backtesting is blocked on data, not code.** The strict time-cut (gw < k and `data_checked` only)
+   exists as a pure, leak-tested filter; the DB-backed scorer waits for more checked gameweeks and
+   point-in-time feature reconstruction from `player_gameweek_stats`.
+5. **Prisma migrations regenerate the client, but a stale tsc/editor view lingers** — run
+   `pnpm exec prisma generate` explicitly after a `migrate dev` if a new model/field reads as missing.
+6. **`team.strength` and the granular `strength_*` fields are null/0 preseason** — mappers coalesce to
+   0 and the model treats 0 as "no signal", never as "weakest team".
+7. **Scoring is read from `scoring_config`** (per-position `goals_scored`/`clean_sheets`/…); the
+   break-on-purpose test hardcodes a value and watches the guard go red.
+
+Bonus is a placeholder (attacking-involvement proxy, not a BPS/90 model) — a named follow-up.
+
 ## B-003 · FPL public-data ingest (sync) — done 2026-08-26
 
 ```
