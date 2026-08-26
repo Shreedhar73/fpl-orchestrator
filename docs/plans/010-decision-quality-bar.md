@@ -76,6 +76,8 @@ Recorded as **D-020**.
 
 ## Phase 0 — the comparison artefact, and identity on an observation
 
+**Landed 2026-08-27 — `fpl-backend` `2eb1604`, on branch `feat/decision-quality-bar`. 137 tests green, three sabotage runs recorded.**
+
 Small, and everything after it is wrong without it.
 
 **The artefact, measured.** `reports/calibration-fitted.md` compares the model at **n=29,482** with
@@ -89,20 +91,19 @@ therefore bookkeeping, and nobody knows how much.
 `value`, `season`, `round` — enough for a mean, and not enough to rank players, pick an XI, or name
 the rows a baseline dropped.
 
-- [ ] `Observation` gains `playerCode`, `teamCode` and `webName` — `src/modules/calibration/metrics.ts`
-- [ ] `runBacktest` emits **one row per player-round** carrying the model's prediction and each
-      baseline's, each nullable, instead of three parallel arrays — `src/modules/calibration/harness.ts`
-- [ ] Scoring happens on the **intersection** where every compared predictor produced a number; the
-      union is reported beside it so the effect of the restriction is visible rather than assumed
-- [ ] The excluded rows are **characterised, not just counted**: how many, which positions, which price
-      bands, and how they actually scored. A population that is dropped because it is hard is exactly
-      the population a reader needs to see
-- [ ] Re-run `pnpm calibrate` and `pnpm calibrate unfitted`; regenerate both reports. **The MAE gap
-      will move and may close, widen or reverse** — whichever it does is a finding and goes in the
-      report, not in a commit message
-- [ ] Nothing in `fit.ts` changes. Verified, not assumed: the fit reads `walkRounds` directly and does
-      not go through `runBacktest`. Assert it with a test that the fitted parameters are byte-identical
-      before and after this phase
+- [x] `Observation` gains `playerCode`, `teamCode` and `webName` — `src/modules/calibration/metrics.ts`
+- [x] `runBacktest` emits **one row per player-round** carrying the model's prediction and each
+      baseline's, each nullable, instead of three parallel arrays — `src/modules/calibration/harness.ts`. *`PredictionRow` also carries realised `minutes`, which Phases 2–3 need for auto-substitution.*
+- [x] Scoring happens on the **intersection** where every compared predictor produced a number; the
+      union is reported beside it so the effect of the restriction is visible rather than assumed. *Deviation, found by running it: the intersection is **pairwise**, not three-way. `priorSeason` needs 450 minutes last season, so one three-way intersection cuts 29,482 rows to 11,648 and answers "does this beat `form`" on a population chosen by a predictor the question does not involve.*
+- [x] The excluded rows are **characterised, not just counted**: how many, which positions, which price
+      bands, and how they actually scored — `describePopulation`. *Measured: **577 rows, mean actual 1.383, 55.5% of them zero minutes**, concentrated in DEF (190) and MID (264) and at ≤£5.0m (385).*
+- [x] Re-run `pnpm calibrate` and `pnpm calibrate unfitted`; regenerate both reports. **It barely moved, and that is the finding — against this phase's own hypothesis.** On the rows `form` can reach the fitted model reads MAE **1.119** against the **1.124** reported before, so B-007's gap to `form` was *not* bookkeeping.
+
+      **What did show up is better than the artefact.** The same two predictors on the 11,648 rows carrying a prior-season baseline — a filter for 450+ minutes last season, so a filter for players who actually play — read **model 1.699 vs form 1.742: the model wins.** Over the full 28,905 it reads 1.119 vs 1.042 and loses. The difference between the two populations is fringe players, where the outcome is usually zero, a near-zero prediction is nearly unbeatable on MAE, and a squad optimiser never chooses between them. That is D-020's argument, measured rather than asserted, and it is in the report.
+- [x] Nothing in `fit.ts` changes. **The plan's premise here was wrong and it was the riskiest item in the phase.** `fit.ts` *does* go through `runBacktest` — its shape-parameter grid search scores every candidate that way (`fit.ts:140`) — so the reshape reached the fit. Applying the common-row restriction there would have thrown away the hardest training rows and moved every fitted constant with no error and nothing wrong-looking in the output.
+
+      The grid search scores `observationsFor(run.rows, 'model')`: the model's own rows, because a grid search compares one predictor against itself and has no second population to hold in common. Guarded twice — structurally (the source must not reference `commonRows`) and behaviourally (the two populations must actually differ) — and proved empirically: `pnpm fit:model` returns every constant byte-identical to the committed `FITTED_PARAMS`.
 
 ---
 
