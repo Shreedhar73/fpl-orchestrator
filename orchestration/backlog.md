@@ -292,11 +292,16 @@ sell value.
 ## B-009 · Frontend design system and the UX pass over every view
 
 ```
-Status   in progress
+Status   in progress — built and verified, PR open
 Repos    fpl-frontend
-Plan     docs/plans/008-frontend-design-system.md
+Plan     docs/plans/008-frontend-design-system.md  (all 19 tasks ticked)
 Issue    fpl-orchestrator#7 · fpl-frontend#3
+PR       fpl-frontend#4 — open 2026-08-26, awaiting the maintainer's merge
 ```
+
+> **Entry moves to `archive.md` when #4 is merged and #7 is closed**, with the outcome. It stays
+> here until then: the work is done and reviewed against the evidence bar, but an entry that says
+> "done" while its PR is open is the register disagreeing with itself.
 
 **Why.** B-006 shipped the three routes that make the app usable — squad view, advice panel, manual
 builder — as unstyled-by-intent scaffolding: zinc-on-white, no shell, no navigation, one heading

@@ -541,3 +541,44 @@ written before 2026-08-26.
 
 **The rule this leaves.** A time that matters comes from the payload's epoch where one exists.
 `deadline_time_epoch` is unambiguous in a way `deadline_time` parsed, stored and read back is not.
+
+---
+
+## D-019 · 2026-08-26 · The frontend states the provenance of every model number, and the position palette is validated rather than chosen
+
+**Context.** B-006 shipped three working routes styled as scaffolding, and B-009 was the design pass
+over them. Two of its findings are decisions rather than taste, and belong here.
+
+**The envelope's `meta` was being discarded.** `apiFetch` returned `payload.data` and nothing else,
+so `meta.dataAsOfGw` and `generatedAt` — the fields the architecture contract calls not decoration,
+because "a stale projection rendered as if it were live" is this app's worst failure mode — never
+reached a component. `AGENTS.md` in `fpl-frontend` had required them on screen since the repo was
+scaffolded; nothing on screen carried them. This was a contract violation that read as a styling
+gap, which is precisely why it survived a review.
+
+The fix is `apiFetchWithMeta`, returning `{ data, meta }`, with `apiFetch` kept as the thin wrapper
+for calls that render nothing derived. Every view carrying model output now renders a `Provenance`
+line: data as of gameweek *n*, the model version, and when it was computed. Where `meta` is absent
+the line says the gameweek is unknown rather than rendering a confident blank.
+
+**Time in the reader's zone needs a client leaf, and the app has one.** A server component formats
+in the *server's* zone. `generatedAt` therefore ships as UTC in the HTML — correct for everyone, and
+what a reader with no JavaScript keeps — and a single client component swaps in the local zone via
+`useSyncExternalStore`, which takes a server snapshot and a client snapshot as arguments and so does
+not trip the cascading-render lint an effect-plus-`setState` does. There is no deadline anywhere in
+the HTTP contract to render, and none was invented.
+
+**The position palette was validated, and the first three candidates failed.** GKP/DEF/MID/FWD are a
+categorical scale, so they went through the `dataviz` validator on both surfaces with `--pairs all`.
+Amber/cyan/violet/rose failed the normal-vision floor (amber↔rose ΔE 11.5); the FPL-conventional
+yellow/blue/green/red failed deuteranopia separation at ΔE 1.4; an evenly-spread four-hue set failed
+too. What passes is an Okabe-Ito-derived set — light `#D55E00 #0072B2 #009E73 #CC79A7`, dark
+`#D55E00 #3B93DB #0F9070 #C06A9A` — at a CVD warning of ΔE 6.6, which is legal **only** because the
+position is always spelled out in text beside the colour. That constraint is now a rule in
+`globals.css`: no position may be signalled by colour alone, and the validator is re-run before any
+of those six values changes.
+
+**Also measured, so it is not re-litigated:** `/squad/abc` renders the not-found page but answers
+HTTP 200 under `next start`, whether `notFound()` is called in the page, in `generateMetadata`, or in
+both — while an unmatched route still answers 404. That is Next 16.3 behaviour on a dynamic segment.
+It is documented in the route rather than papered over.
