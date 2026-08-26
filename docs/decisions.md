@@ -663,10 +663,14 @@ squad. **What is behind is the squad solve, not obviously the projection.**
 **Consequences.**
 1. **`modelVersion` does not move and `v2-fitted-2026-08-26` keeps serving.** It remains the best
    thing we have — it beats v1 on every measured metric — and it is not deleted, per D-020's rule.
-2. **B-008 unblocks** on this verdict and inherits `season-sim.ts` as the harness it is measured in.
-   Its transfer policy is a parameter precisely so the planner plugs in rather than bringing a harness
-   written to flatter it. The two shipped policies never take a hit, so every total above is a
-   **floor** on what a policy could do.
+2. **B-008's harness dependency clears; its accuracy precondition does not.** `season-sim.ts` exists
+   and B-008 inherits it — the transfer policy is a parameter precisely so a planner plugs in rather
+   than bringing a harness written to flatter it, and the two shipped policies never take a hit, so
+   every total above is a **floor**. But B-008 was repointed at "B-012's bar" and **that bar was not
+   met**, so the accuracy-first order that has now been set twice still stands. Plan 010's own
+   negative-result branch routes next work to B-013 and B-014. **Whether B-008 proceeds regardless is
+   the maintainer's call**, and it should be made knowing that the crowd's opening fifteen already
+   outscores ours: a planner would start by correcting a squad we know is worse than the template.
 3. **B-013 and B-014 are the next work**, and now for a specific reason rather than a general one:
    the question is why a squad built from these projections is worse than the crowd's.
 4. **38 rounds cannot resolve a couple of points a week.** Every difference reported is paired by

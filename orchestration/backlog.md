@@ -113,7 +113,7 @@ to FPL" paragraph — the answer is now that we handle no FPL cookies at all.
 ## B-008 · Transfer planning — one free transfer, hits, chip windows
 
 ```
-Status   backlog — unblocked 2026-08-27 (D-021)
+Status   backlog — harness dependency cleared 2026-08-27; the accuracy bar was NOT met (D-021)
 Repos    fpl-backend
 Plan     —
 Issue    —
@@ -136,11 +136,25 @@ premium head is no longer over-projected — see the correction on B-004 in `arc
 promise that replaced it — beat the baselines — **was not kept**. On held-out 2025-26 the model beats
 `form` on RMSE and bias and loses to it on MAE, and neither number is about a transfer decision.
 
-**Unblocked 2026-08-27.** B-012's verdict landed (D-021) and `season-sim.ts` exists — the harness this
-entry is measured in, with its transfer policy as a parameter so the planner plugs in rather than
-bringing one written to flatter it. Both shipped policies refuse hits, so every season total B-012
-reports is a **floor**; beating them is this entry's first job. Note what B-012 found on the way: the
-crowd's opening fifteen outscores ours, so a planner starting from our squad solve starts behind.
+**Half-unblocked, 2026-08-27 — and the maintainer decides the other half.** Two things gated this
+entry and only one has cleared.
+
+- **Cleared: the harness.** `season-sim.ts` exists, with the transfer policy as a parameter so a
+  planner plugs in rather than bringing a harness written to flatter it. Both shipped policies refuse
+  hits, so every season total B-012 reports is a **floor** — beating them is this entry's first job.
+- **NOT cleared: the accuracy precondition this entry was repointed to.** The condition was "B-012's
+  bar", and **B-012 did not meet it** (D-021): the model beats `form` on ordering, and on season
+  points only when neither side may transfer. Plan 010's own Phase 6 routes a negative result to
+  **B-013 and B-014**, not here.
+
+And B-012 found something that bears directly on this entry: **the crowd's opening fifteen outscores
+ours by 102 points** under the same policy and the same projections, so a planner starting from our
+squad solve starts behind. A transfer planner would be correcting a squad we already know is worse
+than the template.
+
+**So this is a maintainer call, not a session call.** Proceeding now means building the planner on a
+model that did not clear its bar — the exact thing the accuracy-first order was set up to prevent,
+twice. The alternative is B-013/B-014 first, which is what the plan says and what D-021 recommends.
 
 The original condition, kept for the reasoning: **this entry waited on B-012**, whose bar
 is ordering quality and a simulated season under the real rules. Two reasons, and the second is the

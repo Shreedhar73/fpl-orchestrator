@@ -446,5 +446,7 @@ squad built from its own projections worse than the crowd's". **B-013** (which c
 **B-014** (team strength carries no signal; both fixture elasticities fitted to 0) are where that is
 answered, and both are now more clearly the next work than they were.
 
-**B-008 unblocks** on this plan's verdict, and inherits `season-sim.ts` as the harness it is measured
-in — with its transfer policy as a parameter, so the planner plugs in rather than bringing its own.
+**B-008 inherits `season-sim.ts`** as the harness it is measured in, with its transfer policy as a
+parameter so a planner plugs in rather than bringing its own. **It does not unblock on this verdict** —
+the bar was not met, and this plan's Phase 6 routes a negative result to B-013 and B-014. Whether
+B-008 proceeds anyway is the maintainer's call (D-021).
