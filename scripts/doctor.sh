@@ -106,7 +106,10 @@ $trailer\"" '{tool_input:{command:$c}}' | bash "$H/pre-bash-guard.sh" 2>/dev/nul
     while IFS='|' read -r want line; do
       case "${want:-}" in ''|\#*) continue ;; esac
       n=$((n+1))
-      out=$(jq -n --arg c "$line" '{tool_input:{command:$c}}' | bash "$H/pre-bash-guard.sh" 2>/dev/null); rc=$?
+      # cwd pinned: the branch-creation check resolves which repo a command acts on from the
+      # working directory, so an unpinned run would flip those verdicts depending on where doctor
+      # was invoked from. The corpus file says the same thing in its header.
+      out=$(cd "$ORCH" && jq -n --arg c "$line" '{tool_input:{command:$c}}' | bash "$H/pre-bash-guard.sh" 2>/dev/null); rc=$?
       if [ "$rc" != 0 ]; then got="ERR($rc)"
       elif echo "$out" | jq -e '.hookSpecificOutput.permissionDecision == "deny"' >/dev/null 2>&1; then got=DENY
       else got=ALLOW; fi
@@ -136,9 +139,13 @@ fi
 [ "$HOOKS_ONLY" = 1 ] && { echo; [ "$FAIL" = 0 ] && echo "hooks ok" || echo "$FAIL failing"; exit $FAIL; }
 
 section "git"
-  # One rule per repo: a remote to open PRs against, no AI attribution in the log, and work on a
-  # branch rather than piling up on the default one. See orchestration/workflow.md.
-  while IFS=$'\t' read -r name path def; do
+  # One rule per repo: a remote to open PRs against, no AI attribution in the log, and the branch
+  # state that repo is supposed to be in. See orchestration/workflow.md.
+  #
+  # "Supposed to be in" differs per repo, which is why `branching` is read from the manifest rather
+  # than assumed: the siblings branch per change, the orchestrator never does. Getting this from
+  # repos.json means the rule has one home — the guard reads the same field.
+  while IFS=$'\t' read -r name path def branching; do
     r="$(cd "$ORCH/$path" 2>/dev/null && pwd)" || { bad "$name: missing at $path" "clone or create it"; continue; }
     [ -d "$r/.git" ] || { bad "$name: not a git repository" "git -C $r init"; continue; }
     if git -C "$r" remote get-url origin >/dev/null 2>&1; then
@@ -152,12 +159,21 @@ section "git"
       || ok "$name: no AI trailers in the log"
     br=$(git -C "$r" rev-parse --abbrev-ref HEAD 2>/dev/null)
     dirty=$(git -C "$r" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
-    if [ "$br" = "$def" ] && [ "$dirty" -gt 0 ]; then
-      warn "$name: $dirty uncommitted file(s) on $def" "git -C $r switch -c <type>/<slug> — workflow.md step 2"
+    if [ "$branching" = "false" ]; then
+      # The orchestrator. Uncommitted work on main is the NORMAL state here — this is where plans
+      # and backlog entries are written — so the warning the siblings get would fire constantly and
+      # teach everyone to ignore this section. What is wrong here is being on a branch at all.
+      if [ "$br" = "$def" ]; then
+        ok "$name: on $def ($dirty dirty) — does not branch"
+      else
+        bad "$name: on $br, but this repo does not branch" "git -C $r switch $def — orchestration/workflow.md step 2"
+      fi
+    elif [ "$br" = "$def" ] && [ "$dirty" -gt 0 ]; then
+      warn "$name: $dirty uncommitted file(s) on $def" "git -C $r switch -c <type>/<issue>-<slug> — workflow.md step 2"
     else
       ok "$name: on $br ($dirty dirty)"
     fi
-  done < <(jq -r '.repos[] | "\(.name)\t\(.path)\t\(.default_branch)"' "$MAN")
+  done < <(jq -r '.repos[] | "\(.name)\t\(.path)\t\(.default_branch)\t\(.branching)"' "$MAN")
 
 [ "$GIT_ONLY" = 1 ] && { echo; [ "$FAIL" = 0 ] && echo "git ok" || echo "$FAIL failing"; exit $FAIL; }
 

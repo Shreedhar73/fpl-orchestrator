@@ -32,12 +32,14 @@ Name them in the plan file so the implementing session loads the same ones. At m
 
 ## 3. Write the plan file
 
-`fpl-orchestrator/docs/plans/<slug>.md`:
+`fpl-orchestrator/docs/plans/NNN-<slug>.md` — `NNN` is the next free number, zero-padded, so plans
+sort in the order they were agreed:
 
 ```markdown
-# <Feature>
+# NNN — <Feature>
 
 **Goal** — one paragraph: what the user can do after this that they cannot do now.
+**Backlog** — B-NNN, the entry in orchestration/backlog.md this plan belongs to.
 **Repos** — fpl-backend, fpl-frontend
 **Contract change** — yes/no. If yes: the endpoint, the DTO, the type regeneration step.
 **Skills to load** — fpl-architecture-contract, ...
@@ -51,6 +53,9 @@ Name them in the plan file so the implementing session loads the same ones. At m
 
 Each task concrete and individually checkable. A task nobody can tick is not a task.
 
+The `Backlog` line is not decoration: it is the link back to the register, and the register is what a
+future session reads first. A plan with no entry behind it is work nobody agreed to.
+
 ## 4. The plan is a living document
 
 **Tick each task `- [x]` in the plan file in the same session it lands and is verified**, and note any
@@ -58,3 +63,16 @@ deviation next to it. Checklist state must always reflect implementation state. 
 "done" about something unfinished is worse than no plan — the next session trusts it.
 
 Confirm the plan with the user before implementing.
+
+## 5. Hand off — do not open the issues here
+
+Once the plan is approved, run **`/fpl:track-work`**. It fills `Plan` on the backlog entry, opens the
+parent issue in `fpl-orchestrator` and a child in each sibling repo, and carries the item to the
+archive.
+
+This skill deliberately stops short of that. An issue is a public statement of intent, and this skill
+runs *before* approval exists — opening one from here would announce a plan nobody has agreed to.
+
+If the work has no `B-NNN` entry in [`orchestration/backlog.md`](../../../orchestration/backlog.md)
+yet, write it before the plan, not after. The entry is what makes the work visible to the next
+session; the plan is what makes it buildable.

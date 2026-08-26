@@ -41,5 +41,17 @@ if [ ! -f "$cache" ] || [ $(( $(date +%s) - $(stat -f %m "$cache" 2>/dev/null ||
 fi
 [ -s "$cache" ] && sed 's/^/FPL /' "$cache"
 
+# The register, in one line. Work does not start without an entry, and an entry nobody sees is an
+# entry nobody works on — so the count is worth the line it costs, and the titles are not.
+backlog="$root/orchestration/backlog.md"
+if [ -f "$backlog" ]; then
+  # `B-[0-9]`, not `B-`: the file documents its own entry format as `## B-NNN · <short title>`, and
+  # counting the template as an item makes the brief lie from the day the file is created.
+  # `|| echo 0` would print TWICE here — grep -c already prints 0 before exiting 1.
+  open_items=$(grep -cE '^## B-[0-9]' "$backlog" 2>/dev/null | head -1)
+  in_flight=$(grep -cE '^Status[[:space:]]+(planned|tracked|in progress)' "$backlog" 2>/dev/null | head -1)
+  [ "${open_items:-0}" -gt 0 ] && echo "Backlog: ${open_items} open, ${in_flight:-0} in flight — orchestration/backlog.md"
+fi
+
 echo "Skills: skills/agent/ (model-invoked reference) · skills/user/ (type /fpl:<name>). Load before acting."
 exit 0

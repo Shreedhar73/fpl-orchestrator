@@ -33,11 +33,19 @@ cannot reach them at all** — the trigger is the human typing `/<name>`.
 | `/sync-fpl` | Pull fresh FPL data into Postgres and report what changed |
 | `/run-stack` | Boot Postgres, backend and frontend, and verify each actually serves |
 | `/new-feature` | Interview, then write a living checklist plan file |
+| `/track-work` | Drive one backlog item through plan, issues, branches, PRs and the archive |
 | `/cross-repo` | Implement a backend+frontend change in contract-first order |
 | `/ship` | Branch, commit, push and open the PR in this project's git conventions |
 | `/stack-doctor` | Health-check toolchain, symlinks, hooks, ports, database, freshness, upstream |
 
 Installed as a plugin, these are namespaced `/fpl:<name>`.
+
+Four of them are one loop, in order: `/new-feature` decides and writes the plan, `/track-work` opens
+the issues and carries the item through, `/cross-repo` keeps a two-repo change in the right order,
+`/ship` lands each half. The register both ends of that loop write to is
+[`orchestration/backlog.md`](orchestration/backlog.md) and
+[`orchestration/archive.md`](orchestration/archive.md) — see
+[`orchestration/workflow.md`](orchestration/workflow.md).
 
 ## Which kind is a new skill?
 

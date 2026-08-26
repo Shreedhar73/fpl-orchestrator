@@ -162,6 +162,76 @@ EOF
   fi
 fi
 
+# ── Creating a branch in fpl-orchestrator ────────────────────────────────
+# This repo does not branch. It is the planning repo: a backlog entry, a plan file or a decision
+# that lives on an unmerged branch is invisible to the sessions in the other two repos that need to
+# read it. The rule is `branching: false` in orchestration/repos.json — read from there rather than
+# hardcoded, so doctor.sh --git and this guard cannot disagree about it.
+#
+# DELIBERATE EXCEPTION to rule 2 at the top of this file: this check fails OPEN. Every other deny
+# here guards something unrecoverable — dropped history tables, a wiped .env, a rewritten default
+# branch. This one guards a convention whose worst case is a branch someone deletes. Denying on
+# "could not tell" would block branch creation in every unrelated repository on this machine, which
+# is precisely how a guard gets switched off. doctor.sh --git reports the state afterwards anyway.
+#
+# Unlike the checks above, this one may NOT scan the whole command line. Its own documentation is
+# full of the strings it matches — workflow.md and the skills all spell out `git switch -c` — so a
+# line-wide `has` denies the edit that writes the rule down. Caught on the first attempt to do
+# exactly that. So: split into segments, and only look at a segment whose FIRST token is `git`.
+# Prose, heredoc bodies and quoted examples never begin with `git`; a real command does. This is
+# rule 1 of this file — match the argument, not the string — applied to the command itself.
+git_segments() {
+  printf '%s' "$cmd" | tr '|;&\n' '\n\n\n\n' | sed -E 's/^[[:space:]]+//' | grep -E '^git[[:space:]]'
+}
+
+# The orchestrator is wherever this hook lives: plugins/fpl/hooks/ → three levels up.
+orch=$(cd "$(dirname "$0")/../../.." 2>/dev/null && pwd -P || true)
+
+# Each segment is judged on its own, and resolves its OWN `-C`. Reading the -C from the whole
+# command line instead would let `git switch -c x && git -C ../fpl-backend status` off: the create
+# comes from the first segment, the -C from the second, and the check aims at the wrong repo.
+while IFS= read -r seg; do
+  [ -z "$seg" ] && continue
+
+  # Tokens of this segment only. Quoting is lost, which is fine — every branch below defaults safe.
+  toks=$(printf '%s' "$seg" | tr ' \t' '\n\n' | tr -d "\"'" | sed '/^$/d')
+
+  verb=""; creates=0; gdir=""; prev=""; seen_flag=0; seen_name=0
+  while IFS= read -r tok; do
+    case "$prev" in -C) gdir="$tok"; prev=""; continue ;; esac
+    case "$tok" in
+      git) ;;
+      switch|checkout|branch) [ -z "$verb" ] && verb="$tok" ;;
+      -C) prev="-C" ;;
+      -c|--create|--force-create) [ "$verb" = switch ] && creates=1 ;;
+      -b|-B) [ "$verb" = checkout ] && creates=1 ;;
+      -*) seen_flag=1 ;;
+      *) [ -n "$verb" ] && seen_name=1 ;;
+    esac
+  done <<EOF
+$toks
+EOF
+
+  # `git branch <name>` with no flags creates one too. Anything carrying a flag (-d, -D, -m, -a,
+  # --show-current, --list) is a read or a delete and must pass — those are how a session gets OUT
+  # of the wrong state, and denying them would strand it on a branch it is not allowed to be on.
+  [ "$verb" = branch ] && [ "$seen_flag" = 0 ] && [ "$seen_name" = 1 ] && creates=1
+  [ "$creates" = 1 ] || continue
+
+  # Which repo does this segment act on? An explicit `-C <path>` wins, otherwise the session's own
+  # repo. Branching a SIBLING from a session sitting here is ordinary work and must pass.
+  [ -z "$gdir" ] && gdir="${CLAUDE_PROJECT_DIR:-.}"
+  top=$(git -C "$gdir" rev-parse --show-toplevel 2>/dev/null || true)
+  [ -n "$top" ] && top=$(cd "$top" 2>/dev/null && pwd -P || printf '%s' "$top")
+
+  if [ -n "$top" ] && [ -n "$orch" ] && [ "$top" = "$orch" ]; then
+    allowed=$(jq -r '.repos[] | select(.path == ".") | .branching' "$orch/orchestration/repos.json" 2>/dev/null || echo "")
+    [ "$allowed" = "false" ] && deny "fpl-orchestrator does not branch — commit straight to main. A plan or backlog entry sitting on an unmerged branch is invisible to the sibling repos that read this one. To branch a sibling from here, target it explicitly with -C. See orchestration/workflow.md step 2."
+  fi
+done <<EOF
+$(git_segments)
+EOF
+
 # ── git clean -x wipes .env files and every gitignored local state file ──────
 has 'git[[:space:]]+clean[^|;]*-[a-zA-Z]*x' \
   && deny "git clean -x removes .env files and the skill symlinks. Delete what you actually meant to delete."

@@ -18,17 +18,25 @@ output read, the endpoint curled and the body read, the page loaded and the rend
 not the step that finds out whether the change works.
 
 ```bash
-bash scripts/doctor.sh --git      # remote present, no AI trailers in the log, not sitting on main
+bash scripts/doctor.sh --git      # remote present, no AI trailers, each repo on the branch it should be
 ```
 
 ## 1. Branch
 
-One branch per change. When a change spans both sibling repos, **the branch name is identical in
-both** — that is the only thing that makes the pair findable afterwards.
+One branch per change, **in the sibling repos only**. When a change spans both, the branch name is
+identical in both, and it carries the child issue number — those two things are what make the pair
+findable afterwards, from the repo and from GitHub.
 
 ```bash
-git switch -c <type>/<slug>       # feat|fix|chore|refactor|test|docs
+git -C ../fpl-backend switch -c feat/<issue>-<slug>   # feat|fix|chore|refactor|test|docs
 ```
+
+The issue exists before the branch does; `/fpl:track-work` opens it. A branch with no issue number
+in its name means the loop was entered halfway.
+
+**`fpl-orchestrator` is never branched** — plans, backlog entries and decisions go straight to
+`main`, and `pre-bash-guard.sh` denies the branch creation. A plan on an unmerged branch is invisible
+to the sessions that need to read it.
 
 Already committed onto `main` by accident? Move the commits, do not force-push:
 
@@ -71,9 +79,18 @@ gh pr create --base main --title "<type>: <what>" --body "$(cat <<'EOF'
 
 ## Contract
 <the endpoint + response shape, if this crosses fpl-http-contract — otherwise: none>
+
+Closes #<this repo's child issue>
 EOF
 )"
 ```
+
+**`Closes #<issue>` is mandatory, and it is this repo's child issue — not the parent, which lives in
+another repository and cannot be closed from here.** A PR with no linked issue is incomplete process,
+not a shortcut: the issue is what the work was agreed as, and the PR is what arrived. Nothing
+reconciles the two if they are not linked.
+
+`--fill` does not add it. When using `--fill`, put `Closes #<issue>` in the commit body instead.
 
 For a cross-repo change, open the backend PR first and paste its URL into the frontend PR body. The
 backend is the producer; a frontend PR reviewed without it is reviewed against a guess.
@@ -90,17 +107,30 @@ plan file. Merge the backend PR before the frontend one.
 
 ## 5. Close the loop
 
-Tick the plan file in `docs/plans/<slug>.md` — `- [x]` for each task that actually landed, with any
-deviation noted next to it. A plan that lies is worse than no plan.
+Three records, all updated in this session, all saying the same thing:
+
+1. **The plan file** — `- [x]` for each task that actually landed, with any deviation noted next to
+   it. A plan that lies is worse than no plan.
+2. **The issues** — each child closed by its own PR merging; the parent in `fpl-orchestrator` closed
+   by hand once every child is, with the outcome as the closing comment.
+3. **The register** — the `B-NNN` entry **moved** out of
+   [`orchestration/backlog.md`](../../../orchestration/backlog.md) into
+   [`archive.md`](../../../orchestration/archive.md), whole, with `— done YYYY-MM-DD`,
+   `Shipped <repo>#<pr>` and a one-line outcome.
+
+`/fpl:track-work` §8 carries this in full. The third one is the one that gets skipped, and it is the
+one a future session actually reads.
 
 ## Checks
 
 - [ ] Verified per the evidence bar, before shipping — not after
-- [ ] Branch name matches across every repo the change touches
+- [ ] Branch created in the siblings only; `fpl-orchestrator` still on `main`
+- [ ] Branch name matches across every repo the change touches, and carries the issue number
 - [ ] Conventional commit subject, no AI attribution trailer
+- [ ] `Closes #<child issue>` in every PR body
 - [ ] PR body carries the evidence, not just the intent
 - [ ] Backend PR opened and merged before the frontend one, for a contract change
-- [ ] Plan file ticked in the same session
+- [ ] Plan file ticked, issues closed, backlog entry archived — same session
 
 ## Nothing to ship against
 

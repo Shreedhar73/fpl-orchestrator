@@ -8,6 +8,10 @@
 #
 # Not covered here: cases whose verdict depends on the branch that happens to be checked out
 # (bare `git push -f` resolves the current branch). doctor.sh checks those separately.
+#
+# The branch-creation cases below DO depend on the working directory — the guard resolves which
+# repo a command acts on. doctor.sh runs this corpus with cwd pinned to the orchestrator root so
+# the verdicts are deterministic; running the guard by hand from elsewhere will differ, correctly.
 
 # ── destroying what cannot be re-fetched ─────────────────────────────────────
 DENY|rm -rf /Users/someone/Desktop
@@ -54,3 +58,32 @@ ALLOW|gh pr merge --squash --delete-branch
 ALLOW|bash scripts/doctor.sh --hooks
 ALLOW|lsof -nP -i :4000 -i :5001
 ALLOW|pnpm test
+
+# ── the orchestrator does not branch ─────────────────────────────────────────
+# Verdicts below assume cwd = fpl-orchestrator, which doctor.sh pins.
+DENY|git switch -c feat/thing
+DENY|git switch --create chore/thing
+DENY|git checkout -b fix/thing
+DENY|git branch feat/thing
+DENY|git checkout -B fix/thing
+# A create hidden behind another segment still counts. Each segment is judged on its own and
+# resolves its own -C, so a later `-C <sibling>` cannot launder an earlier bare create.
+DENY|git switch -c feat/x && git -C ../fpl-backend status
+DENY|git status; git checkout -b feat/x
+# ...but branching a SIBLING from a session sitting here is ordinary work.
+ALLOW|git -C ../fpl-backend switch -c feat/12-thing
+ALLOW|git -C ../fpl-frontend checkout -b fix/13-thing
+# ...and so is every read, every delete, and getting back onto main.
+ALLOW|git switch main
+ALLOW|git checkout main
+ALLOW|git branch -d feat/thing
+ALLOW|git branch -D feat/thing
+ALLOW|git branch --show-current
+ALLOW|git branch -a
+ALLOW|git branch
+ALLOW|git checkout -- .
+ALLOW|git checkout main -- orchestration/workflow.md
+# The false positive that forced this rule to be rewritten: WRITING the rule down. Every skill and
+# workflow.md spell out the commands above, so a line-wide match denies its own documentation.
+# Only a segment whose FIRST token is `git` is a command; prose and heredoc bodies are not.
+ALLOW|echo "workflow.md step 2: git switch -c <type>/<issue>-<slug>" >> notes.md

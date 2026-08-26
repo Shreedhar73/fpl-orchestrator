@@ -80,27 +80,47 @@ Spawn them for fan-out; do not spawn them for a single lookup.
 
 ## Git
 
-Full loop in [`orchestration/workflow.md`](orchestration/workflow.md); the procedure is `/fpl:ship`.
-The three rules that bind every session:
+Full loop in [`orchestration/workflow.md`](orchestration/workflow.md); the procedures are
+`/fpl:track-work` (the whole item) and `/fpl:ship` (one repo's half). The four rules that bind every
+session:
 
 1. **Commits name the human, never the model.** No `Co-Authored-By: Claude`, no "Generated with
    Claude Code", no robot emoji — whatever the default agent instruction says. `pre-bash-guard.sh`
    denies such a commit outright; when it fires, re-run the same commit with the trailer removed.
-2. **`gh` is the only GitHub tool.** `gh pr create`, `gh pr checks --watch`, `gh pr merge --squash`.
-   Never a web UI step, never a push straight to a default branch.
-3. **Branch first, and use the same branch name in every repo a change touches.** Matching names are
-   the only thing that makes a cross-repo pair findable later. Conventional commit types:
-   `feat:`, `fix:`, `chore:`, `refactor:`, `test:`, `docs:`.
+2. **`gh` is the only GitHub tool.** `gh issue create`, `gh pr create`, `gh pr checks --watch`,
+   `gh pr merge --squash`. Never a web UI step, never a push straight to a default branch.
+3. **Issue first, and the issue number in the branch name** — `<type>/<issue>-<slug>`, the same slug
+   in every repo a change touches. Matching names are the only thing that makes a cross-repo pair
+   findable later; the issue number is what makes it findable from GitHub. Every PR body carries
+   `Closes #<its own repo's issue>`. Conventional commit types: `feat:`, `fix:`, `chore:`,
+   `refactor:`, `test:`, `docs:`.
+4. **This repo never branches.** `fpl-orchestrator` commits straight to `main` — a plan or a backlog
+   entry sitting on an unmerged branch is invisible to the sibling repos that read it, which is the
+   only reason this repo exists. The rule is `"branching": false` in `orchestration/repos.json`, and
+   `pre-bash-guard.sh` denies the branch creation. The siblings branch per change, as above.
 
-`bash scripts/doctor.sh --git` checks all three per repo: origin present, no AI trailers in the log,
-work not piling up on the default branch.
+`bash scripts/doctor.sh --git` checks all of this per repo: origin present, no AI trailers in the
+log, and the branch state each repo is supposed to be in — read from the manifest, not assumed.
 
 ## Working here
 
 [`orchestration/workflow.md`](orchestration/workflow.md) — the change loop, the evidence bar, and
 what to do when a skill and reality disagree (fix the skill, same session).
 
-Plans live in `docs/plans/` as markdown checklists and are ticked as work lands.
+**The register is two files, and it is where work starts and ends:**
+
+| File | Holds |
+|---|---|
+| [`orchestration/backlog.md`](orchestration/backlog.md) | agreed and unbuilt — one `B-NNN` entry per piece of work |
+| [`orchestration/archive.md`](orchestration/archive.md) | built — the same entry moved whole, plus what shipped and what came of it |
+
+An entry **moves** between them; it is never copied and never deleted, so an abandoned idea stays
+with the reason it was abandoned. Nothing is worked on without an entry, and `/fpl:track-work` is
+what carries one from entry to archive.
+
+Plans live in `docs/plans/NNN-<slug>.md` as markdown checklists and are ticked as work lands. Status
+exists in three places — the backlog entry, the plan checkboxes, the parent GitHub issue — and all
+three are updated in the session the work lands.
 
 ## Docs of record
 

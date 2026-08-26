@@ -10,6 +10,7 @@
       "stack": "nextjs-app-router-ts",
       "port": 4000,
       "default_branch": "main",
+      "branching": true,
       "commands": {
         "install": "pnpm install",
         "dev": "pnpm dev",
@@ -28,6 +29,7 @@
       "stack": "nestjs-ts-prisma-postgres",
       "port": 5001,
       "default_branch": "main",
+      "branching": true,
       "commands": {
         "install": "pnpm install",
         "dev": "pnpm start:dev",
@@ -48,6 +50,8 @@
       "stack": "markdown-bash",
       "port": null,
       "default_branch": "main",
+      "branching": false,
+      "_branching_note": "Planning repo: work is committed straight to main, never on a branch. A backlog entry, a plan or a decision that lives on an unmerged branch is invisible to the sessions that need it, and this repo exists to be read by the other two. scripts/doctor.sh and plugins/fpl/hooks/pre-bash-guard.sh both read this field — do not encode the rule in prose instead.",
       "commands": {
         "link": "bash scripts/link-skills.sh",
         "doctor": "bash scripts/doctor.sh",
