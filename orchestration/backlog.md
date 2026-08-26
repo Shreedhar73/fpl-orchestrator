@@ -110,7 +110,7 @@ to FPL" paragraph — the answer is now that we handle no FPL cookies at all.
 ## B-006 · Team input and advice — manual, import by manager id, or recommended
 
 ```
-Status   tracked
+Status   in progress
 Repos    fpl-backend, fpl-frontend
 Plan     docs/plans/006-team-input-and-advice.md
 Issue    orchestrator#5 (parent), backend#8, frontend#1

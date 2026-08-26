@@ -169,15 +169,15 @@ not passed), `FPL_UPSTREAM_UNAVAILABLE` (timeout or 5xx — ours, never theirs),
 
 ### Phase 1c — frontend: the squad view (server components only)
 
-- [ ] Regenerate `types.gen.ts` against the new endpoints, in the same change — `fpl-frontend/src/lib/api/types.gen.ts`
-- [ ] `squad` feature slice with typed API functions, no React — `fpl-frontend/src/features/squad/api/squad.api.ts`
-- [ ] Landing page offering the three ways in — `fpl-frontend/src/app/page.tsx`
-- [ ] Manager-id entry form posting to the import route — `fpl-frontend/src/app/page.tsx`
-- [ ] `/squad/[managerId]` — server component rendering the imported 15, pitch layout, bench in order — `fpl-frontend/src/app/squad/[managerId]/page.tsx`
-- [ ] `/squad/recommended` — the same view over the optimizer's 15 — `fpl-frontend/src/app/squad/recommended/page.tsx`
-- [ ] Advice panel: captain, vice, bench order, gap vs optimal, per-player evidence, and a disabled "plan transfers" affordance labelled as B-008 — `fpl-frontend/src/features/squad/components/`
-- [ ] Error states for each `errorCode`, in plain language — `fpl-frontend/src/features/squad/components/`
-- [ ] Confirm the route ships under 150 KB gzipped and no `'use client'` was needed — `pnpm build` route table
+- [x] Regenerate `types.gen.ts` against the new endpoints, in the same change — `fpl-frontend/src/lib/api/types.gen.ts`
+- [x] `squad` feature slice with typed API functions, no React — `fpl-frontend/src/features/squad/api/squad.api.ts`
+- [x] Landing page offering the three ways in — `fpl-frontend/src/app/page.tsx`
+- [x] Manager-id entry form posting to the import route — `fpl-frontend/src/app/page.tsx`, `fpl-frontend/src/app/squad/page.tsx` *(deviation: a plain `method="get"` form to `/squad`, which redirects to `/squad/<id>`. A POST would have needed a server action and its client runtime; this keeps the entry point at zero JavaScript and gives every squad a linkable URL.)*
+- [x] `/squad/[managerId]` — server component rendering the imported 15, pitch layout, bench in order — `fpl-frontend/src/app/squad/[managerId]/page.tsx` *(calls the **import** endpoint, not the read endpoint: the backend short-circuits to Postgres, so one call covers the first visit and every later one)*
+- [x] `/squad/recommended` — the same view over the optimizer's 15 — `fpl-frontend/src/app/squad/recommended/page.tsx`
+- [x] Advice panel: captain, vice, bench order, gap vs optimal, per-player evidence, and a disabled "plan transfers" affordance labelled as B-008 — `fpl-frontend/src/features/squad/components/` *(also renders `notAdvisedOn` verbatim, so what the app will not answer is on the page)*
+- [x] Error states for each `errorCode`, in plain language — `fpl-frontend/src/features/squad/components/error-state.tsx`
+- [x] **Budget MISSED — no `'use client'` anywhere, but the route ships 172.9 KB gzipped against a 150 KB budget.** Measured 2026-08-26 by summing the eight gzipped chunks the served HTML references. **None of it is feature code**: the landing page, which is static markup with no interactivity at all, loads the identical eight chunks for the identical total. It is the Next 16 App Router client-runtime floor, and the budget as written is unmeetable by any page in this app. Turbopack's `pnpm build` route table no longer prints sizes either, so the stated measurement method is also gone. Re-baselining the skill is a close-out task below. *(TTFB passed: 135–187 ms warm on the squad page, 4 ms on the landing page, against a 200 ms budget.)*
 
 ### Phase 2 — the manual builder
 
@@ -195,6 +195,7 @@ not passed), `FPL_UPSTREAM_UNAVAILABLE` (timeout or 5xx — ours, never theirs),
 ### Close-out (fpl-orchestrator, straight to `main`)
 
 - [ ] Amend the etiquette rule to carve out on-demand `entry/` imports with their conditions — `skills/agent/fpl-api-reference/SKILL.md`
+- [ ] **Re-baseline the JS budget against the measured floor.** The 150 KB figure was set before any page existed and the framework floor alone is 172.9 KB, so the check can only ever fail; and its stated measurement method — the `pnpm build` route table — no longer prints sizes under Turbopack. Restate it as feature JS above a floor, record the floor with its date, and record how to measure it (sum the gzipped chunks the served HTML references) — `skills/agent/fpl-performance-budget/SKILL.md`
 - [ ] Add the endpoints and the two new modules to the architecture contract's module list — `skills/agent/fpl-architecture-contract/SKILL.md`
 - [x] Note the nullable `sellValue` and its reconstruction path on B-008 — `orchestration/backlog.md` *(done up front, in the planning commit — the probe result would have been lost otherwise)*
 - [ ] Record the import-persistence and null-sell-value decisions — `docs/decisions.md`
