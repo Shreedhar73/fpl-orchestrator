@@ -110,10 +110,10 @@ to FPL" paragraph — the answer is now that we handle no FPL cookies at all.
 ## B-007 · Projection model calibration
 
 ```
-Status   backlog
+Status   planned
 Repos    fpl-backend
-Plan     —
-Issue    —
+Plan     docs/plans/007-projection-model-calibration.md
+Issue    fpl-orchestrator#6 · fpl-backend#10
 ```
 
 **Why.** B-004 shipped a v1 projection engine that **over-projects the premium head** — the top ~30
@@ -163,7 +163,8 @@ So: do (1) first — it is available immediately and gates (2).
 
 **Collect now, because it cannot be collected later.** Some of what calibration will want is
 *current-state-only* upstream and is lost the moment it changes. Before the GW2 deadline
-(2026-08-28T17:30Z):
+(**2026-08-28 11:45 UTC** — corrected 2026-08-26: `deadlineTime` is timestamptz and the 17:30 first
+written here was the +05:45 local wall clock read as UTC):
 
 - **`event/{gw}/live/` explain blocks, captured every gameweek.** The sync's `--live` mode is
   unimplemented (`SyncService.runLive` rejects; B-003 follow-up). Without it we keep totals and lose
@@ -175,6 +176,21 @@ So: do (1) first — it is available immediately and gates (2).
   then they say what was true *after* the games.
 - Consider whether the projections we serve should be snapshotted at deadline for later scoring
   against reality — `projections` rows exist per model version, so this may already hold.
+
+**The baselines are perishable too — found while planning, 2026-08-26.** This list was incomplete.
+`epNext` and `form` are scalars on `players` (`prisma/schema.prisma:76–80`), upserted every sync,
+with **no history table and no public archive to backfill from**. The bar below is "beat `ep_next` /
+`form` / last season" — so without capturing them at each deadline, the headline comparison is
+unmeasurable for every gameweek that has already passed. `form` is derivable from stored
+`player_gameweek_stats`; `epNext` is not derivable from anything. Set-piece order
+(`penaltiesOrder`, `directFreekicksOrder`, `cornersOrder`) is the same kind of scalar and belongs in
+the same snapshot.
+
+**GW2 is hedged, not lost — maintainer-approved 2026-08-26.** Building the snapshot table cannot land
+before the GW2 deadline, so a zero-code `\copy players TO CSV` dump is committed under
+`fpl-backend/reports/snapshots/` instead: once on 2026-08-26 as a floor, once as late as practical
+before 11:45 UTC on the 28th. It is a flat file, not a queryable snapshot, and Phase 3 must read it
+explicitly or GW2 gets skipped like any snapshot-less gameweek.
 
 **Edge cases the calibration and the model must face** — write the plan against these rather than
 discovering them one at a time:
