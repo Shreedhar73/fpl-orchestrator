@@ -212,8 +212,18 @@ The number the guide (§6) asks for, and the harness B-008 will be measured in. 
 
 - [ ] **Rebase onto `fpl-backend#17` first** (B-010/B-011). It adds a required `appearances` field to
       `Candidate`, which `fixed-squads.ts` constructs, and rewrites `pickBestXi` to enumerate subsets.
-      Take the appearance count from that PR's own query rather than writing a second one. Phase 3
-      builds on this surface, so the rebase comes before the code, not after it
+      Phase 3 builds on this surface, so the rebase comes before the code, not after it.
+
+      **And there is a leak waiting in that field — flagged by the B-011 session, 2026-08-27, do not
+      walk into it.** `OptimizerRepository.appearanceCounts()` reads **current state**: total
+      appearances as of today. Handing that to a squad built at round 1 of a past season tells the
+      solver how often each player *would go on to* feature — the exact class of leak `walkRounds`
+      exists to prevent, and it produces no error and nothing wrong-looking in the output. A
+      backtest needs a **walk-local counter**, accumulated round by round, the way
+      `collision-sweep.ts` does it. Two further traps in the same area: `Accumulator.matches`
+      (`features.ts`) counts *every* row including unused-sub zeros, so despite the name it is not
+      an appearance count; and the live path joins on `Player.id` while the archive joins on
+      `Player.code`.
 - [ ] **Tell the B-011 session that `collision-sweep.ts` is superseded** once this lands — their
       lambda sweep is a simulator without transfers, hits, the sell-on fee or auto-subs, and they
       asked to delete it rather than keep two half-simulators. Owed from a peer message, recorded here
