@@ -133,16 +133,16 @@ Phase 4 headline comparison is unmeasurable without it, because **the baselines 
 public archive to backfill from — the same reason twenty seasons of `history_past` cannot become one
 gameweek of backtest.
 
-- [ ] `player_deadline_snapshot`, keyed `@@unique([playerId, gameweekId])` — `status`, `chanceOfPlayingNextRound`, `epNext`, `epThis`, `form`, `nowCost`, `penaltiesOrder`, `directFreekicksOrder`, `cornersOrder`, `capturedAt` — `fpl-backend/prisma/schema.prisma`, `fpl-data-model`
-- [ ] Set-piece order is in the row on purpose: a large, cheap rate signal that flips without notice and is a scalar upstream
-- [ ] Write the snapshot from the existing sync when the next deadline is under 24 hours away — upsert, so the last sync before the deadline wins — `src/modules/fpl-sync/sync.service.ts`
-- [ ] Name the trigger so the table cannot sit empty: `/fpl:plan-gameweek` step 2 already runs `/fpl:sync-fpl` before each deadline. Add the snapshot assertion to that step — `skills/user/plan-gameweek/SKILL.md` (orchestrator repo)
+- [x] `player_deadline_snapshot` — `fpl-backend` `045dafc`, migration `20260826170239`. *Added beyond the plan: `hoursToDeadline`, so a capture taken 20 hours out is not silently equal to one taken at two.*
+- [x] Set-piece order in the row
+- [x] Written by the ordinary sync, upserted. *Deviation: the window is **36** hours, not 24 — syncs are run by hand, and a Friday deadline with the last sync on Wednesday evening falls outside 24 hours entirely. `--snapshot` forces a capture the window would miss.*
+- [ ] Add the snapshot assertion to `/fpl:plan-gameweek` step 2 — **not done**. The capture now rides on the ordinary sync, so the skill change is a check rather than the trigger, but an empty table should still be caught there
 - [ ] Decide and implement `explain`-block retention before season rollover: a raw-JSON capture table, versus 38 committed fixtures at ~440 KB each (~17 MB in-repo, which argues for the table) — `prisma/schema.prisma`, `sync.service.ts`
 - [ ] `SyncService.runLive` currently rejects (`sync.service.ts:299`). Decide in this phase whether it is needed at all: `--full` re-reads finished gameweeks and `explain` persists within the season, so live sync may be unnecessary for calibration and only useful for in-play display. Record the decision either way — `docs/decisions.md`
-- [ ] **Zero-code hedge for GW2** — maintainer approved 2026-08-26. `\copy players TO CSV HEADER` into `fpl-backend/reports/snapshots/gw2-players-<UTC timestamp>.csv`, committed. Taken twice: once now as a floor, once as late as practical before **2026-08-28 17:30 UTC** — the last capture before the deadline is the one Phase 3 reads, since news moves until the deadline
+- [x] **GW2 hedge — superseded, and better than planned.** The CSV floor was taken at 2026-08-26 15:45 UTC, and then Phase 2 landed the same day, so **GW2 is captured in `player_deadline_snapshot` itself (614 players)** rather than only as a flat file. A second capture closer to the deadline is still worth taking, now through `pnpm sync:fpl -- --snapshot` rather than `\copy`
   - **First capture done 2026-08-26 15:45 UTC** — 614 rows, `fpl-backend` `04e0150` on `feat/10-projection-model-calibration`, joined to `teams` and keyed on `fplId` so it survives a database reset. Source data was 1.5h old (last successful `bootstrap-static/` sync 14:15 UTC)
   - **Second capture still owed, before 2026-08-28 17:30 UTC.** Run `/fpl:sync-fpl` first — a stale dump captures stale news, which is the one thing this file exists to avoid
-- [ ] Phase 3's loader must read the CSV hedge for GW2 specifically, or GW2 is skipped loudly like any other snapshot-less gameweek — the file is not in `player_deadline_snapshot` and no query finds it by accident
+- [x] No longer needed: GW2 is in `player_deadline_snapshot`, so the ordinary query finds it and the CSV is a floor rather than a special case
 
 ## Phase 2b — ingest three seasons of per-gameweek history
 

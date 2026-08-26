@@ -492,3 +492,36 @@ Neither says anything about a multi-gameweek horizon, which this backtest does n
 `ProjectionsService`, which still runs the v1 path — that is the remaining Phase 4 work, and the bar
 (beat the baselines) is met on RMSE and bias but not on MAE, so the decision to serve it is the
 maintainer's rather than automatic.
+
+---
+
+## D-018 · 2026-08-26 · Every timestamptz was shifted by the machine's timezone
+
+**The bug.** Prisma's `pg` driver adapter sends a timestamp as a string with no offset, so Postgres
+resolves it in the **session** timezone. The session follows the machine — `Asia/Kathmandu` here — so
+every `timestamptz` the app wrote was shifted by 5h45m. GW2's deadline was stored as 11:45 UTC when
+upstream says 17:30 UTC; `deadline_time_epoch` settles it at 1787938200 against the stored 1787917500.
+Raw `pg` round-trips the same `Date` correctly, which is what narrows the fault to that boundary.
+
+**Why nothing caught it.** Every comparison the app makes is between two equally shifted values, so
+"has the deadline passed", "which gameweek is next", the fixture horizon and the projection window all
+behaved correctly. The app was simply 5h45m wrong about *when* a deadline falls, and displayed a
+plausible time while being wrong. It surfaced only because a deadline snapshot reported being 48.4
+hours from a deadline the database said was 42.7 hours away — two numbers that should have agreed.
+
+It also produced a wrong "correction" in this project's own records: the B-007 backlog entry said the
+GW2 deadline was 17:30Z, that was "corrected" to 11:45 by reading the stored value, and the original
+was right. **A stored value is not evidence about upstream; the upstream payload is.**
+
+**The fix and the guard.** `options: '-c timezone=UTC'` on the adapter, so an offsetless string means
+what it says — and `PrismaService` now refuses to start on a non-UTC session rather than waiting for
+someone to notice. Verified by removing the option: the guard names the timezone it found.
+
+**What could not be repaired.** Gameweeks and fixtures are upserted and corrected themselves on the
+next sync. Append-only `player_price_history` and `player_ownership_history` rows written before the
+fix carry `recordedAt` values shifted by the machine offset, and there is no way to tell a shifted row
+from a correct one after the fact. Those timestamps are accurate to within 6 hours, and only for rows
+written before 2026-08-26.
+
+**The rule this leaves.** A time that matters comes from the payload's epoch where one exists.
+`deadline_time_epoch` is unambiguous in a way `deadline_time` parsed, stored and read back is not.
