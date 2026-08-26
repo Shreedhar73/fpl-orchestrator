@@ -76,7 +76,7 @@ Recorded as **D-020**.
 
 ## Phase 0 — the comparison artefact, and identity on an observation
 
-**Landed 2026-08-27 — `fpl-backend` `2eb1604`, on branch `feat/decision-quality-bar`. 137 tests green, three sabotage runs recorded.**
+**Landed 2026-08-26 — `fpl-backend` `2eb1604`, on branch `feat/decision-quality-bar`. 137 tests green, three sabotage runs recorded.**
 
 Small, and everything after it is wrong without it.
 
@@ -109,7 +109,7 @@ the rows a baseline dropped.
 
 ## Phase 1 — ordering metrics
 
-**Landed 2026-08-27 — `fpl-backend` `8902410`. `pnpm decision-quality` writes `reports/decision-quality.md`. 151 tests green.**
+**Landed 2026-08-26 — `fpl-backend` `8902410`. `pnpm decision-quality` writes `reports/decision-quality.md`. 151 tests green.**
 
 **The result, on held-out 2025-26, and it is a split:**
 
@@ -154,7 +154,7 @@ is any good.
 
 ## Phase 2 — the cheap decision metric: the XI, and the armband
 
-**Landed 2026-08-27 — `fpl-backend` `264de84`. 162 tests green, four sabotage runs recorded.**
+**Landed 2026-08-26 — `fpl-backend` `264de84`. 162 tests green, four sabotage runs recorded.**
 
 **The result is null, and it is reported as one.** Not one model-versus-`form` comparison clears two
 standard errors, and the sign of the difference flips across squads — **+0.19** on the template,
@@ -208,7 +208,7 @@ every model then fields an XI and a captain from the *same* fifteen.
 
 ## Phase 3 — the season simulator
 
-**Landed 2026-08-27 — `fpl-backend` `3690206`, PR #19 (stacked on #18). 201 tests, three sabotage runs.**
+**Landed 2026-08-26 — `fpl-backend` `3690206`, PR #19 (stacked on #18). 201 tests, three sabotage runs.**
 
 **The verdict, on held-out 2025-26:**
 
@@ -235,7 +235,7 @@ worse than owning what everyone else owned.
 `modelVersion` does not move, the serving version is not deleted (D-020).
 
 > **The leak this phase found, and it is the most important thing in it.** The plan said to infer
-> blanks from the rows, and that inference is only safe at **club** level. Measured 2026-08-27: only
+> blanks from the rows, and that inference is only safe at **club** level. Measured 2026-08-26: only
 > rounds 31 and 34 of 2025-26 carry fewer than twenty clubs, so a club with no rows really did blank —
 > but **690 players have a round-1 row and 820 have one by round 29**, because squads are registered
 > through the season. A *player* with no row was as often dropped, injured or an unused substitute,
@@ -246,7 +246,7 @@ worse than owning what everyone else owned.
 
 The number the guide (§6) asks for, and the harness B-008 will be measured in. Built once, here.
 
-- [x] **Rebase onto `fpl-backend#17`** (B-010/B-011) — done 2026-08-27, `b2831ac`. *Merged as `88fa3f7`.
+- [x] **Rebase onto `fpl-backend#17`** (B-010/B-011) — done 2026-08-26, `b2831ac`. *Merged as `88fa3f7`.
       `Candidate.appearances` is carried by a walk-local counter (`PlayerFeatures.appearancesSample`,
       rows with `minutes > 0` before the round), never `appearanceCounts()`. Fit byte-identical, all
       four reports unchanged, sabotage recorded.*
@@ -254,7 +254,7 @@ The number the guide (§6) asks for, and the harness B-008 will be measured in. 
       `Candidate`, which `fixed-squads.ts` constructs, and rewrites `pickBestXi` to enumerate subsets.
       Phase 3 builds on this surface, so the rebase comes before the code, not after it.
 
-      **And there is a leak waiting in that field — flagged by the B-011 session, 2026-08-27, do not
+      **And there is a leak waiting in that field — flagged by the B-011 session, 2026-08-26, do not
       walk into it.** `OptimizerRepository.appearanceCounts()` reads **current state**: total
       appearances as of today. Handing that to a squad built at round 1 of a past season tells the
       solver how often each player *would go on to* feature — the exact class of leak `walkRounds`
@@ -354,7 +354,7 @@ Every item below is a rule the simulator could get wrong in a way that makes the
       the GK
 - [x] Captain fallback: vice doubles only when the captain played 0 minutes; both at 0 → nobody doubled
 - [x] **Double gameweek and blank, pinned on the serving path too** — *the fold was inline and unreachable from a test, so it was extracted (`foldFixture`) rather than tested through a mock that would have passed either way.* `forecast.service.ts` already sums
-      a player's fixtures and emits no entry for a blank (lines 116–117, verified 2026-08-27) and
+      a player's fixtures and emits no entry for a blank (lines 116–117, verified 2026-08-26) and
       **nothing tests it**. A season simulation walks into both every year
 - [x] Sabotage, all recorded in the PR body: shuffled predictions crater points-captured@11 (Phase 1);
       a deliberately terrible model loses the simulated season by a wide margin; auto-subs disabled
@@ -385,7 +385,7 @@ Every item below is a rule the simulator could get wrong in a way that makes the
 
 ## Shipped so far
 
-**`fpl-backend#18`, opened 2026-08-27 — Phases 0, 1 and 2**, rebased onto `#17`. 184 tests, nine
+**`fpl-backend#18`, opened 2026-08-26 — Phases 0, 1 and 2**, rebased onto `#17`. 184 tests, nine
 recorded sabotage runs, four reports committed.
 
 Split from Phases 3–6 deliberately. `squad-scoring.ts`, `xi-decision.ts`'s `pairedDifference()` and
@@ -422,7 +422,7 @@ there.
 
 ---
 
-## Closed 2026-08-27
+## Closed 2026-08-26
 
 All six phases built. **`fpl-backend#18`** (Phases 0–2) and **`fpl-backend#19`** (Phases 3–6, stacked
 on it). 205 tests, thirteen recorded sabotage runs, five reports committed.

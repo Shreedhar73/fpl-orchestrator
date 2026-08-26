@@ -35,7 +35,250 @@ arrived, and they are not always the same thing. Where they differ, say so in `O
 
 ---
 
-## B-007 · Projection model calibration — done 2026-08-27
+## B-012 · The bar the model is judged on — rank, decisions, and a simulated season — done 2026-08-26
+
+```
+Status   done
+Repos    fpl-backend
+Plan     docs/plans/010-decision-quality-bar.md
+Issue    —  (blocked, see below)
+PR       fpl-backend#18 (Phases 0–2) — **merged 2026-08-26 as `b52ce3c`**
+         fpl-backend#20 (Phases 3–6) — open against `main`, rebased, mergeable
+         fpl-backend#19 — auto-closed, replaced by #20 (see below)
+Branch   `feat/decision-quality-bar` and `feat/season-simulator` — both merged and deleted; the
+         `../fpl-backend-b012` worktree is removed
+```
+
+> **State as of 2026-08-26.** Phases 0, 1 and 2 are built, tested and committed —
+> `2eb1604`, `8902410`, `264de84`, plus plan ticks. 162 tests green, sabotage runs recorded per phase.
+> `pnpm decision-quality` writes `reports/decision-quality.md`. **Phases 3–6 (the season simulator,
+> its baselines, and the verdict) are not started**, deliberately: see the two blockers.
+>
+> **Blocker 1 — no issues exist, and no session can create them.** `gh issue create` was denied by
+> the permission classifier **three times**, including once after the maintainer explicitly asked for
+> it. `gh pr create` is allowed and `gh pr merge` is not, so the same session can open a PR and
+> cannot land it. Both issue bodies are drafted under the session scratchpad and the commands are
+> with the maintainer; the branch is named `feat/decision-quality-bar` and must be renamed
+> `feat/<child>-decision-quality-bar` once the number exists (git rule 3). **A future session should
+> not spend time retrying this** — it is a settings change (a Bash permission rule), not a phrasing
+> problem.
+>
+> **A stacked-PR trap, hit 2026-08-26 — worth knowing before the next one.** #19 was based on
+> #18's branch. Merging #18 with `--delete-branch` deleted that base, and **GitHub auto-closed #19**;
+> a closed PR cannot be reopened once its base branch is gone, and its base cannot be retargeted
+> either. The branch and commits were fine — `git rebase --onto origin/main <last-commit-of-#18>`
+> recognised the squashed commit as already upstream and dropped it — but the PR had to be reopened
+> as **#20**. Either retarget the child to `main` *before* merging the parent, or merge the parent
+> without `--delete-branch`.
+>
+> **Blocker 2 — cleared.** `fpl-backend#17` merged as `88fa3f7`; this branch is rebased onto it and
+> `Candidate.appearances` is carried by a **walk-local counter**, not `appearanceCounts()` — that
+> query reads current state and would tell a round-1 squad how often each player *would go on to*
+> feature. `pnpm fit:model` returns every constant byte-identical after the rebase and all four
+> reports regenerate unchanged.
+>
+> **Phases 0–2 ship on their own, decided 2026-08-26.** They are three pure functions and a null
+> result, and `scoreLineup()` / `pairedDifference()` / `ordering.ts` serve B-013, B-015 and B-016 as
+> much as this entry. Holding them behind the simulator would block all of that on the largest,
+> least-finished piece, and would make the Phase 3 review a review of four things at once. Prompted
+> by the B-011 session, which needs `scoreLineup()` to correct `reports/guards-009.md` — its lambda
+> sweep scores an XI with no auto-subs, and the omission is not neutral across lambda, because the
+> collision penalty changes how often the bench is actually needed.
+>
+> **Two sessions shared one `fpl-backend` working tree on 2026-08-26** and both sets of uncommitted
+> changes landed in it. Resolved by taking a worktree for this entry; the shared tree was restored to
+> the other session's branch. A second session on this repo should take a worktree first, not after.
+
+**Why.** B-007 measured the model and could not say whether it is good, because it measured the wrong
+thing. It reports MAE, RMSE and bias over every archive row and calls the result a split verdict:
+`form` wins MAE 1.042 to 1.124, the model wins RMSE 2.026 to 2.131. Neither number answers the
+product's question. The guide (`docs/fpl-agent-guide.md` §6) asks for **rank correlation** and a
+**full-season simulation under the actual rules**, compared to the FPL average and a naive baseline;
+`src/modules/calibration/metrics.ts` computes error and a calibration curve and nothing else. This
+entry replaces the bar rather than retrying it, and it inherits B-007's unmet obligation: *beat the
+baselines, or say plainly that we did not.*
+
+**Why MAE cannot be the bar here — measured, 2026-08-26, do not re-derive.** Of the 29,482 scored rows
+in `reports/calibration-fitted.md`, **20,496 are ≤£5.0m** players who mostly did not feature. MAE is
+minimised by the conditional median, so a model that predicts near-zero for everyone wins it. The
+optimiser never asks "what will this player score"; it asks "which fifteen, and which eleven of them,
+and who takes the armband" — every one of those is an ordering question over a few hundred candidates,
+not a level question over six hundred.
+
+**A comparison artefact that must be fixed first.** The headline compares the model at **n=29,482**
+with `form` at **n=28,905**. `form` cannot score a row with no trailing round, and those rows —
+returning players, new signings, first appearances — are the hardest ones. Score every model on the
+**intersection**, or part of the gap is bookkeeping. Report the excluded rows and who they were.
+
+**What to build.**
+
+1. **Ordering metrics, on the archive, available today.** Per round: Spearman over all scored rows,
+   and over the rows that matter — the top 100 by price, and by projected points. Precision@k for
+   k = 11, 15, 30. Ordering, unlike MAE, has no near-zero mass to hide in.
+2. **The decision metric, cheap version.** Per round, take the XI the model would field from a fixed
+   squad and the XI each baseline would field, and compare **realised** points. Same for the captain
+   pick. This is a few lines on top of `pickBestXi` and is the first number that is about the product.
+3. **The decision metric, honest version — a simulated season.** Walk 2025-26 from GW1 under the real
+   rules: one free transfer banked to 5, −4 hits, the 50% sell-on fee, auto-subs in bench order,
+   captain and vice fallback, chips left unused for now. Compare the season total to `form`, to last
+   season's points-per-90, and to the recorded FPL average. This is the number the guide asks for and
+   the only one that prices a *policy* rather than a prediction. It also becomes the harness that
+   B-008's transfer planner and any future chip logic are measured in, so it is built once here.
+4. **Pin what already works.** `forecast.service.ts` sums a player's fixtures (a double gameweek is two
+   projections that add) and emits no entry for a blank — verified 2026-08-26, `forecast.service.ts`
+   lines 116–117. It is correct and nothing tests it. A season simulation walks straight into both,
+   so both get a test here.
+
+**Established while planning, 2026-08-26 — do not re-derive.**
+
+- **`selectedBy` is stored per player per round** (`archive_player_gameweek`), so the crowd's squad is
+  derivable and becomes the fixed squad the XI comparison runs on, plus a proxy for the FPL average.
+  It has to be an **ILP maximising `selectedBy` under full legality**, not a top-15 sort: raw
+  ownership order breaks the position quotas, the 3-per-club cap and the budget. `buildLp` takes its
+  objective through `Candidate.ep`, so this is a reuse and not new solver code.
+- **The real FPL average cannot be recovered for archive seasons.** `Gameweek.averageScore` is the
+  live season only; upstream serves no past season's `bootstrap-static` and the archive carries no
+  per-round average. The template squad's season total is the honest proxy, labelled one.
+- **There is no archive fixtures table.** Blanks and doubles are inferred from the player rows
+  themselves — a team with no row in a round had no fixture, a player with two rows had a double — and
+  the inference is asserted against known 2025-26 rounds rather than trusted.
+- **`Observation` carries no player identity** (`metrics.ts`) — no `playerCode`, no team. Ordering
+  metrics, XI selection and the simulator all need it, so it is the first task in the plan.
+- **The fit does not go through `runBacktest`.** `fit.ts` reads `walkRounds` directly, so Phase 0 can
+  reshape the harness without moving a fitted parameter. Asserted by a test rather than assumed.
+- **Archive `value` is the player's price that round**, so price movement through a simulated season
+  comes free — but only where a row exists, so prices carry forward across blanks.
+
+**Measured 2026-08-26, Phases 0–2 — do not re-derive.**
+
+| Phase | Finding |
+|---|---|
+| 0 | **The comparison artefact was small.** On the rows `form` can reach, the model reads MAE **1.119** against the 1.124 B-007 reported. Its gap to `form` was real, not bookkeeping — this phase's own hypothesis, measured and wrong. |
+| 0 | **But the population split is large.** On the 11,648 rows carrying a prior-season baseline (450+ minutes last season), the model beats `form` **1.699 to 1.742**; over all 28,905 it loses 1.119 to 1.042. The difference is fringe players, where the outcome is usually zero and near-zero predictions are nearly unbeatable on MAE. |
+| 0 | **`fit.ts` DOES route through `runBacktest`** — the plan said it did not. Its grid search scores every candidate that way, so the common-row restriction would have moved every fitted constant silently. Guarded structurally and behaviourally; `pnpm fit:model` returns every constant byte-identical. |
+| 1 | **A split on ordering.** `form` wins whole-field Spearman **0.574 to 0.518**; the model wins points-captured **at every k in every view** (35.4% vs 33.5% @11, 43.2% vs 40.1% @30). Whole-field rank correlation is dominated by players who score nothing, which `form` ranks well by predicting nothing. The optimiser chooses at the top. |
+| 1 | **The fit is what put the model ahead there.** Unfitted v1 constants capture **32.6%** @11, *behind* `form`'s 33.5%; fitted captures 35.4%. MAE could not show this. |
+| 2 | **The XI decision is a null result.** Not one model-versus-`form` comparison clears two standard errors and the sign flips across squads (**+0.19** template, **−0.84** random #3). Given a fixed fifteen most of the XI picks itself; the ordering advantage should appear in *which* fifteen you own, which is Phase 3. |
+| 2 | **38 rounds is not enough to resolve a couple of points a week.** From the B-011 session's sweep (`reports/guards-009.md`): a +0.59 paired mean carried a 0.92 standard deviation and the per-season sign flipped across three seasons. Every difference this entry reports is paired by round and carries a standard error. Without that, Phase 2 would have reported a win. |
+| 2 | **Round 1 is absent from any common-row population** — `form` has no trailing round at a season's first deadline. Squads are built at round 1 and scored over the 37 rounds after it. |
+
+**The verdict, 2026-08-26 — see [D-021](../docs/decisions.md).** The bar was: beat `form` on ordering
+**and** on simulated season points, or say plainly that we did not. **We did not.**
+
+| | model | `form` | template (crowd proxy) |
+|---|---:|---:|---:|
+| points captured @11 | **35.4%** | 33.5% | — |
+| season, no transfers | **1846** | 1172 | 1738 |
+| season, one free transfer a week | 1896 | 1807 | **1998** |
+
+Ordering, yes. Season points, **only when neither side may transfer** — give both a weekly transfer
+and the gap falls inside the noise floor. And the crowd's opening fifteen beats ours by 102 points
+under the same policy and the same projections, which says **the squad solve is what is behind, not
+obviously the projection**. `modelVersion` does not move; the serving version is not deleted.
+
+**The bar for this entry.** Beat `form` on ordering **and** on simulated season points, or state the
+negative result in the report and leave `modelVersion` alone. The lesson from B-007 stands and is
+structural: **a "do not bump on a negative result" rule needs a version left alive to fall back to.**
+v1 was deleted in the same release that made the rule apply, so it could not fire. Keep the currently
+serving version until its successor has beaten it *on this bar*.
+
+---
+
+**Outcome — 2026-08-26. Six phases, two merged PRs, and the model did not clear the bar it set.**
+
+Shipped: `fpl-backend` **#18** (Phases 0–2, `b52ce3c`) and **#20** (Phases 3–6, `55c2c3b`; #19 was
+auto-closed when its base branch was deleted). 205 tests, thirteen recorded sabotage runs, five
+committed reports. Recorded as **D-021**.
+
+**The verdict, on held-out 2025-26:**
+
+| | model | `form` | template (crowd proxy) |
+|---|---:|---:|---:|
+| points captured @11 | **35.4%** | 33.5% | — |
+| whole-field Spearman | 0.518 | **0.574** | — |
+| season, no transfers | **1846** | 1172 | 1738 |
+| season, one free transfer a week | 1896 | 1807 | **1998** |
+
+**The bar was: beat `form` on ordering AND on simulated season points, or say plainly that we did
+not. We did not.** `modelVersion` stays at `v2-fitted-2026-08-26` and the serving version is not
+deleted — D-020's two rules, and this is the first entry to be governed by them.
+
+**Six findings, in the order they were paid for:**
+
+1. **The comparison artefact that opened the entry was small.** MAE 1.124 → 1.119 on common rows.
+   B-007's gap to `form` was real, not bookkeeping — the phase's own hypothesis, measured and wrong.
+2. **The population split is not.** On the 11,648 rows with a prior-season baseline (450+ minutes last
+   season) the model beats `form` 1.699 to 1.742; over all 28,905 it loses 1.119 to 1.042. The
+   difference is fringe players, where the outcome is usually zero and a near-zero prediction is
+   nearly unbeatable on MAE.
+3. **Ordering is a split, and the fit is what won the half that matters.** `form` wins whole-field
+   rank correlation — dominated by players who score nothing, which it ranks well by predicting
+   nothing. The model wins points-captured at every k in every view. On identical rows the *unfitted*
+   v1 constants capture 32.6% @11, **behind** `form`'s 33.5%, against the fitted model's 35.4%. MAE
+   called the unfitted model worse without ever saying whether the difference reached a decision.
+4. **Arranging a fixed fifteen is a null result.** Not one model-versus-`form` XI comparison clears
+   two standard errors and the sign flips across squads (+0.19 template, −0.84 random #3). Given a
+   fixed fifteen most of the XI picks itself.
+5. **The ordering advantage cashes out in *which* fifteen you own — and only until the first
+   transfer.** Held all season the model's opening squad is worth 674 points more (+18.22/round ±
+   2.85). Give both a weekly transfer and `form` goes 1172 → 1807 while the model goes 1846 → 1896,
+   leaving +2.41/round ± 2.79, inside the noise. **A weekly transfer corrects a weak opening squad
+   faster than it improves a strong one, so a model better only before the first deadline is worth
+   much less than a season total suggests.**
+6. **The crowd's opening fifteen beats ours, 1998 to 1896**, under the same policy and the same
+   projections. The only difference between those runs is the opening squad. **What is behind is the
+   squad solve, not obviously the projection** — which is what redirects the work.
+
+**Three traps this entry walked into, all of which would have produced a flattering number:**
+
+- **"No row this round" is two different things.** Only rounds 31 and 34 of 2025-26 carry fewer than
+  twenty clubs, so a *club* with no rows really did blank — but 690 players have a round-1 row and 820
+  have one by round 29, because squads are registered through the season. A *player* with no row was
+  as often dropped or an unused substitute, none of it knowable before a deadline. Read as a blank it
+  **quietly benched every player about to lose their place**: worth several points a season, and
+  indistinguishable from a good minutes model. Blanks are now decided at club level and a dropped
+  player keeps his last known projection. **Any future backtest inferring availability from absence
+  has this bug.**
+- **`fit.ts` routes through `runBacktest`** — plan 010 said it did not. Applying Phase 0's common-row
+  restriction there would have thrown away the hardest training rows and moved every fitted constant
+  silently. Guarded structurally and behaviourally; `pnpm fit:model` returns every constant
+  byte-identical.
+- **`Candidate.appearances` must not come from `appearanceCounts()`** in anything historical — it
+  reads current state and tells a round-1 squad how often each player *would go on to* feature. A
+  walk-local counter carries it instead. Flagged by the session that shipped B-010/B-011, who hit the
+  adjacent trap: `Accumulator.matches` counts unused-sub zeros and is not an appearance count despite
+  the name.
+
+**And a measurement rule that outranks any single number here: 38 rounds cannot resolve a couple of
+points a week.** Every difference is paired by round and carries a standard error. Without that,
+findings 4 and 5 would both have been reported as wins — Phase 2 was one edit away from claiming the
+model beat `form` on four of five squads. The prompt came from the B-010/B-011 session's lambda sweep,
+where a +0.59 paired mean carried a 0.92 standard deviation and the per-season sign flipped across
+three seasons.
+
+**What it leaves behind.** `season-sim.ts` with the transfer policy as a parameter — the harness
+**B-008** is measured in, so a planner plugs in rather than bringing one written to flatter it. Both
+shipped policies refuse hits, so every season total above is a **floor**. `squad-scoring.ts`
+(auto-subs, the armband), `ordering.ts` (tie-corrected rank metrics — FPL outcomes are massively tied,
+and a perfect prediction against a three-way tie tops out at 3/√15, not 1) and `pairedDifference()`
+serve B-013, B-015 and B-016 as much as this entry. It also **supersedes `collision-sweep.ts`**; the
+handover note is in plan 010, including that its lambda sweep should first be rerun through
+`scoreLineup()`, because missing auto-subs are not neutral across lambda.
+
+**Next work is B-013 and B-014**, and now for a specific question rather than a general one: why is a
+squad built from these projections worse than the crowd's. **B-008 stays blocked** — its harness
+dependency cleared, its accuracy precondition did not.
+
+**Two process facts worth keeping.** No GitHub issue exists for this entry: `gh issue create` was
+denied by the session's permission classifier four times, including twice on explicit maintainer
+instruction, so neither PR carries `Closes #n`. And a stacked PR whose base branch is deleted by the
+parent's `--delete-branch` merge is **auto-closed by GitHub and cannot be reopened or retargeted** —
+#19 became #20. Retarget the child to `main` before merging the parent, or merge the parent without
+`--delete-branch`.
+
+---
+
+## B-007 · Projection model calibration — done 2026-08-26
 
 ```
 Status   done
@@ -178,7 +421,7 @@ roughly 40% should blank. Strict time cut throughout: predicting gameweek *k* ma
 
 ---
 
-**Outcome — 2026-08-27. Four PRs, a working calibration harness, and a split verdict that is the
+**Outcome — 2026-08-26. Four PRs, a working calibration harness, and a split verdict that is the
 finding rather than a caveat.**
 
 Shipped: `fpl-backend` #11 (points engine), #12 (three-season archive), #14 (deadline snapshot +
@@ -487,7 +730,7 @@ team-strength fixture model. Seven things established that the next session shou
    `ep_next` — that fits FPL's own model rather than improving ours — and real calibration needs
    several `data_checked` gameweeks, of which there is one.
 
-   > **Corrected 2026-08-27 by B-007, which was opened for this finding.** The claim held for the v1
+   > **Corrected 2026-08-26 by B-007, which was opened for this finding.** The claim held for the v1
    > engine and is **false of the model that serves today.** Measured on the held-out 2025-26 season
    > (29,482 rows, `fpl-backend/reports/calibration-fitted.md`), the fitted model *under*-projects the
    > premium head: bias `£7.1–9.0m` **−0.497**, `£9.1–11.0m` **−0.444**, `> £11.0m` **+0.080** (n=76).
@@ -615,14 +858,14 @@ and no plan.
 
 ---
 
-## B-010 · Minimum-appearances floor on who can be recommended — done 2026-08-27
+## B-010 · Minimum-appearances floor on who can be recommended — done 2026-08-26
 
 ```
 Status   done
 Repos    fpl-backend
 Plan     docs/plans/009-recommendation-guards.md (shared with B-011)
 Issue    orchestrator#8 (parent), backend#16
-Shipped  fpl-backend#17 — squashed to main 2026-08-27 as 88fa3f7
+Shipped  fpl-backend#17 — squashed to main 2026-08-26 as 88fa3f7
 Outcome  The floor is live at 11 appearances and removed all three one-appearance players from the
          served GW2 squad, two of whom were starters. It costs 3.41 of the 4.48 horizon EP the two
          guards cost together. It also makes B-011's problem WORSE on its own — pairs held goes
@@ -690,7 +933,7 @@ safe"; it should be stated in the UI wherever the recommendation is shown.
 
 ---
 
-**Outcome — shipped 2026-08-27, backend#16 on `feat/16-recommendation-guards`.** The floor lives in
+**Outcome — shipped 2026-08-26, backend#16 on `feat/16-recommendation-guards`.** The floor lives in
 `optimizer/policy.ts` as `MIN_APPEARANCES = 11` and applies in `prunePool` and nowhere else, so every
 player keeps a projection row and a user squad holding a new signing still scores. On the live GW2
 solve all three one-appearance players are gone — Tzolakis and Emersonn were *starters* — replaced by
@@ -708,14 +951,14 @@ which counts unused-sub zeros. Same word, different number.
 
 ---
 
-## B-011 · Do not recommend both sides of the same fixture — done 2026-08-27
+## B-011 · Do not recommend both sides of the same fixture — done 2026-08-26
 
 ```
 Status   done
 Repos    fpl-backend
 Plan     docs/plans/009-recommendation-guards.md (shared with B-010)
 Issue    orchestrator#8 (parent), backend#16
-Shipped  fpl-backend#17 — squashed to main 2026-08-27 as 88fa3f7
+Shipped  fpl-backend#17 — squashed to main 2026-08-26 as 88fa3f7
 Outcome  Live at lambda 1.0, and measured NOT to be an improvement: +0.59 +/- 0.92 realised points
          per gameweek over 103 archived rounds, per-season sign flipping, downside worse. Kept as
          an explicit policy choice, recorded as one in `optimizer/policy.ts`. The captain fix is
@@ -768,7 +1011,7 @@ attacker = **FWD + MID** vs defensive = **DEF + GKP** (option 2 below).
 
 ---
 
-**Outcome — shipped 2026-08-27, backend#16, and the measurement did not support the rule.** The
+**Outcome — shipped 2026-08-26, backend#16, and the measurement did not support the rule.** The
 penalty is linearised into the ILP (`x_i + x_j - z_ij <= 1`, objective `- LAMBDA * z_ij`, `z`
 continuous), applied again in `pickBestXi` by exact subset enumeration, and reported in
 `optimizer_runs.reasoning.collisions`. `pickBestXi` had to stop being top-EP-per-position: a pairwise

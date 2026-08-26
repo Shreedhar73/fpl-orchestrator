@@ -585,7 +585,7 @@ It is documented in the route rather than papered over.
 
 ---
 
-## D-020 · 2026-08-27 · The model is judged on decisions, not on mean absolute error
+## D-020 · 2026-08-26 · The model is judged on decisions, not on mean absolute error
 
 **B-007 measured the projection model honestly and against the wrong target.** Its bar was MAE and a
 calibration curve versus three baselines. On the held-out 2025-26 season (29,482 rows,
@@ -627,7 +627,7 @@ than being written off. Beating `form` on RMSE while losing on MAE is a split ve
 
 ---
 
-## D-021 · 2026-08-27 · The model is not adopted, and the squad solve is what is behind
+## D-021 · 2026-08-26 · The model is not adopted, and the squad solve is what is behind
 
 **D-020 replaced mean absolute error with decision quality as the bar. B-012 built the bar and the
 model did not clear it.** Recorded here because the negative result is a decision — it is what stops
