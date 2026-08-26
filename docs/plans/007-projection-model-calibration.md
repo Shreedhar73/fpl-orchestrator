@@ -168,47 +168,83 @@ source. The raw CSVs are cached outside git.
 - [x] Fetch into `.archive-cache/`, gitignored — `fpl-backend/.gitignore`
 - [ ] Source, licence and the three limits recorded in `docs/decisions.md`
 
-## Phase 3 — the calibration harness, built before there is data to feed it
+## Phase 3 — the calibration harness
 
-Buildable today with one gameweek — it will be noisy and that is fine. The harness must exist before
-the data arrives, or Phase 4 becomes "write a harness and trust its first output", which is how a
-calibration that cannot fail gets shipped.
+Built before the fit, or Phase 4 becomes "write a harness and trust its first output", which is how a
+calibration that cannot fail gets shipped. With Phase 2b landed it runs over 86,755 archive
+player-gameweeks instead of one live gameweek.
 
-- [ ] `pnpm calibrate` — `src/scripts/calibrate.ts` plus the package script, alongside the existing `project` / `optimize` scripts
-- [ ] Every input passes through `timeCut(rows, k)`; assert the filter is actually applied by inverting it, as `backtest.ts`'s own doc comment prescribes — `src/modules/projections/__tests__/backtest.spec.ts`
-- [ ] Minutes inputs for gameweek *k* come from `player_deadline_snapshot` at *k*, never from `players` — the live row reflects post-match news
-- [ ] **The leak note, stated in the report itself:** GW1 and GW2 have no captured snapshot. Either score them on rates only, or label their numbers impure. Honest minutes-model backtesting starts at GW3. A future session must not read GW1 numbers as clean
-- [ ] A gameweek with no snapshot row is **skipped loudly** — named in the report, never silently scored with today's values, never quietly dropped from a mean
-- [ ] MAE, RMSE and bias, overall and split by position and by price band — the known defect is head-specific, so a single mean would hide it
-- [ ] Calibration curve: bucket predicted EP, plot realised mean per bucket. Assert calibration, not only error — a model that says 40% blank should blank ~40% of the time
-- [ ] Baselines scored the same way over the same players: `form` and last season's points-per-90 are computable from realised rows and therefore available for archive seasons too; **`epNext` is available only for current-season gameweeks with a captured snapshot** — the archive's `xP` is contaminated and is not a substitute. Report which baselines a given gameweek could be scored against, rather than quietly comparing against two in one row and three in another
-- [ ] Report written to `fpl-backend/reports/calibration-GW<k>.md`, committed — the record of what the model was when
-- [ ] **Nothing is written to `projections`.** A test asserts the row count is unchanged across a calibration run (invariant 1)
-- [ ] Sabotage run: feed the harness a deliberately terrible model, confirm the report says so rather than reporting a flattering MAE
+**The time cut is now `(season, round)`, not `round`.** Predicting GW5 of 2024-25 may read all of
+2023-24 and **rounds < 5 of 2024-25 only**. Every rolling aggregate — player rates, team strength,
+priors, baselines — is lagged *within* the season being evaluated. A team-strength number computed over
+a whole season and applied to that season's early gameweeks is the same leak `withinTimeCut` exists to
+stop, one level up, and it is invisible in the output: the model just looks good.
 
-## Phase 4 — fit the knobs (unblocked by the archive; validation still calendar-bound)
+Archive rows are all corrections-final (the seasons are over), so the `dataChecked` half of the cut is
+trivially satisfied there. Stated once in the harness rather than assumed at each call site — it is
+NOT trivially satisfied for the live season.
 
-Every knob below is a first estimate in `model.ts`, never fitted to anything. Before the 2026-08-26
-amendment this phase waited on ~1 `data_checked` gameweek a week; with Phase 2b it fits on 87,087
-archive player-gameweeks and can start as soon as 2b lands.
+- [ ] `pnpm calibrate` — `src/scripts/calibrate.ts` plus the package script, alongside `project` / `optimize`
+- [ ] Extend the cut to `(season, round)` and unit-test it by inversion, as `backtest.ts`'s own doc comment prescribes — `src/modules/projections/backtest.ts`, `__tests__/backtest.spec.ts`
+- [ ] A feature builder that produces, for one `(season, round)`, only what was knowable before it: lagged per-90 rates, lagged team strength, lagged minutes history — one code path, used by both the harness and the live projection, because two paths drift and only one of them is tested
+- [ ] MAE, RMSE and bias, overall and split by position and by price band — the known defect is head-specific, so a single mean hides it
+- [ ] Calibration curve: bucket predicted EP, report realised mean per bucket. Assert calibration, not only error — if the model says 40% blank, ~40% should blank
+- [ ] **Baselines, recomputed rather than read.** The archive has no `form` column: recompute it lagged (FPL's definition — points per match over the trailing 30 days) and last season's points-per-90 from the prior season's rows. Define both in the report so "beat the baselines" is checkable rather than asserted
+- [ ] **`epNext` is live-season-only** — the archive's `xP` is post-match contaminated and is not a substitute. Each gameweek's row names which baselines it could be scored against, so a two-baseline row is never averaged with a three-baseline one
+- [ ] Report to `fpl-backend/reports/calibration-<label>.md`, committed — the record of what the model was when
+- [ ] **Nothing is written to `projections`.** A test asserts the row count is unchanged across a run (invariant 1)
+- [ ] Sabotage: feed the harness a deliberately terrible model and confirm the report says so rather than returning a flattering MAE
 
-**Fitting and validating are not the same wait.** Fit on the archive; hold the live 2026/27 season out
-entirely as the honest test set, because the archive is where the knobs were chosen and a model scored
-on the seasons it was fitted to grades its own homework. So Phase 4's fit is unblocked now, and its
-"beat the baselines" verdict still accumulates a gameweek a week — with the difference that the model
-being validated is a fitted one rather than a guessed one.
+## Phase 4 — the model the archive makes possible
 
-- [ ] `defconThresholdProb` — `clamp01((expectedCount / threshold) * 0.7)`, `model.ts:120`. The 0.7 is a guess, and this is the prime suspect for the premium-head over-projection. **Fittable now**: 2025-26 carries the category across all 38 gameweeks with its components (CBI, tackles, recoveries), so the threshold curve is fitted on ~29,757 rows rather than one gameweek. Still only one season — the category did not exist before 2025/26
-- [ ] `attackMultiplier` — `1 + (3 - difficulty) * 0.15`, `model.ts:104`
-- [ ] `cleanSheetProb` and `expectedGoalsConceded` — `model.ts:109`, `model.ts:114`
-- [ ] Replace `estimateBonus` — `Math.min(1.5, (xg90 + xa90) * 0.6)`, `projections.service.ts:210`, labelled a placeholder in its own comment — with a BPS/90 model fitted on stored `bps`
-- [ ] Shrinkage constants for thin early-season samples — `projections.service.ts:16`
-- [ ] Goalkeepers fitted separately: saves and clean sheets behave unlike every other position, and FPL changed goalkeeper goal scoring within two seasons
-- [ ] Players with no usable prior are excluded from the fit and named in the report, not shrunk toward nothing: new signings, promoted-club players, `removed: true`, and mid-season transfers between PL clubs (the history is real, the team strength behind it is not theirs any more)
-- [ ] Suspensions handled as knowable in advance, not as injuries — a ban is scheduled, `status: 's'`
-- [ ] `chanceOfPlayingNextRound: null` means fully fit. Regression test, because treating null as 0 benches every healthy player
-- [ ] Postponements: `kickoff_time` null and `event` null, and a fixture can move gameweeks *after* projections were written. Assert the harness attributes a moved fixture to the gameweek it was actually played in
-- [ ] Rotation and cup congestion: name what the minutes model cannot know rather than pretending to model it (`fpl-optimizer`, the honesty rules)
+Every knob in `model.ts` is a first estimate fitted to nothing. Three seasons change that — but the
+first change is structural, not numeric, and it is forced rather than chosen.
+
+### 4a. The fixture input has to be redefined, because FDR does not exist in history
+
+`attackMultiplier`, `cleanSheetProb` and `expectedGoalsConceded` all take FPL's FDR (1–5). **The
+archive carries no FDR, and historical FDR cannot be obtained** — so "fit the FDR curves from data" is
+not a thing that can be done. Fitting a multiplier on one input scale and serving it against another
+is a calibration error that no test would catch, because both sides look fine in isolation.
+
+So v2's fixture input becomes **lagged rolling team strength — attack and defence, computed identically
+in history and at serve time**: from `archive_player_gameweek` for past seasons, from
+`player_gameweek_stats` for the live one, by the same function. FDR survives only as a cold-start prior
+for the first gameweeks of a season, where no lagged strength exists yet.
+
+- [ ] One `teamStrength(season, round)` producing lagged attack/defence per club, from either source, with the same definition — `src/modules/projections/team-strength.ts`
+- [ ] Replace the FDR argument to `projectFixture` with that strength, keeping FDR as the documented cold-start prior only
+- [ ] Test that the two sources agree on an overlapping definition, so "same function" is checked rather than claimed
+
+### 4b. Structural fixes — the expectation of a function is not the function of the expectation
+
+These are wrong independently of any fitting, and fitting on top of them would tune knobs to hide them:
+
+- [ ] **Appearance points.** `model.ts` does `eMinutesIfPlay >= 60 ? longPlay : shortPlay` — a hard threshold on an expectation. A rotation risk with an expected 60 minutes is not a certain 2 points; it is a mix. Replace with `P(60+) × long + P(1–59) × short`
+- [ ] **Saves.** `minShare × saves90 / 3` is `E[saves]/3`, but the rule pays `floor(saves/3)`. Use the expectation of the floor over a count distribution, not the floor of the expectation
+- [ ] **Goals conceded.** Same defect: `E[gc]/2` where the rule pays `floor(gc/2)`
+- [ ] **Defensive contribution.** `clamp01((expectedCount / threshold) × 0.7)` is a linear ramp standing in for a tail probability `P(count ≥ threshold)`. This is the prime suspect for the premium-head over-projection, and the linear form over-pays exactly the high-rate players who are the premium head
+
+### 4c. What the archive can fit, and what it cannot
+
+- [ ] Minutes: `P(start | lagged start rate)`, the minutes distribution given start and given sub, and `P(60+ | start)` — fitted on all three seasons
+- [ ] **The availability half of the minutes model stays heuristic, and the plan says so.** There is no per-gameweek `status` or `chance_of_playing` in the archive, so the injury/doubt multiplier cannot be fitted here. It waits on `player_deadline_snapshot` (Phase 2) accumulating live gameweeks. A fitted minutes model that quietly leaves this unfitted reads as more validated than it is
+- [ ] Attacking: goals and assists per 90 against lagged team strength, fitted rather than a 0.15-per-FDR-step guess
+- [ ] Clean sheets and goals conceded: fitted against lagged defensive strength
+- [ ] Bonus: replace `estimateBonus` — `min(1.5, (xg90 + xa90) × 0.6)`, labelled a placeholder in its own comment — with a BPS-based model. The archive carries `bps` **and** `bonus` on every row, so this is a direct fit
+- [ ] Shrinkage constants for thin samples — `projections.service.ts:16` — fitted rather than assumed
+- [ ] Goalkeepers fitted separately: saves and clean sheets behave unlike every other position
+- [ ] Players with no usable prior are excluded from the fit and named in the report, not shrunk toward nothing: new signings, promoted-club players, mid-season transfers between PL clubs (the history is real, the team strength behind it is not theirs any more)
+
+### 4d. Train and test must not be the same rows
+
+- [ ] **Fit on 2023-24 + 2024-25; evaluate on 2025-26 held out.** The archive is where the knobs are chosen, so scoring on it grades its own homework
+- [ ] **Defensive contribution is the exception and must be labelled one.** The category exists only in 2025-26, so it cannot be both fitted and held out across seasons. Fit it on **GW1–19** and evaluate on **GW20–38**, report the defcon term separately, and carry a note on the 2025-26 headline that its first half trained that curve
+- [ ] **The live 2026/27 season is held out entirely** — the final honest test, accumulating a gameweek a week
+- [ ] Fitted constants live in a committed file with provenance: seasons and row counts fitted on, the date, the objective, and old → new per knob. Same reasoning as `archive-scoring.ts` — a fitted number must be reviewable in a diff
+
+### 4e. The verdict
+
 - [ ] Run the Phase 3 harness against the fitted model; compare to all three baselines
 - [ ] **If it beats them:** bump `modelVersion` to `v2`, re-run `pnpm project`, confirm the served version changed (`createdAt desc` handles it) and that v1 rows stay for comparison
 - [ ] **If it does not:** leave `modelVersion` at v1, commit the report saying so, archive B-007 with the negative outcome (maintainer decision 2026-08-26)
@@ -218,8 +254,14 @@ being validated is a fitted one rather than a guessed one.
 
 ## Sequencing
 
-Phase 1 → Phase 2 → Phase 2b → Phase 3 → Phase 4's fit are all buildable now, in that order. Only
-Phase 4's *verdict* waits on the calendar, since the live 2026/27 season is held out as the test set.
+Phase 1 → Phase 2b → Phase 3 → Phase 4's fit are all buildable now. Only Phase 4's *verdict* waits on
+the calendar, since the live 2026/27 season is held out as the test set.
+
+**Phase 2 does not queue behind Phase 4, and this is a real risk to manage.** The fit is open-ended
+work; `player_deadline_snapshot` is calendar-bound — the GW3 deadline is **2026-09-04**, and the
+snapshot has to exist before it for GW3 to be the first honestly captured gameweek. Every gameweek it
+slips is a gameweek of availability data that cannot be recovered, and it is the only thing that will
+ever let 4c's availability multiplier be fitted. It runs ahead of or alongside Phase 4, never after.
 
 Phase 1 stays first and still gates everything, including the archive: reproducing 2025-26's
 `total_points` from archive rows is how Phase 2b proves its import and its hand-entered scoring table,
