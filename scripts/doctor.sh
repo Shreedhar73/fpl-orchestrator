@@ -5,8 +5,8 @@ set -uo pipefail
 
 ORCH="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MAN="$ORCH/orchestration/repos.json"
-VERBOSE=0; HOOKS_ONLY=0
-for a in "$@"; do case "$a" in -v|--verbose) VERBOSE=1;; --hooks) HOOKS_ONLY=1;; esac; done
+VERBOSE=0; HOOKS_ONLY=0; GIT_ONLY=0
+for a in "$@"; do case "$a" in -v|--verbose) VERBOSE=1;; --hooks) HOOKS_ONLY=1;; --git) GIT_ONLY=1;; esac; done
 
 FAIL=0
 ok()   { [ "$VERBOSE" = 1 ] && echo "  ok   $1"; return 0; }
@@ -15,7 +15,7 @@ warn() { echo "  warn $1"; [ -n "${2:-}" ] && echo "       $2"; }
 
 section() { echo; echo "$1"; }
 
-if [ "$HOOKS_ONLY" = 0 ]; then
+if [ "$HOOKS_ONLY" = 0 ] && [ "$GIT_ONLY" = 0 ]; then
 section "toolchain"
   for c in node pnpm jq curl; do command -v $c >/dev/null && ok "$c" || bad "$c missing" "install $c"; done
   nv=$(node -v 2>/dev/null | sed 's/v//;s/\..*//'); [ "${nv:-0}" -ge 20 ] && ok "node $nv" || bad "node $nv < 20" "upgrade node"
@@ -56,6 +56,7 @@ section "frontmatter"
   done
 fi
 
+if [ "$GIT_ONLY" = 0 ]; then
 section "hooks"
   H="$ORCH/plugins/fpl/hooks"
   jq -e . "$H/hooks.json" >/dev/null 2>&1 && ok "hooks.json valid" || bad "hooks.json invalid JSON"
@@ -73,8 +74,56 @@ section "hooks"
   out=$(echo '{"tool_input":{"file_path":"/x/fpl-backend/prisma/schema.prisma"}}' | bash "$H/pre-edit-skill-router.sh" 2>/dev/null)
   echo "$out" | jq -e '.hookSpecificOutput.additionalContext | test("fpl-data-model")' >/dev/null 2>&1 \
     && ok "skill router maps schema.prisma" || bad "skill router did not map schema.prisma" "check the case patterns"
+  # The trailer guard is the only thing standing against the agent default, which appends one every
+  # time. Assembled from pieces so this file does not itself trip the guard when doctor is run.
+  trailer="Co-Authored""-By: Claude Opus 5 <noreply@anthropic.com>"
+  out=$(jq -n --arg c "git com""mit -m \"feat: x
+
+$trailer\"" '{tool_input:{command:$c}}' | bash "$H/pre-bash-guard.sh" 2>/dev/null)
+  echo "$out" | jq -e '.hookSpecificOutput.permissionDecision == "deny"' >/dev/null 2>&1 \
+    && ok "pre-bash-guard denies an AI attribution trailer" \
+    || bad "pre-bash-guard did NOT deny a Co-Authored-By: Claude commit" "the commit log will fill with AI trailers — check the regex in pre-bash-guard.sh"
+  # Cross-repo work is driven from here, so the sibling shape has to be denied too. A guard that
+  # only catches `git commit` is a guard that catches nothing the moment work goes cross-repo.
+  out=$(jq -n --arg c "git -C ../fpl-backend com""mit -m \"feat: x
+
+$trailer\"" '{tool_input:{command:$c}}' | bash "$H/pre-bash-guard.sh" 2>/dev/null)
+  echo "$out" | jq -e '.hookSpecificOutput.permissionDecision == "deny"' >/dev/null 2>&1 \
+    && ok "pre-bash-guard denies a trailer via git -C <repo>" \
+    || bad "pre-bash-guard did NOT deny a trailer on 'git -C <repo> commit'" "the subcommand regex is anchored to 'git commit' — loosen it"
+  # And it must still leave an ordinary commit alone.
+  out=$(jq -n --arg c "git com""mit -m \"feat: add the projections endpoint\"" '{tool_input:{command:$c}}' | bash "$H/pre-bash-guard.sh" 2>/dev/null)
+  [ -z "$out" ] && ok "pre-bash-guard allows a clean commit" \
+    || bad "pre-bash-guard denies an ordinary commit" "too broad — it will get disabled"
+fi
 
 [ "$HOOKS_ONLY" = 1 ] && { echo; [ "$FAIL" = 0 ] && echo "hooks ok" || echo "$FAIL failing"; exit $FAIL; }
+
+section "git"
+  # One rule per repo: a remote to open PRs against, no AI attribution in the log, and work on a
+  # branch rather than piling up on the default one. See orchestration/workflow.md.
+  while IFS=$'\t' read -r name path def; do
+    r="$(cd "$ORCH/$path" 2>/dev/null && pwd)" || { bad "$name: missing at $path" "clone or create it"; continue; }
+    [ -d "$r/.git" ] || { bad "$name: not a git repository" "git -C $r init"; continue; }
+    if git -C "$r" remote get-url origin >/dev/null 2>&1; then
+      ok "$name: origin $(git -C "$r" remote get-url origin)"
+    else
+      warn "$name: no origin remote" "gh repo create $name --private --source $r --remote origin"
+    fi
+    # Same three patterns the guard denies, so the log check and the guard cannot disagree.
+    hits=$(git -C "$r" log --format=%B 2>/dev/null | grep -ciE 'co-authored-by:[[:space:]]*claude|generated with \[claude code\]|🤖' || true)
+    [ "${hits:-0}" -gt 0 ] && bad "$name: $hits AI attribution trailer(s) in the commit log" "history is not rewritten here — stop the next one: bash scripts/doctor.sh --hooks" \
+      || ok "$name: no AI trailers in the log"
+    br=$(git -C "$r" rev-parse --abbrev-ref HEAD 2>/dev/null)
+    dirty=$(git -C "$r" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+    if [ "$br" = "$def" ] && [ "$dirty" -gt 0 ]; then
+      warn "$name: $dirty uncommitted file(s) on $def" "git -C $r switch -c <type>/<slug> — workflow.md step 2"
+    else
+      ok "$name: on $br ($dirty dirty)"
+    fi
+  done < <(jq -r '.repos[] | "\(.name)\t\(.path)\t\(.default_branch)"' "$MAN")
+
+[ "$GIT_ONLY" = 1 ] && { echo; [ "$FAIL" = 0 ] && echo "git ok" || echo "$FAIL failing"; exit $FAIL; }
 
 section "ports"
   while IFS=$'\t' read -r name port; do

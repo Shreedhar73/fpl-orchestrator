@@ -25,8 +25,8 @@ at runtime in the browser, not at compile time.
    needs state.
 6. **Verify end to end.** Load the page, see the real data render. A type-check that passes is not a
    feature that works.
-7. **Tick the plan file** and commit both repos with matching branch names and a message naming the
-   contract.
+7. **Tick the plan file**, then `/fpl:ship` in both repos — matching branch names, a commit message
+   naming the contract, backend PR opened and merged first.
 
 ## Checks
 

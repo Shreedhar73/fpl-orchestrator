@@ -34,6 +34,7 @@ cannot reach them at all** — the trigger is the human typing `/<name>`.
 | `/run-stack` | Boot Postgres, backend and frontend, and verify each actually serves |
 | `/new-feature` | Interview, then write a living checklist plan file |
 | `/cross-repo` | Implement a backend+frontend change in contract-first order |
+| `/ship` | Branch, commit, push and open the PR in this project's git conventions |
 | `/stack-doctor` | Health-check toolchain, symlinks, hooks, ports, database, freshness, upstream |
 
 Installed as a plugin, these are namespaced `/fpl:<name>`.
