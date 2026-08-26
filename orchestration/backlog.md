@@ -110,9 +110,9 @@ to FPL" paragraph — the answer is now that we handle no FPL cookies at all.
 ## B-006 · Team input and advice — manual, import by manager id, or recommended
 
 ```
-Status   backlog
+Status   planned
 Repos    fpl-backend, fpl-frontend
-Plan     —
+Plan     docs/plans/006-team-input-and-advice.md
 Issue    —
 ```
 
@@ -123,9 +123,20 @@ Issue    —
    manager id is a per-request import input, never stored as an identity.
 3. **Start from the recommended best team** (B-005's output).
 
-Given any team, the frontend shows the advice — transfers, captain, bench, chips — for the next GW
-and the season-long plan, with the evidence visible. Crosses the HTTP contract (backend endpoints +
-DTOs first, then regenerated types, then the frontend). Depends on B-005.
+Given any team, the frontend shows the advice for the next GW with the evidence visible. Crosses the
+HTTP contract (backend endpoints + DTOs first, then regenerated types, then the frontend). Depends on
+B-005.
+
+**Scoped 2026-08-26, when the plan was written.** The advice this entry ships is **captain, vice,
+bench order, per-player projections with their evidence, and the points gap against the optimal 15** —
+**not** transfers and **not** chips, which are B-008 and depend on this. Where the transfer
+recommendation will go, the panel renders a disabled affordance; a naive stand-in is one nobody
+re-opens. Phased inside one plan: import + recommended + the advice view first, the manual squad
+builder last. Two further things the plan establishes and the implementing session should not
+re-derive: the contract pipeline **does not exist yet** (`@nestjs/swagger` is a dependency but is not
+wired, `pnpm generate:api` is an `exit 1` stub, `health` is the only controller), so Phase 0 builds
+it; and the import is an upstream call on a request path, which `fpl-api-reference` forbids as
+written, so the plan amends that skill with a narrow carve-out rather than quietly breaking it.
 
 ---
 
@@ -169,3 +180,15 @@ coarser season-level decision — recommend the *window* (a double gameweek for 
 Free Hit) and let the user commit; a chip is unspendable once spent, so the model never spends it.
 Uses sell value (purchase + half the rise, rounded down), not market price. Extends `OptimizerRun`.
 Depends on B-005 and B-006.
+
+**Sell value must be reconstructed here — B-006 cannot supply it.** Probed live 2026-08-26:
+`entry/{id}/event/{gw}/picks/` carries only `{ element, position, multiplier, is_captain,
+is_vice_captain, element_type }`. There is **no `purchase_price` and no `selling_price`** in any
+public endpoint; both live in `my-team/{id}/`, which is 403 without auth (D-013 — we never
+authenticate). So B-006's import writes `SquadPick.sellValue` as **`null`**, deliberately: an
+approximation from `now_cost` would be a wrong number consumed here with no tell, and a null is loud
+where a wrong number is quiet. The reconstruction is available and is this entry's first task:
+`entry/{id}/transfers/` exists (probed — returns `[]` for a manager with no transfers, which is the
+normal empty case) and carries `element_in_cost` / `element_out_cost` per transfer per event; replay
+it against `player_price_history` back to the GW1 deadline price to recover purchase price, then
+sell value.
