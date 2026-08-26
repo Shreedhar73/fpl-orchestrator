@@ -100,8 +100,12 @@ eligible forwards at ≤£4.5m.
 - [ ] `LAMBDA` in config, default **1.0 horizon point per conflicting pair**, and labelled in the
       code as **unfitted** — a policy knob, not a measurement. Phase 4 is what earns it a number.
 - [ ] Apply the same penalty in `pickBestXi` — `ilp.ts`. A constraint on the 15 does not stop a
-      conflicting XI, and the XI is chosen after the solve. Same pair set, same lambda, subtracted
-      from each formation's total.
+      conflicting XI, and the XI is chosen after the solve. **Re-scoring today's greedy pick is not
+      enough:** pairwise penalties break separability, so the penalty-optimal XI may want the 4th
+      DEF over the 3rd, and top-EP-per-position can never find that. Enumerate subsets within each
+      formation under the penalised objective — `C(5,d)·C(5,m)·C(3,f)` over a 15-man squad is a few
+      thousand combinations, still exact and still trivial. If a greedy re-score is taken instead,
+      it is an approximation and must say so in the code.
 - [ ] **Fix the captain case explicitly.** The captain doubles, so a captain colliding with two of
       your own starting defenders is the worst version of this, and `arrangeSquad` picks the captain
       by raw EP after the XI is chosen. Either penalise captaincy against the pair set, or state in
@@ -142,6 +146,11 @@ Each of these has a named sabotage.
       that can be measured rather than argued. The archive carries three completed seasons of
       per-gameweek realised points (86,755 rows) and `fixtures` gives the opponent for each. Score
       the same solve with `LAMBDA ∈ {0, 0.5, 1, 2, 4}` over past gameweeks under B-007's strict time
-      cut, and report realised points per lambda. If no lambda beats zero, say so plainly and keep
-      the rule as an explicit policy choice rather than dressing it as an improvement.
+      cut, and report realised points per lambda. **Mean alone cannot answer this** — the penalty
+      spends mean EP to buy variance reduction, so `λ=0` wins on mean by construction and the test
+      could only ever return its own escape clause. Report the realised per-gameweek distribution
+      beside the mean: worst-decile and worst-quartile points per lambda. That is what separates
+      "the rule is worthless" from "the insurance is priced right". If no lambda improves either
+      the mean or the downside, say so plainly and keep the rule as an explicit policy choice
+      rather than dressing it as an improvement.
 - [ ] `pnpm typecheck`, `pnpm test`, and the doctor's git checks before the PR.
