@@ -184,11 +184,9 @@ Status   in progress — all six phases built; PRs #18 and #19 open, awaiting me
 Repos    fpl-backend
 Plan     docs/plans/010-decision-quality-bar.md
 Issue    —  (blocked, see below)
-PR       fpl-backend#18 (Phases 0–2) · #19 (Phases 3–6, stacked on #18) — both open, both awaiting
-         a maintainer merge. **Merge order matters:** squash #18, then
-         `git rebase --onto main feat/decision-quality-bar feat/season-simulator` in the
-         `fpl-backend-b012` worktree, force-push, then squash #19. Without the rebase, #19 replays
-         commits the squash already absorbed.
+PR       fpl-backend#18 (Phases 0–2) — **merged 2026-08-26 as `b52ce3c`**
+         fpl-backend#20 (Phases 3–6) — open against `main`, rebased, mergeable
+         fpl-backend#19 — auto-closed, replaced by #20 (see below)
 Branch   fpl-backend `feat/decision-quality-bar`, in the worktree `../fpl-backend-b012`
 ```
 
@@ -205,6 +203,14 @@ Branch   fpl-backend `feat/decision-quality-bar`, in the worktree `../fpl-backen
 > `feat/<child>-decision-quality-bar` once the number exists (git rule 3). **A future session should
 > not spend time retrying this** — it is a settings change (a Bash permission rule), not a phrasing
 > problem.
+>
+> **A stacked-PR trap, hit 2026-08-26 — worth knowing before the next one.** #19 was based on
+> #18's branch. Merging #18 with `--delete-branch` deleted that base, and **GitHub auto-closed #19**;
+> a closed PR cannot be reopened once its base branch is gone, and its base cannot be retargeted
+> either. The branch and commits were fine — `git rebase --onto origin/main <last-commit-of-#18>`
+> recognised the squashed commit as already upstream and dropped it — but the PR had to be reopened
+> as **#20**. Either retarget the child to `main` *before* merging the parent, or merge the parent
+> without `--delete-branch`.
 >
 > **Blocker 2 — cleared.** `fpl-backend#17` merged as `88fa3f7`; this branch is rebased onto it and
 > `Candidate.appearances` is carried by a **walk-local counter**, not `appearanceCounts()` — that
