@@ -1123,3 +1123,74 @@ Two further findings, recorded and not fixed here:
 The unfitted parameters score the same term at 0.0393, so the fit moved it 3× closer and left it 10×
 worse than everything else — fitting a constant cannot repair a shape.
 
+---
+
+## B-019 · The substitute-appearance term is one global constant, and it is the model's worst shape
+
+```
+Status   backlog
+Repos    fpl-backend
+Plan     —
+Issue    —
+```
+
+**Why.** B-013 measured every term of the model on its own and named this one. On 29,482 held-out
+2025-26 rows, `P(any appearance)` carries a Brier reliability of **0.0121** — 10.4× the mean of every
+other binary the model emits — while `P(start)` and `P(60+)` sit at 0.0015. The start curve is fine.
+What is wrong is the term that turns "did not start" into "might still appear":
+
+```ts
+const pSub = clamp01(availability * (1 - rawStart) * m.subAppearanceRate); // 0.154, one global number
+```
+
+It pays **every** non-starter the same 15.4%, so a fringe player who will never be used and a first
+substitute who always comes on are given the same appearance probability. The curve says exactly
+that: 14,136 rows — nearly half the corpus — predicted at 0.178 and observed at **0.066**, and the
+middle bands under-predicted the other way (0.548 predicted, 0.690 observed).
+
+**This is fittable from the archive today, and does not wait on B-015.** B-015 is calendar-bound
+because `availabilityMultiplier()` needs per-gameweek `status`, which the archive does not carry. The
+sub-appearance rate needs no such thing: it is a function of a player's own lagged start rate and
+minutes, both of which the archive has for 86,755 rows. The two halves of the minutes model were
+being treated as one blocked thing; they are not.
+
+**What to build.** Replace the scalar with a fitted curve — `P(appear | did not start)` as a logistic
+on the same lagged features `P(start)` already uses, at minimum lagged start rate and lagged
+minutes-per-match. Then re-run `pnpm calibrate:components` and require the reliability term to fall.
+`pPlay` is also what orders the bench (`pPlay × EP`), so this is not only a points-sum question.
+
+**The bar.** `P(any appearance)` reliability below the mean of the other binaries, on the same held-out
+rows, with the report committed. If a fitted curve cannot do it, the finding is that appearance off
+the bench is not predictable from lagged minutes, which is also an answer.
+
+---
+
+**Outcome — shipped 2026-08-27, backend#24, and the bar was met.**
+
+`subAppearanceRate` is replaced by a two-parameter logistic on the logit of the player's own lagged
+`P(appear | did not start)`, Beta(8)-smoothed toward the population prior, fitted on non-start rows
+only. Fitted: `subIntercept` 0.575, `subSlope` **1.384** — steeper than 1, the opposite direction to
+`startSlope`, because the lagged rate is smoothed before the model sees it and the fit un-shrinks it.
+
+**`P(any appearance)` reliability 0.0121 → 0.0009**, skill 0.424 → 0.514. Worst term by a factor of
+ten, now second best and below the mean of the rest.
+
+The aggregate curve moved with it, which is the part that matters beyond one term: overall bias
+**−0.025 → −0.002**, and the 1–2 predicted band now scores 1.508 against a realised 1.508 where it
+used to predict 1.475 against 1.675. Ordering spearman 0.518 → 0.531, points captured @15 36.9% →
+37.8%, and under the `greedy-1ft` season policy **the gap to the crowd's template squad closes from
+102 points to 31** — the deficit D-021 named as the reason B-013 and B-014 were the next work.
+
+Two things this did NOT do, both stated so nothing later reads it as more than it is:
+
+- **The served model is unchanged.** `v2-fitted-2026-08-26` is still what `projections` holds. A
+  model version bump is a deliberate act with its own decision record, and it waits until B-014 has
+  either earned a fixture term or removed one, so the served model changes once rather than twice.
+- **`P(defcon ≥ threshold)` is now the worst-calibrated term** at 0.0022, predicting 0.013 against a
+  base rate of 0.054. It belongs to B-014, which already carries the defensive-contribution suspicion.
+
+Rider, found while fitting and worth more than the entry it arrived in: a grid search returns a
+winner whether or not its objective can distinguish the candidates. `xaFixtureElasticity` scored
+1.9497 at every value from 1.0 to 2.0 and would have shipped as 1.5 on 0.0007 RMSE of evidence. See
+[D-023](../docs/decisions.md).
+

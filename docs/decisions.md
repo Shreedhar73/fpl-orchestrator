@@ -727,3 +727,47 @@ still appear": a single global `subAppearanceRate = 0.154` paying every non-star
    0.0393; the fit moved it 3× closer and left it 10× worse than everything else. Every future
    parameter search should be read with that in mind — a search over a scalar will find the best
    scalar and say nothing about whether a scalar was the right object.
+
+---
+
+## D-023 · 2026-08-27 · A grid search returns a winner whether or not its objective can tell the candidates apart
+
+**Context.** `fitParams` chooses the model's shape parameters by scoring a grid of candidates against
+held-out RMSE and taking the best. Re-running it after B-019 produced this row:
+
+```
+attack.xaFixtureElasticity → 1.5   [0=1.9504  0.25=1.9501  0.5=1.9499  0.75=1.9498
+                                    1=1.9497  1.25=1.9497  1.5=1.9497  2=1.9497]
+```
+
+Every value from 1.0 to 2.0 scores 1.9497. The whole grid spans **0.0007** RMSE, against a corpus
+RMSE of 1.95. The search nonetheless returned a winner, and that winner would have shipped as
+`xaFixtureElasticity: 1.5` — a claim that a fixture's goal-rate advantage moves an individual's
+assists by half again — on evidence of seven ten-thousandths of a point.
+
+This is the failure shape where the check cannot go red. The output table is identical in structure
+whether the objective discriminates or not; `atGridBoundary` catches an optimum outside the grid and
+says nothing about an optimum that does not exist. Nothing downstream would have flagged it, because
+a fitted constant with provenance is exactly what the file is designed to hold.
+
+**Decision.** Every search reports its **spread** — worst minus best RMSE across the grid — and is
+flagged `flat` when that spread is below `FLAT_EPSILON = 0.001`. When a grid is flat and the
+parameter has a **null candidate** — the value meaning "this input has no effect", 0 for an
+elasticity — the null is taken instead of the nominal winner.
+
+**Why the null rather than the nominal winner.** Adopting a non-zero effect that the data cannot
+distinguish from zero is a claim; declining to make it is not. The model is read by a UI that
+explains its numbers (D-019), and "the fixture lifts this player's assists by 50%" is a sentence
+someone will believe. The reverse error — refusing a real effect the grid could not resolve — leaves
+the model where it already was and is recoverable by a better objective, which is the honest next
+step anyway.
+
+**Consequences.**
+
+1. `xaFixtureElasticity` stays at **0**, and now for a stated reason rather than by coincidence.
+2. The `flat` flag is printed by `pnpm fit:model` and carried in `FitReport`, so a future session
+   sees the spread beside the winner rather than the winner alone.
+3. **This does not say the fixture effect is absent.** It says single-gameweek RMSE over 87,000 rows
+   cannot resolve it. B-014 is the entry that asks whether the input is the problem — team strength
+   defined as the sum of a squad's expected goals is lagged, injury-blind and rotation-blind, and an
+   elasticity fitted on top of an uninformative input will fit to zero however real the true effect.
