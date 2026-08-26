@@ -1,0 +1,8 @@
+{
+  "name": "fpl",
+  "version": "0.1.0",
+  "description": "Agent skills, hooks and subagents for the fantasy-premier-league stack (Next.js :5000 + NestJS :5001 + Postgres). User-invoked skills are namespaced /fpl:<name>.",
+  "author": { "name": "shreedharpandey000" },
+  "keywords": ["fpl", "fantasy-premier-league", "nextjs", "nestjs", "orchestration"],
+  "hooks": "./hooks/hooks.json"
+}

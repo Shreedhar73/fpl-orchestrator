@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "project": "fantasy-premier-league",
+  "_comment": "Machine-readable manifest of the three repos. `path` is relative to the fpl-orchestrator repo root (siblings = ../<repo>, self = .). The narrative companion is orchestration/MAP.md. Consumed by scripts/link-skills.sh, scripts/doctor.sh and scripts/dev.sh — edit here, not in the scripts.",
+  "repos": [
+    {
+      "name": "fpl-frontend",
+      "path": "../fpl-frontend",
+      "role": "frontend",
+      "stack": "nextjs-app-router-ts",
+      "port": 5000,
+      "default_branch": "main",
+      "commands": {
+        "install": "pnpm install",
+        "dev": "pnpm dev",
+        "build": "pnpm build",
+        "test": "pnpm test",
+        "lint": "pnpm lint",
+        "typecheck": "pnpm typecheck"
+      },
+      "consumes": ["fpl-http-contract"],
+      "provides": []
+    },
+    {
+      "name": "fpl-backend",
+      "path": "../fpl-backend",
+      "role": "backend",
+      "stack": "nestjs-ts-prisma-postgres",
+      "port": 5001,
+      "default_branch": "main",
+      "commands": {
+        "install": "pnpm install",
+        "dev": "pnpm start:dev",
+        "build": "pnpm build",
+        "test": "pnpm test",
+        "lint": "pnpm lint",
+        "typecheck": "pnpm typecheck",
+        "migrate": "pnpm prisma migrate dev",
+        "sync": "pnpm sync:fpl"
+      },
+      "consumes": ["fpl-official-api"],
+      "provides": ["fpl-http-contract", "postgres-data-model"]
+    },
+    {
+      "name": "fpl-orchestrator",
+      "path": ".",
+      "role": "orchestration",
+      "stack": "markdown-bash",
+      "port": null,
+      "default_branch": "main",
+      "commands": {
+        "link": "bash scripts/link-skills.sh",
+        "doctor": "bash scripts/doctor.sh",
+        "dev": "bash scripts/dev.sh"
+      },
+      "consumes": [],
+      "provides": ["skills", "hooks", "subagents"]
+    }
+  ],
+  "contracts": [
+    {
+      "name": "fpl-http-contract",
+      "provider": "fpl-backend",
+      "surface": "src/modules/*/*.controller.ts + src/common/dto/",
+      "consumers": ["fpl-frontend"],
+      "notes": "Every response is the ApiResponse<T> envelope. Types are generated into fpl-frontend/src/lib/api/types.gen.ts — never hand-written."
+    },
+    {
+      "name": "postgres-data-model",
+      "provider": "fpl-backend",
+      "surface": "prisma/schema.prisma",
+      "consumers": ["fpl-backend"],
+      "notes": "Sole owner of the schema. No other repo talks to Postgres."
+    },
+    {
+      "name": "fpl-official-api",
+      "provider": "external (fantasy.premierleague.com)",
+      "surface": "https://fantasy.premierleague.com/api/",
+      "consumers": ["fpl-backend"],
+      "notes": "Read endpoints are unauthenticated. Write endpoints (making a transfer, setting a lineup) need the user's own FPL session cookie — not built yet, see MAP.md."
+    }
+  ],
+  "ports": { "fpl-frontend": 5000, "fpl-backend": 5001, "postgres": 5432, "redis": 6379 }
+}

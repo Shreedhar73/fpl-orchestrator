@@ -1,0 +1,8 @@
+{
+  "name": "fantasy-premier-league",
+  "owner": { "name": "shreedharpandey000" },
+  "metadata": { "description": "Skills and hooks for the fantasy-premier-league stack, shared by all three repos." },
+  "plugins": [
+    { "name": "fpl", "source": "./plugins/fpl", "description": "FPL project skills (/fpl:<name>), hooks and subagents." }
+  ]
+}
