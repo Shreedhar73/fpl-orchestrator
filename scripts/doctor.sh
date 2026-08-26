@@ -95,6 +95,42 @@ $trailer\"" '{tool_input:{command:$c}}' | bash "$H/pre-bash-guard.sh" 2>/dev/nul
   out=$(jq -n --arg c "git com""mit -m \"feat: add the projections endpoint\"" '{tool_input:{command:$c}}' | bash "$H/pre-bash-guard.sh" 2>/dev/null)
   [ -z "$out" ] && ok "pre-bash-guard allows a clean commit" \
     || bad "pre-bash-guard denies an ordinary commit" "too broad — it will get disabled"
+
+  # The corpus. Both halves matter: a false positive is a bug of the same rank as a hole, because
+  # a guard that fires on ordinary work is a guard someone switches off.
+  CASES="$H/testdata/bash-guard-cases.txt"
+  if [ ! -f "$CASES" ]; then
+    bad "no guard corpus at plugins/fpl/hooks/testdata/bash-guard-cases.txt" "the guard has no behavioural test — restore the file"
+  else
+    n=0; miss=0; first=""
+    while IFS='|' read -r want line; do
+      case "${want:-}" in ''|\#*) continue ;; esac
+      n=$((n+1))
+      out=$(jq -n --arg c "$line" '{tool_input:{command:$c}}' | bash "$H/pre-bash-guard.sh" 2>/dev/null); rc=$?
+      if [ "$rc" != 0 ]; then got="ERR($rc)"
+      elif echo "$out" | jq -e '.hookSpecificOutput.permissionDecision == "deny"' >/dev/null 2>&1; then got=DENY
+      else got=ALLOW; fi
+      [ "$got" = "$want" ] && continue
+      miss=$((miss+1)); [ -z "$first" ] && first="want $want, got $got: $line"
+      [ "$VERBOSE" = 1 ] && echo "    want $want, got $got: $line"
+    done < "$CASES"
+    [ "$miss" = 0 ] && ok "pre-bash-guard corpus: $n/$n" \
+      || bad "pre-bash-guard corpus: $miss/$n wrong — $first" "run with -v for every mismatch"
+  fi
+
+  # Verdicts that depend on the checked-out branch, so they cannot live in the corpus file.
+  # `git push -f` with no refspec pushes whatever is checked out.
+  cur=$(git -C "$ORCH" symbolic-ref --short HEAD 2>/dev/null || echo "")
+  out=$(jq -n --arg c "git push -f" '{tool_input:{command:$c}}' | bash "$H/pre-bash-guard.sh" 2>/dev/null)
+  echo "$out" | jq -e '.hookSpecificOutput.permissionDecision == "deny"' >/dev/null 2>&1 && got=DENY || got=ALLOW
+  case "$cur" in
+    main|master|develop)
+      [ "$got" = DENY ] && ok "pre-bash-guard denies a bare 'git push -f' on $cur" \
+        || bad "pre-bash-guard allows a bare 'git push -f' on $cur" "force with no refspec pushes the current branch — resolve it in the guard" ;;
+    *)
+      [ "$got" = ALLOW ] && ok "pre-bash-guard allows a bare 'git push -f' on $cur" \
+        || bad "pre-bash-guard denies 'git push -f' on the feature branch $cur" "too broad — it will get disabled" ;;
+  esac
 fi
 
 [ "$HOOKS_ONLY" = 1 ] && { echo; [ "$FAIL" = 0 ] && echo "hooks ok" || echo "$FAIL failing"; exit $FAIL; }

@@ -1,0 +1,56 @@
+# Behavioural corpus for pre-bash-guard.sh, run by `bash scripts/doctor.sh --hooks`.
+#
+# Format: WANT|command      WANT is DENY or ALLOW. Lines starting with # are ignored.
+#
+# The ALLOW half is not padding. A guard that fires on ordinary work gets switched off, and then
+# the DENY half protects nothing — so a false positive here fails the check exactly like a hole.
+# Add a case in BOTH halves whenever the guard learns a new command.
+#
+# Not covered here: cases whose verdict depends on the branch that happens to be checked out
+# (bare `git push -f` resolves the current branch). doctor.sh checks those separately.
+
+# ── destroying what cannot be re-fetched ─────────────────────────────────────
+DENY|rm -rf /Users/someone/Desktop
+DENY|rm -rf /Users/someone/repos/fpl-backend/node_modules/../../..
+DENY|rm -rf ../fpl-backend/node_modules/../../..
+DENY|rm -rf ./node_modules/../..
+DENY|dropdb fpl
+DENY|psql -c "DROP DATABASE fpl"
+DENY|psql -c "TRUNCATE player_price_history"
+DENY|psql -c "TRUNCATE TABLE public.player_ownership_history"
+DENY|psql -c "DELETE FROM player_price_history WHERE 1=1"
+DENY|docker compose down -v
+DENY|docker compose down --volumes
+DENY|git clean -xdf
+
+# ── force-push to a default branch, all three spellings of "force" ───────────
+DENY|git push --force origin main
+DENY|git push origin +main
+DENY|git push origin +HEAD:main
+DENY|git push --force-with-lease origin refs/heads/master
+
+# ── ordinary work: every one of these must pass untouched ────────────────────
+ALLOW|rm -rf node_modules
+ALLOW|rm -rf ../fpl-backend/node_modules
+ALLOW|rm -rf ../../fpl-frontend/.next
+ALLOW|rm -rf "$ORCH/.dev-logs"
+ALLOW|rm -rf .next dist coverage
+ALLOW|rm -rf /tmp/scratch-thing
+ALLOW|pnpm build && rm -rf dist
+ALLOW|git push -u origin HEAD
+ALLOW|git push origin feat/main-menu
+ALLOW|git push --force origin feat/main-menu
+ALLOW|git push --force origin develop-ui
+ALLOW|git switch main && git reset --hard origin/main
+ALLOW|git clean -fd
+ALLOW|docker compose down
+ALLOW|docker compose up -d
+ALLOW|pnpm sync:fpl
+ALLOW|pnpm sync:fpl -- --full
+ALLOW|pnpm prisma migrate status
+ALLOW|pnpm prisma migrate dev
+ALLOW|psql -c "SELECT * FROM player_price_history LIMIT 5"
+ALLOW|gh pr merge --squash --delete-branch
+ALLOW|bash scripts/doctor.sh --hooks
+ALLOW|lsof -nP -i :4000 -i :5001
+ALLOW|pnpm test

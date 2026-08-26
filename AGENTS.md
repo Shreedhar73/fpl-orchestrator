@@ -63,10 +63,13 @@ The router puts the right knowledge in front of an edit, the verifier checks wha
 Neither is a substitute for loading the skill deliberately.
 
 `pre-bash-guard.sh` is the only hook that can stop work. Its two design rules — match the argument
-not the string, and fail closed — are at the top of that file; a false positive there is a bug of
-the same rank as a hole, so test the allow cases as hard as the deny cases.
+not the string, and fail closed — are at the top of that file. A false positive there is a bug of
+the same rank as a hole, so its corpus in
+[`plugins/fpl/hooks/testdata/`](plugins/fpl/hooks/testdata/bash-guard-cases.txt) carries both
+verdicts and a new command earns a case in each half.
 
-Every hook must survive a hand-run payload: `bash scripts/doctor.sh --hooks`.
+Every hook must survive a hand-run payload: `bash scripts/doctor.sh --hooks` (add `-v` for the
+per-case lines).
 
 ## Subagents
 
