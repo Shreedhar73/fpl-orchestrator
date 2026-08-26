@@ -40,11 +40,18 @@ Why      What makes this worth building, and anything already established about 
 ## B-001 · FPL authentication
 
 ```
-Status   backlog
+Status   out of scope
 Repos    fpl-backend, fpl-frontend
-Plan     —
+Plan     docs/plans/002-fpl-authentication.md (record of exploration; not built)
 Issue    —
 ```
+
+> **Retired out-of-scope 2026-08-26 — see [D-013](../docs/decisions.md).** The product was redefined
+> as a public-data squad optimizer with no authentication anywhere (D-013 supersedes D-007 and settles
+> D-012). Auth is not deferred pending a revisit — it is out of scope by product definition. This
+> entry stays in the backlog (the register never deletes); its probe findings and mechanism table
+> below stand as the record of *why* no FPL login exists, should anyone propose one. The manager id
+> lives on as an optional public *import input* (B-006), never an identity.
 
 **Why.** `docs/decisions.md` D-007 made auth the app's first screen and removed `FPL_MANAGER_ID`
 from the environment, so every downstream feature — squad, projections, optimizer — needs a
@@ -77,9 +84,99 @@ What *is* available, same probes:
 - `GET /api/my-team/{id}/` returns 403 unauthenticated. It is the only source of pre-deadline bench
   order, chip state, free transfers and true sell values.
 
-**Still open — the mechanism decision, and it is the whole plan.** Roughly: accept a credential
-pasted out of the user's own browser (full data, devtools required), accept only a manager id
-(public data, no pre-deadline squad, roughly half the build), or offer both. Deferred on
-2026-08-26 at the maintainer's direction. When it is picked, record it in `docs/decisions.md` and
-replace MAP.md's "Known future surface: writes to FPL" paragraph, which still says cookie handling
-needs an explicit decision recorded there.
+**Mechanism — decided 2026-08-26, see `docs/plans/002-fpl-authentication.md`.** Our own
+email/password accounts + a manager-id link, over public FPL data. There is no "sign in with your FPL
+account": every clean path was probed and walled, and the walls are not preferences.
+
+| Path tried | Wall |
+|---|---|
+| Native email/password via `pi.flow` (DaVinci API mode) | Flow is API-walkable, but node 1 demands a `protectsdk` PingOne-Protect device-risk token — relaying a password past it is bot-evasion + credential harvesting. Not built. |
+| Standard OAuth redirect | `/as/authorize` accepts only `redirect_uri=fantasy.premierleague.com`; we cannot register ours, so the code never returns to us. |
+| Iframe/popup the FPL login and read the cookie | `fantasy` sends `x-frame-options: SAMEORIGIN`; the session cookie is `HttpOnly; Domain=account.premierleague.com` — our origin cannot read it. |
+| Device-code flow | `client is missing required grant type: DEVICE_CODE`. |
+| Token/refresh_token pasted from the user's own devtools | Technically works (public `client_id`, no secret, renewable) — **rejected as UX** 2026-08-26. A browser extension is the only no-devtools carrier and is a separate product. |
+
+Public data (`entry/{id}/`, `.../event/{gw}/picks/`, `/history/`, `/transfers/` — all 200
+unauthenticated) reconstructs the squad, bench order, captain, chips, bank and transfer history
+**after each deadline**. Only the live pre-deadline unsaved squad (`my-team/{id}/`, 403) is lost, an
+acceptable gap for an advisor. Known limit: public data proves a manager id exists, not that it
+belongs to the signed-in user — the link is stored on trust.
+
+When this lands, record it in `docs/decisions.md` and replace MAP.md's "Known future surface: writes
+to FPL" paragraph — the answer is now that we handle no FPL cookies at all.
+
+---
+
+## B-003 · FPL public-data ingest (sync)
+
+```
+Status   tracked
+Repos    fpl-backend
+Plan     docs/plans/003-fpl-sync.md
+Issue    orchestrator#2 (parent), backend#2
+```
+
+**Why.** Everything downstream (projection, optimizer) reads from Postgres, not from FPL live —
+`bootstrap-static/` is ~1.6 MB with no SLA and player-gameweek history is one request per player, so
+it cannot sit on a request path (D-002). The optimizer needs players, prices, positions, teams,
+fixtures and per-player gameweek stats in the store, kept current on a schedule, with `SyncRun`
+recording each pass. The schema already models this (Player, Team, Fixture, PlayerGameweekStat,
+PlayerPriceHistory, PlayerOwnershipHistory, SyncRun). Read-only, unauthenticated, no manager data —
+this is the global public dataset only. First dependency of the whole product.
+
+---
+
+## B-004 · Projection model — expected points per player per gameweek
+
+```
+Status   backlog
+Repos    fpl-backend
+Plan     —
+Issue    —
+```
+
+**Why.** The core signal. Projects expected points for each player for each upcoming gameweek from
+**player form** (recent minutes, returns, underlying numbers) and **team form** (attack/defence
+strength) weighted by **fixture** difficulty, for both the next GW and a season-long horizon. Writes
+to the `Projection` table; each run is reconstructable (the UI's "why" panel reads the inputs). No
+optimizer decision is trustworthy without this, and it is where the product's accuracy lives.
+Depends on B-003.
+
+---
+
+## B-005 · Squad optimizer — best legal squad and transfer plan
+
+```
+Status   backlog
+Repos    fpl-backend
+Plan     —
+Issue    —
+```
+
+**Why.** Turns projections into a decision under the **full FPL ruleset**: £100m budget, 2/5/5/3
+squad, a valid starting formation, max 3 players per club, captain and bench order. Two modes: the
+**recommended best team from scratch** (single-GW and season-long objective), and, given an existing
+squad, a **transfer plan** that respects one free transfer a week, −4 hits and chip timing over the
+horizon. Each solve is logged to `OptimizerRun` with its inputs and reasoning. Depends on B-004.
+
+---
+
+## B-006 · Team input and advice — manual, import by manager id, or recommended
+
+```
+Status   backlog
+Repos    fpl-backend, fpl-frontend
+Plan     —
+Issue    —
+```
+
+**Why.** How a user gets a team in front of the optimizer, none of it a login (D-013):
+1. **Build manually**, like the FPL squad picker, enforcing the live rules client- and server-side.
+2. **Import by manager id** — a public `entry/{id}/…` fetch (no credential). Returns the last-locked
+   squad; a pre-deadline unsaved squad is not available without auth and is accepted as lost. The
+   manager id is a per-request import input, never stored as an identity.
+3. **Start from the recommended best team** (B-005's output).
+
+Given any team, the frontend shows the advice — transfers, captain, bench, chips — for the next GW
+and the season-long plan, with the evidence visible. Crosses the HTTP contract (backend endpoints +
+DTOs first, then regenerated types, then the frontend). Depends on B-005.

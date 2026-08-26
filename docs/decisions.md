@@ -117,6 +117,11 @@ gitignored symlinks plus their own `AGENTS.md` entry point.
 
 ## D-007 · 2026-08-26 · Auth is the first screen, and is deferred
 
+> **Superseded in part by [D-012](#d-012--2026-08-26--auth-is-removed-from-the-near-term-path).**
+> The "auth is the first screen" decision below no longer holds — auth was removed from the
+> near-term path the same day. The "no `FPL_MANAGER_ID` baked as a single-user assumption" half
+> still stands. Read D-012 for what is true now.
+
 **Decision.** The app's first page is an authentication page. No auth is implemented yet, and
 **`FPL_MANAGER_ID` has been removed from the environment** — the manager id will come from the
 signed-in user, not from a config file.
@@ -240,3 +245,78 @@ fallback is no longer needed and has been removed from the skill.
 - Delete is singular — `DELETE …/issues/{parent}/sub_issue` — while add and list are plural.
 - The parent still cannot be auto-closed: `Closes #n` in a sibling PR closes that repo's child only,
   so the parent is closed by hand once every child is.
+
+---
+
+## D-012 · 2026-08-26 · Auth is removed from the near-term path
+
+**Decision.** The product path changed: authentication is **removed for now, entirely**. No
+account system, no FPL sign-in, no manager-id gate is built at this time. This **supersedes the
+"auth is the first screen" half of D-007** — the app no longer opens on a login page.
+
+**Why.** Maintainer-directed. Every clean way to authenticate against FPL was explored and each is
+walled or wrong-shaped (recorded in full in `docs/plans/002-fpl-authentication.md` and B-001):
+FPL's identity offers no password grant; the OAuth redirect_uri cannot be registered to us; the
+`pi.flow` native form is gated by a PingOne-Protect device-risk step so relaying a password is
+credential harvesting; and the one clean full-data mechanism — capturing the user's own token in a
+**native WebView** (the FFM-class approach) — requires a native or desktop-shell client, which this
+browser-based stack is not. Rather than ship our-own-accounts + a public-data-only manager-id link as
+a stopgap, the maintainer chose to defer auth and change the product path.
+
+**Consequences.**
+- **B-001 stays in the backlog, deferred** — not archived (it did not ship) and not deleted (the
+  register never deletes). Its probe findings and the mechanism table are the value; they stand.
+- **`docs/plans/002-fpl-authentication.md` is deferred, not built** — banner at its top says so. It
+  is the record of what was explored, kept for whoever revisits auth.
+- **Manager-id sourcing is now an open question again.** D-007 removed `FPL_MANAGER_ID` from the
+  environment on the premise that auth would supply it; auth no longer will, for now. Nothing built
+  today needs a manager id (the sync, squad and optimizer modules do not exist yet), so there is no
+  gap to fill right now. The first user-scoped feature that needs a manager id must decide where it
+  comes from and record it here — it may reintroduce a config value, or take it per-request.
+- The rest of D-007 is unchanged: no single-user manager id is to be baked into shared modules.
+- When auth is revisited, the client-shape question in plan 002 is the first fork: web-only
+  (accounts + manager id, public data), desktop shell / native / extension (WebView token capture,
+  full data).
+
+---
+
+## D-013 · 2026-08-26 · The product is a public-data squad optimizer, not a manager
+
+**Decision.** The project's scope changed. It is **not** an FPL account/manager tool for a signed-in
+user. It is a **squad optimizer over the open, unauthenticated FPL API**: it projects points per
+player from player form, team form and fixtures, and produces the best legal squad — for both the
+next gameweek and a season-long horizon — under the full FPL ruleset (£100m budget, 2/5/5/3, valid
+formation, max 3 per club, one free transfer per week, −4 hits, chips). **There is no
+authentication anywhere in the product.** This supersedes D-007 in full and settles the auth
+question left open by D-012: auth is not deferred, it is **out of scope by product definition**.
+
+**Why.** Maintainer-directed, 2026-08-26. Every path to authenticating against FPL was walled or
+wrong-shaped (see B-001 and `docs/plans/002-fpl-authentication.md`), and the product does not need a
+user's private FPL session: all the signal it needs — every player's price, form, minutes, underlying
+numbers and **global ownership** — is in the public `bootstrap-static/` and fixtures endpoints.
+
+**The three ways a user supplies a team** — none of which is a login:
+1. **Build manually**, like the FPL squad picker, under the live rules.
+2. **Import an existing team by manager id** — a public `entry/{id}/…` fetch, no credential. What
+   comes back is the **last-locked** squad; a pre-deadline unsaved squad is not visible without auth
+   and is accepted as lost. The manager id is a per-request *import input*, never an identity — this
+   is the resolution of the manager-id-sourcing question D-012 left open.
+3. **Start from the recommended best team** — the optimizer's output.
+
+Given any of the three, the app advises transfers, captain, bench order and chips for the next GW and
+plans them over the horizon. It **recommends; the user applies the change on the official site** —
+there are no writes back to FPL, now or planned.
+
+**Consequences.**
+- **No writes to FPL, ever.** The old "Known future surface: writes to FPL" question is closed: the
+  product is read-only against the official API. MAP.md's paragraph is rewritten to say so.
+- **B-001 (FPL authentication) is retired as out-of-scope**, not deferred. It stays in the backlog
+  with that note — the register never deletes — and its probe findings stand as the record of *why*
+  no FPL login exists. `docs/plans/002-fpl-authentication.md` stays as the deferred exploration.
+- The redefined product is registered as new backlog entries. The heart is a projection model and an
+  optimizer; the three input modes and the advice layer sit on top.
+- The data-direction rule is unchanged and now absolute: FPL API → backend → Postgres → backend HTTP
+  → frontend, read-only, and the frontend still never calls `premierleague.com` directly.
+- Docs of record are patched to drop "manager for one user": AGENTS.md's opening and MAP.md's "What
+  the system is". A fuller MAP pass (diagram labels, scattered "for one user") is a tracked doc task,
+  not rushed here.

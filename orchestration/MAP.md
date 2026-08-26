@@ -5,9 +5,17 @@ commands); this file wins for intent.
 
 ## What the system is
 
-An AI fantasy-football manager for one user. It ingests the official FPL API, keeps its own history,
-projects expected points per player per gameweek, and recommends a squad, a captain, a bench order
-and transfers — all with the evidence behind each call visible in the UI.
+An AI FPL **squad optimizer** over the open, unauthenticated FPL API — **not** a manager tool and
+**no login** (`docs/decisions.md` D-013). It ingests the official FPL API, keeps its own history,
+projects expected points per player per gameweek from player form, team form and fixtures, and
+produces the best legal squad under the full FPL ruleset (£100m, 2/5/5/3, valid formation, max 3 per
+club, one free transfer a week, −4 hits, chips) — for both the next gameweek and a season-long
+horizon, with the evidence behind each call visible in the UI.
+
+A team enters one of three ways, none a login: built manually like the FPL picker, **imported by
+manager id** (a public `entry/{id}/` fetch — the last-locked squad; no credential), or taken from the
+optimizer's recommendation. Given any team the app advises transfers, captain, bench and chips, and
+plans them over the horizon. It **recommends; the user applies the change on the official site.**
 
 ## The three repos
 
@@ -65,13 +73,14 @@ rows and the backend is NestJS, where Postgres + Prisma is the conventional pair
 technically hold this single-user dataset; it is not worth the divergence from what every NestJS
 answer assumes.
 
-## Known future surface: writes to FPL
+## No writes to FPL — closed, not a future surface
 
-Reading FPL data needs no auth. **Making** a transfer or setting a lineup goes through
-`https://users.premierleague.com/accounts/login/` and then authenticated `POST`s carrying the user's
-own session cookie. That is a real credential belonging to the user, and it is deliberately **not
-built**. Until it is, the app recommends and the user applies the change themselves on the official
-site. Do not add cookie handling without an explicit decision recorded here.
+The product is **read-only** against the official API and there is no authentication anywhere in it
+(`docs/decisions.md` D-013). Reading FPL data needs no auth; **making** a transfer or setting a
+lineup would need a user's own FPL session credential, and that is **out of scope by product
+definition** — not deferred, not planned. The app recommends and the user applies the change
+themselves on the official site. Do not add cookie handling or any authenticated `POST` to a
+`premierleague.com` host; if that ever changes it is a new decision recorded first, superseding D-013.
 
 ## Ports
 

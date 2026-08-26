@@ -1,8 +1,9 @@
 # AGENTS.md — fpl-orchestrator
 
-The orchestration repo for the **fantasy-premier-league** project: an AI fantasy-football manager
-made of three sibling repos. This repo ships **no runtime code**. It owns the agent knowledge the
-other two run on, the hooks that enforce it, and the scripts that boot and check the whole stack.
+The orchestration repo for the **fantasy-premier-league** project: an AI FPL squad optimizer over
+the open, unauthenticated FPL API — no accounts, no login (see `docs/decisions.md` D-013). Three
+sibling repos. This repo ships **no runtime code**. It owns the agent knowledge the other two run
+on, the hooks that enforce it, and the scripts that boot and check the whole stack.
 
 Read [`orchestration/MAP.md`](orchestration/MAP.md) before any cross-repo work — it holds the system
 diagram, the data-direction rule, why there is a database, and the port gotchas.
