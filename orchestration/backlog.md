@@ -343,9 +343,9 @@ provenance line on every view carrying model numbers.
 ## B-010 · Minimum-appearances floor on who can be recommended
 
 ```
-Status   backlog
+Status   planned
 Repos    fpl-backend
-Plan     —
+Plan     docs/plans/009-recommendation-guards.md (shared with B-011)
 Issue    —
 ```
 
@@ -390,7 +390,8 @@ Distribution over the 614 non-removed players, and the feasibility check:
   61 DEF, **5 MID and 0 FWD** (against 46/126/31/12 unfiltered). The third forward gets more
   expensive, and that is the price of the rule.
 
-**Open design decisions — settle before planning.**
+**Decided 2026-08-26 (maintainer).** The filter applies to the **optimizer candidate pool only** —
+option 1 below. Threshold and reporting as written.
 
 1. **Where the filter applies.** Recommended: filter the **optimizer candidate pool**, and keep
    projecting every player. `insights` scores a user-brought squad over the same `Universe`
@@ -412,9 +413,9 @@ safe"; it should be stated in the UI wherever the recommendation is shown.
 ## B-011 · Do not recommend both sides of the same fixture
 
 ```
-Status   backlog
+Status   planned
 Repos    fpl-backend
-Plan     —
+Plan     docs/plans/009-recommendation-guards.md (shared with B-010)
 Issue    —
 ```
 
@@ -445,7 +446,8 @@ starting defenders' clean sheet.
 - `pickBestXi` chooses the XI and the captain *after* the solve, so a constraint on the 15 does not
   by itself stop a conflicting XI. Both layers have to agree or the rule leaks.
 
-**Open design decisions — settle before planning.**
+**Decided 2026-08-26 (maintainer).** A **tunable penalty**, not a hard exclusion (option 1 below), and
+attacker = **FWD + MID** vs defensive = **DEF + GKP** (option 2 below).
 
 1. **Hard exclusion, or a penalty?** A hard `x_i + x_j <= 1` can only cost horizon EP, and on a
    fixture where both sides are genuinely the best available it costs a lot. The linear-safe middle
