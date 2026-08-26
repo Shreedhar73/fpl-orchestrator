@@ -127,6 +127,89 @@ realised points, replace the placeholder bonus term with a BPS/90 model, and rep
 calibration against `ep_next` / `form` / last-season. Bump `modelVersion` so old projections stay
 comparable. Depends on B-004 (done) and enough elapsed gameweeks.
 
+**Promoted to the next piece of work, 2026-08-26 — maintainer-directed.** Accuracy comes before more
+features: a transfer planner (B-008) built on skewed expected points bakes the skew into every
+recommendation it makes, and the skew is known — the premium head reads 2–4× `ep_next`. **B-008 now
+waits on this**, reversing the order the register implied.
+
+**The constraint, measured 2026-08-26 — do not re-derive it:**
+
+| Table | Rows | Reach |
+|---|---|---|
+| `player_gameweek_stats` | 610 | **one gameweek.** This is the fact table a per-gameweek backtest needs |
+| `player_season_history` | 2062 | 20 seasons, 2006/07–2025/26, but **season totals only** |
+| `player_price_history` | 614 | grows per sync |
+| `player_ownership_history` | 4970 | grows per sync |
+| `projections` | 3060 | 612 players × the 5-gameweek horizon |
+
+There is **no public per-gameweek archive for past seasons** — `element-summary/{id}/history_past`
+returns totals, and that is the whole of it (`fpl-api-reference`). So twenty seasons of data cannot
+be turned into one gameweek of backtest.
+
+**The split that makes this workable now.** The model is two halves and only one of them is
+calendar-bound:
+
+1. **The scoring engine is verifiable today, with the one gameweek we have.** `event/{gw}/live/`
+   carries an `explain` block per player breaking the official points down by identifier — the answer
+   key is upstream. `fpl-testing-contract` already names this as the highest-value test in the
+   project: reproduce the official `total_points` for **every** player in a finished gameweek, not a
+   sample. If our scoring disagrees with FPL's on GW1, no amount of rate-fitting will save the
+   projections, and we would be tuning knobs on top of a broken adder.
+2. **The rate and minutes model is genuinely calendar-bound.** Fitting `defcon` hit-rates, the
+   attacking multiplier and the clean-sheet curves against realised points needs several
+   `data_checked` gameweeks. GW1 is the only checked one; roughly one arrives per week.
+
+So: do (1) first — it is available immediately and gates (2).
+
+**Collect now, because it cannot be collected later.** Some of what calibration will want is
+*current-state-only* upstream and is lost the moment it changes. Before the GW2 deadline
+(2026-08-28T17:30Z):
+
+- **`event/{gw}/live/` explain blocks, captured every gameweek.** The sync's `--live` mode is
+  unimplemented (`SyncService.runLive` rejects; B-003 follow-up). Without it we keep totals and lose
+  the per-identifier breakdown, which is exactly the answer key.
+- **Ownership and price snapshots at a useful cadence** — already appended per sync, so this is a
+  question of sync frequency around deadlines, not new code.
+- **`chance_of_playing_next_round` and `status` at deadline time.** These are overwritten as news
+  changes; a minutes model cannot be honestly backtested against them after the fact, because by
+  then they say what was true *after* the games.
+- Consider whether the projections we serve should be snapshotted at deadline for later scoring
+  against reality — `projections` rows exist per model version, so this may already hold.
+
+**Edge cases the calibration and the model must face** — write the plan against these rather than
+discovering them one at a time:
+
+- **Double gameweeks** — one player, one gameweek, two fixtures. The schema already keys
+  `player_gameweek_stats` by fixture for this reason; the model must sum, not overwrite.
+- **Blank gameweeks** — a player whose club has no fixture. Distinct from a benched player and from a
+  zero.
+- **Postponements and rescheduling** — `kickoff_time` null, `event` null; a fixture can move between
+  gameweeks after projections were written.
+- **`finished` is not final.** Bonus and stat corrections land afterwards; only `dataChecked` means
+  the numbers stopped moving. Training on `finished` trains on numbers that did not exist at decision
+  time.
+- **New signings and promoted-club players** with no Premier League history — the prior has nothing
+  to shrink toward.
+- **Mid-season transfers between PL clubs** — the player's history is real, the fixtures and team
+  strength behind it are not theirs any more.
+- **`removed: true` players** — out of the game mid-season, and they still sit in imported squads.
+- **`chance_of_playing_next_round: null` means fully fit**, not unknown. Treating null as 0 benches
+  every healthy player.
+- **Suspensions and red cards** — a ban is knowable in advance and is not an injury.
+- **Rotation and cup congestion** — the minutes model's hardest case, and minutes dominate everything.
+- **Price changes between projection and deadline** — the optimizer buys at `nowCost`, which moves.
+- **Set-piece and penalty order changes** — a large, cheap rate signal that flips without notice.
+- **Goalkeepers** — saves and clean sheets behave unlike every other position, and FPL changed
+  goalkeeper goal scoring within two seasons.
+- **The defensive-contribution category is new for 2025/26** — there is no multi-season prior for it
+  at all, which is precisely where the current over-projection comes from.
+
+**How we will know it worked** — a calibration that cannot fail is worse than none. The bar:
+reproduce official `total_points` exactly for every player in a checked gameweek; report MAE and a
+calibration curve against three baselines (`ep_next`, `form`, last season's points) and beat them or
+say plainly that we did not; assert calibration, not just error — if the model says 40% blank,
+roughly 40% should blank. Strict time cut throughout: predicting gameweek *k* may read only `< k`.
+
 ---
 
 ## B-008 · Transfer planning — one free transfer, hits, chip windows
@@ -147,6 +230,12 @@ coarser season-level decision — recommend the *window* (a double gameweek for 
 Free Hit) and let the user commit; a chip is unspendable once spent, so the model never spends it.
 Uses sell value (purchase + half the rise, rounded down), not market price. Extends `OptimizerRun`.
 Depends on B-005 and B-006.
+
+**Now also waits on B-007 — maintainer-directed 2026-08-26.** B-006 unblocked this entry, and it was
+deliberately not started. A transfer planner is a machine for acting on expected points, and B-004's
+expected points are known to over-project the premium head 2–4×; building on them would turn a known
+model skew into a stream of confident wrong recommendations, which is harder to notice than a wrong
+number sitting in a table. Accuracy first.
 
 **Sell value must be reconstructed here — B-006 cannot supply it.** Probed live 2026-08-26:
 `entry/{id}/event/{gw}/picks/` carries only `{ element, position, multiplier, is_captain,
