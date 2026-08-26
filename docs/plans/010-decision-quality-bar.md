@@ -154,6 +154,27 @@ is any good.
 
 ## Phase 2 — the cheap decision metric: the XI, and the armband
 
+**Landed 2026-08-27 — `fpl-backend` `264de84`. 162 tests green, four sabotage runs recorded.**
+
+**The result is null, and it is reported as one.** Not one model-versus-`form` comparison clears two
+standard errors, and the sign of the difference flips across squads — **+0.19** on the template,
+**−0.84** on random #3. The model does not make measurably better XI and captain decisions than
+`form` over one season, on any of these fifteens.
+
+That does not contradict Phase 1. Given a **fixed** fifteen most of the XI picks itself; what is left
+is a handful of marginal calls at the bench boundary and the armband — a far smaller surface than
+ranking six hundred players. **The ordering advantage should show up in which fifteen you own, not in
+how you arrange one you already have**, and testing that needs the transfers. Phase 3.
+
+**Two defects the run exposed, both fixed:**
+- **XI efficiency came out above 100%** for every squad and every predictor. The ceiling omitted the
+  captain, so it was not a ceiling — a scored round doubles someone and the perfect decision doubles
+  the best available. With the armband on it, efficiencies land at 78–87%.
+- **The squads were being built at round 2.** `form` has no trailing round at a season's first
+  deadline, so round 1 is absent from the comparison population entirely. Squads are now built from
+  round 1, at opening-day prices and opening-day ownership, and scored over the 37 rounds that
+  follow. The report states the 37.
+
 Available before the simulator and worth having on its own, because it isolates one decision.
 
 **The design decision, made here rather than mid-build: one set of fixed squads, shared by every
@@ -161,27 +182,27 @@ model.** If each model picks its own squad, the XI comparison is confounded by t
 and neither number means anything. So the squads are chosen once, by a rule that reads no model, and
 every model then fields an XI and a captain from the *same* fifteen.
 
-- [ ] **The template squad.** `selectedBy` is stored per player per round
+- [x] **The template squad.** `selectedBy` is stored per player per round
       (`archive_player_gameweek`), so the crowd's squad is derivable. It is an **ILP maximising
       `selectedBy` under full legality** at that season's GW1 prices — `buildLp` already takes its
       objective through `Candidate.ep`, so this is a reuse, not new solver code. Raw top-15-by-ownership
       is illegal (position quotas, the 3-per-club cap, the budget), which is precisely why it is a solve
-- [ ] **N seeded random legal squads** beside it, so the verdict does not rest on one squad's quirks.
+- [x] **4 seeded random legal squads** beside it, so the verdict does not rest on one squad's quirks.
       **The seed is recorded in the report** — an unseeded random baseline is not a baseline
-- [ ] Per round, per squad, per model: field the best XI by projected points (`pickBestXi`, which
+- [x] Per round, per squad, per model: field the best XI by projected points (`pickBestXi`, which
       already enumerates the legal formations exactly), pick the captain, apply auto-subs, and score
       against realised points
-- [ ] **Bench order is part of the decision and each model owns its own.** The bench is ordered by
+- [x] **Bench order is part of the decision and each model owns its own.** The bench is ordered by
       that model's `pPlay × EP` (`fpl-optimizer`), which is what decides who comes on when a starter
       blanks. Stated because two models fielding the same XI can still score differently, and a reader
       would otherwise read that gap as noise
-- [ ] **Auto-subs are a standalone pure function here**, written in this phase and reused unchanged by
+- [x] **Auto-subs are a standalone pure function here** — `squad-scoring.ts`, four sabotage runs recorded., written in this phase and reused unchanged by
       the simulator in Phase 3 — so the rule is implemented once, tested once, and Phase 2 stays
       honestly independent of Phase 3
-- [ ] **Captain regret, with the denominator pinned: the best realised score in the fielded XI**, not
+- [x] **Captain regret, with the denominator pinned: the best realised score in the fielded XI**, not
       in the fifteen. A bench player's haul is an XI decision, not an armband decision, and folding it
       in makes two reports incomparable
-- [ ] Report per model and per baseline, on identical squads and identical rounds
+- [x] Report per model and per baseline, on identical squads and identical rounds. *Added beyond the plan, and it changed the verdict: every difference is **paired by round and carries a standard error**, after the B-011 session measured a +0.59 mean against a 0.92 standard deviation on the same kind of per-round comparison, with the per-season sign flipping. Without it this phase would have reported a win.*
 
 ---
 
