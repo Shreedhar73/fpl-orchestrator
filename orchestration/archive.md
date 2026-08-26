@@ -622,6 +622,11 @@ Status   done
 Repos    fpl-backend
 Plan     docs/plans/009-recommendation-guards.md (shared with B-011)
 Issue    orchestrator#8 (parent), backend#16
+Shipped  fpl-backend#17 — squashed to main 2026-08-27 as 88fa3f7
+Outcome  The floor is live at 11 appearances and removed all three one-appearance players from the
+         served GW2 squad, two of whom were starters. It costs 3.41 of the 4.48 horizon EP the two
+         guards cost together. It also makes B-011's problem WORSE on its own — pairs held goes
+         4 to 6 — so the two are not independent and neither reverts alone.
 ```
 
 **Why.** Maintainer-directed 2026-08-26: a player with almost no Premier League history should not be
@@ -710,6 +715,12 @@ Status   done
 Repos    fpl-backend
 Plan     docs/plans/009-recommendation-guards.md (shared with B-010)
 Issue    orchestrator#8 (parent), backend#16
+Shipped  fpl-backend#17 — squashed to main 2026-08-27 as 88fa3f7
+Outcome  Live at lambda 1.0, and measured NOT to be an improvement: +0.59 +/- 0.92 realised points
+         per gameweek over 103 archived rounds, per-season sign flipping, downside worse. Kept as
+         an explicit policy choice, recorded as one in `optimizer/policy.ts`. The captain fix is
+         the part that clearly works — the armband moved off Palmer, facing two of our own
+         Brighton defenders.
 ```
 
 **Why.** Maintainer-directed 2026-08-26: the optimizer picks attackers of one club and defenders of
