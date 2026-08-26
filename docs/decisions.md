@@ -493,6 +493,22 @@ Neither says anything about a multi-gameweek horizon, which this backtest does n
 (beat the baselines) is met on RMSE and bias but not on MAE, so the decision to serve it is the
 maintainer's rather than automatic.
 
+**Superseded the same day, 2026-08-26 — maintainer-directed.** The paragraph above is left as written
+because a decision record that quietly edits itself is worth nothing. What actually happened: asked to
+project GW2 with this model, the fitted parameters were wired into the serving path, and
+`ProjectionsService` now IS the fitted model under the version `v2-fitted-2026-08-26`. The verdict it
+was gated on has not changed — still ahead on RMSE and bias, still behind `form` on MAE — so this is a
+maintainer decision taken with that split in view, not a bar that was later met.
+
+That created and then closed a second defect worth its own note. For a few hours two things wrote
+projections — `pnpm project` on v1 and `pnpm forecast` on v2 — and since serving picks by
+`createdAt desc` they did not conflict, they took turns: the app served whichever ran last, and
+`/fpl:plan-gameweek` step 4 would have reverted it to v1 on the next weekly run. Closed in `c11e9fa`:
+one entry point, the v1 model deleted rather than shelved, and a structural test asserting no second
+writer exists. The rule it leaves is the general one — **`createdAt desc` serving means two writers
+never conflict, they alternate**, which is why invariant 1 in plan 007 forbids the backtest writing at
+all.
+
 ---
 
 ## D-018 · 2026-08-26 · Every timestamptz was shifted by the machine's timezone
