@@ -490,3 +490,55 @@ and shipping an uncalibrated confidence interval is worse than shipping none.
   probe first, and a build only if it comes back clean**: is there a source whose terms permit this
   use, what does it cost, and does it beat our own λ on held-out fixtures. Answer the first question
   before writing any ingestion code. A negative answer is a result and gets recorded like any other.
+
+---
+
+## B-018 · Surface why the optimizer refused a player, and fix the payload it refuses in
+
+```
+Status   backlog
+Repos    fpl-backend, fpl-frontend
+Plan     —
+Issue    —
+```
+
+**Why.** B-010 and B-011 shipped two guards that change the recommendation and are invisible in the
+app. The GW2 run persisted 2026-08-27 excludes 227 players and prices two Palmer collisions, and a
+user reading the squad sees none of it — only that Emersonn is absent and Saka has the armband. The
+architecture contract's own rule is that a model number states where it came from (D-019, B-009); a
+model *refusal* is a stronger claim than a number and currently states nothing.
+
+**A payload defect rides with it, and it is the reason this is not purely frontend.** Plan 009 Phase 2
+specified `collisions: [{ fixture, attacker, defender, lambda, taken }]`. What shipped emits team
+**cuids** instead of a fixture label:
+
+```json
+{ "attacker": "Palmer", "attackerTeamId": "cmt9x1wjf0006lp3t2s0z9qa2",
+  "defender": "De Cuyper", "defenderTeamId": "cmt9x1wje0005lp3t5l8o5g8b" }
+```
+
+`Candidate` carries `teamId` and no team name, so the fix is a short-name lookup in `buildUniverse`
+and a `fixture: "CHE vs BHA"` string. Known and deliberate at merge time (fpl-backend#17), deferred
+here rather than left unowned. **Nothing can render this payload until that lands** — a cuid on
+screen is worse than an omission, because it looks like data.
+
+**What to build.**
+
+1. The payload fix above, in `optimizer.service.ts` — team short names, and the `fixture` label the
+   plan asked for.
+2. A DTO that carries the reasoning to the frontend. Plan 009 deliberately changed no DTO; this entry
+   is where that boundary is crossed, and the shape should be decided against what the panel actually
+   shows rather than by mirroring the JSON.
+3. The panel itself: which players the floor removed and what it cost (4.48 horizon EP on the GW2
+   solve, of which the floor is 3.41), and which collisions the squad kept and what it paid for them.
+
+**Say what the guards are, honestly, because the measurement is split.** The floor is a refusal to bet
+on unmeasured players. The collision penalty is a **policy choice that was measured not to improve
+realised points** — `fpl-backend/reports/guards-009.md`, +0.59 ± 0.92 per gameweek, per-season signs
+that flip, downside worse. The UI must not present the second as if it were the first. `policy.ts`
+already states this where the number is defined; the panel is where a user would otherwise infer the
+opposite.
+
+**Depends on nothing.** Independent of B-012 and B-013 — this shows what the optimizer already did,
+not a new number about the future.
+
