@@ -110,10 +110,10 @@ to FPL" paragraph — the answer is now that we handle no FPL cookies at all.
 ## B-004 · Projection model — expected points per player per gameweek
 
 ```
-Status   planned
+Status   in progress
 Repos    fpl-backend
 Plan     docs/plans/004-projection-model.md
-Issue    —
+Issue    orchestrator#3 (parent), backend#4
 ```
 
 **Why.** The core signal. Projects expected points for each player for each upcoming gameweek from
