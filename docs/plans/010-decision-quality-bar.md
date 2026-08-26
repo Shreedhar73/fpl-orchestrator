@@ -210,7 +210,11 @@ every model then fields an XI and a captain from the *same* fifteen.
 
 The number the guide (§6) asks for, and the harness B-008 will be measured in. Built once, here.
 
-- [ ] **Rebase onto `fpl-backend#17` first** (B-010/B-011). It adds a required `appearances` field to
+- [x] **Rebase onto `fpl-backend#17`** (B-010/B-011) — done 2026-08-27, `b2831ac`. *Merged as `88fa3f7`.
+      `Candidate.appearances` is carried by a walk-local counter (`PlayerFeatures.appearancesSample`,
+      rows with `minutes > 0` before the round), never `appearanceCounts()`. Fit byte-identical, all
+      four reports unchanged, sabotage recorded.*
+- [ ] ~~Rebase onto `fpl-backend#17` first~~ — the note that made it necessary, kept for Phase 3: It adds a required `appearances` field to
       `Candidate`, which `fixed-squads.ts` constructs, and rewrites `pickBestXi` to enumerate subsets.
       Phase 3 builds on this surface, so the rebase comes before the code, not after it.
 
@@ -328,6 +332,21 @@ Every item below is a rule the simulator could get wrong in a way that makes the
       deleted, and B-013 and B-014 become the next work — they are the entries that say *why*
 - [ ] Correct `docs/decisions.md` if any of D-020's reasoning turns out to be wrong when measured
       properly. It is a hypothesis about metrics until this plan tests it
+
+---
+
+## Shipped so far
+
+**`fpl-backend#18`, opened 2026-08-27 — Phases 0, 1 and 2**, rebased onto `#17`. 184 tests, nine
+recorded sabotage runs, four reports committed.
+
+Split from Phases 3–6 deliberately. `squad-scoring.ts`, `xi-decision.ts`'s `pairedDifference()` and
+`ordering.ts` are useful to B-013, B-015 and B-016 as much as to this entry, and holding them behind
+the season simulator would block all of that on the largest and least-finished piece — as well as
+making the Phase 3 review a review of four things at once.
+
+**No `Closes #n`**: `gh issue create` is denied by the authoring session's permission classifier, so
+B-012 has no issue yet. The branch is renamed to carry the child number when it exists.
 
 ---
 

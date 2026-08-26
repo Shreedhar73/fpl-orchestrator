@@ -160,10 +160,11 @@ sell value.
 ## B-012 · The bar the model is judged on — rank, decisions, and a simulated season
 
 ```
-Status   in progress — Phases 0–2 built and committed, Phases 3–6 not started
+Status   in progress — Phases 0–2 shipped to PR, Phases 3–6 not started
 Repos    fpl-backend
 Plan     docs/plans/010-decision-quality-bar.md
 Issue    —  (blocked, see below)
+PR       fpl-backend#18 — open 2026-08-27, Phases 0–2, rebased onto #17
 Branch   fpl-backend `feat/decision-quality-bar`, in the worktree `../fpl-backend-b012`
 ```
 
@@ -177,11 +178,19 @@ Branch   fpl-backend `feat/decision-quality-bar`, in the worktree `../fpl-backen
 > maintainer. The branch is named `feat/decision-quality-bar` and must be renamed
 > `feat/<child>-decision-quality-bar` once the number exists (git rule 3).
 >
-> **Blocker 2 — a rebase is owed, and Phase 3 sits on top of it.** B-010/B-011 shipped in
-> `fpl-backend#17` (backend#16, parent orchestrator#8), unmerged at time of writing. It adds a
-> **required `appearances` field to `Candidate`**, which `fixed-squads.ts` constructs, and it rewrote
-> `pickBestXi` to enumerate subsets. Phase 3 builds on exactly that surface, so it is written after
-> the rebase, not before it and rebased.
+> **Blocker 2 — cleared.** `fpl-backend#17` merged as `88fa3f7`; this branch is rebased onto it and
+> `Candidate.appearances` is carried by a **walk-local counter**, not `appearanceCounts()` — that
+> query reads current state and would tell a round-1 squad how often each player *would go on to*
+> feature. `pnpm fit:model` returns every constant byte-identical after the rebase and all four
+> reports regenerate unchanged.
+>
+> **Phases 0–2 ship on their own, decided 2026-08-27.** They are three pure functions and a null
+> result, and `scoreLineup()` / `pairedDifference()` / `ordering.ts` serve B-013, B-015 and B-016 as
+> much as this entry. Holding them behind the simulator would block all of that on the largest,
+> least-finished piece, and would make the Phase 3 review a review of four things at once. Prompted
+> by the B-011 session, which needs `scoreLineup()` to correct `reports/guards-009.md` — its lambda
+> sweep scores an XI with no auto-subs, and the omission is not neutral across lambda, because the
+> collision penalty changes how often the bench is actually needed.
 >
 > **Two sessions shared one `fpl-backend` working tree on 2026-08-27** and both sets of uncommitted
 > changes landed in it. Resolved by taking a worktree for this entry; the shared tree was restored to
