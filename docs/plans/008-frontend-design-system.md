@@ -81,8 +81,8 @@ computed from.
       `/squad/<id>`, and one error path — light and dark, desktop and a 390px viewport
 - [x] Feature JS re-measured against the 172.9 KB floor and recorded in the PR — `/` 0.9 KB,
       `/squad/recommended` 1.2 KB, `/squad/build` 9.0 KB against a 30 KB budget
-- [ ] Backlog entry moved to `archive.md` and parent issue closed — **waits on fpl-frontend#4 being
-      merged.** Everything above is done; this one cannot be ticked by the session that opened the PR
+- [x] Backlog entry moved to `archive.md` and parent issue closed — fpl-frontend#4 squashed to
+      `main` as `2bf4a7d` on 2026-08-26, frontend#3 closed by the merge, orchestrator#7 closed by hand
 
 ## What the work turned up that the plan did not predict
 

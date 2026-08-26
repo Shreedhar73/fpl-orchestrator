@@ -35,6 +35,82 @@ arrived, and they are not always the same thing. Where they differ, say so in `O
 
 ---
 
+## B-009 · Frontend design system and the UX pass over every view — done 2026-08-26
+
+```
+Status   done
+Repos    fpl-frontend
+Plan     docs/plans/008-frontend-design-system.md
+Issue    fpl-orchestrator#7 (parent) · fpl-frontend#3
+Shipped  fpl-frontend#4 — squashed to main 2026-08-26 as 2bf4a7d
+Outcome  The app has a design system and a shell, and every model number on screen now states the
+         gameweek it came from — `apiFetch` had been discarding the envelope's `meta` since the
+         repo was scaffolded, so the frontend contract's loudest rule was unmet in every view
+         while being written down in AGENTS.md. Recorded as D-019.
+```
+
+**Why.** B-006 shipped the three routes that make the app usable — squad view, advice panel, manual
+builder — as unstyled-by-intent scaffolding: zinc-on-white, no shell, no navigation, one heading
+size, tables that overflow on a phone. The model output is the product and it currently reads like a
+debug dump. This entry is the design and usability pass over what already exists, frontend-only: no
+new endpoint, no new data, no new dependency.
+
+**One correctness item rides with it, and it is the reason this is not cosmetic.** `AGENTS.md` in
+`fpl-frontend` requires that *anything showing model output shows `meta.dataAsOfGw` and
+`generatedAt`* — and `apiFetch` throws the envelope's `meta` away at line 51, returning only
+`payload.data`. So every projection in the app today is rendered with no statement of which
+gameweek's data produced it, which the architecture contract names as the app's worst failure mode
+(§3, "a stale projection rendered as if it were live"). The redesign adds `apiFetchWithMeta` and a
+provenance line on every view carrying model numbers.
+
+**Established while planning, 2026-08-26 — do not re-derive.**
+
+- **There is no deadline anywhere in the HTTP contract.** No DTO carries one (checked against
+  `openapi.json`: `AdviceDto`, `SquadDto`, `PlayerListDto` all carry `gameweekId` and nothing
+  temporal). `AGENTS.md`'s rule about rendering deadlines in the user's zone therefore has no data
+  to act on, and the redesign renders **`generatedAt`** in local time with the zone named instead.
+  A deadline would be a backend change and is out of scope here.
+- **`status` and `news` — the injury flags — exist only on `PlayerListItemDto`.** Neither
+  `SquadPickDto` nor `AdvicePlayerDto` carries them, so a red flag on a pitch card would need a
+  second `/players` fetch and a join. Not done: the builder (which does have them) shows them, the
+  pitch does not, and that asymmetry is a contract gap rather than a design one.
+- **`SquadView` already holds both the squad and the advice**, so the pitch can show each player's
+  projected points and role by joining on `playerId` — new information, no new request.
+- **The position palette is validated, not chosen by eye.** Four categorical hues, run through the
+  `dataviz` validator on both surfaces: light `#B45309 #0891B2 #6D28D9 #BE123C`, dark
+  `#C67F00 #0E9CBE #9061F9 #F43F5E` — all six checks pass (lightness band, chroma floor, CVD
+  separation, normal-vision floor, contrast). Re-run the validator before changing any of them.
+- **The JS budget is feature JS, not total.** The floor is 172.9 KB gzipped on every route
+  (`fpl-performance-budget`, measured 2026-08-26); the builder costs 4.1 KB above it. A redesign
+  that stays server-rendered spends nothing. No charting library — the bars here are `div`s.
+
+**Corrected during the work, 2026-08-26 — the palette above is not what shipped.** The planning-time
+set (`#B45309 #0891B2 #6D28D9 #BE123C` / `#C67F00 #0E9CBE #9061F9 #F43F5E`) passed on *adjacent*
+pairs only. Re-run with `--pairs all` it fails the normal-vision floor — amber↔rose ΔE 11.5 — and so
+does the FPL-conventional yellow/blue/green/red set, at ΔE 1.4 under deuteranopia. What shipped is
+Okabe-Ito-derived: light `#D55E00 #0072B2 #009E73 #CC79A7`, dark `#D55E00 #3B93DB #0F9070 #C06A9A`,
+CVD **warning** at ΔE 6.6, which is legal only because the position is always written in text beside
+the colour. That last clause is now a rule in `globals.css`. Validate with `--pairs all`; adjacent-
+only is how a palette passes and still fails on screen.
+
+**What the build turned up that the plan did not predict** — the fuller version is in the plan file:
+
+- **The armband means two different things on an imported squad**: the captain the manager set, and
+  the captain the model would pick. On team 123456 they are different players, and the view showed
+  one while asserting the other. The pitch marks the model's pick with ★ and a ring, keeps C/V for
+  the manager's own, and says so in words when they disagree.
+- **The comparison card was two empty columns on `/squad/recommended`** — that squad *is* the
+  optimal one. It renders an explicit "nothing to compare against" state now.
+- **`/squad/abc` answers HTTP 200** while rendering the not-found page under `next start`, whether
+  `notFound()` is called in the page, in `generateMetadata`, or in both; an unmatched route still
+  answers 404. Next 16.3 behaviour on a dynamic segment. Documented in the route, not worked around.
+- **Feature JS, re-measured after the pass**: `/` 0.9 KB, `/squad/recommended` 1.2 KB,
+  `/squad/build` 9.0 KB above the 172.9 KB floor, against a 30 KB budget. The builder went from
+  4.1 KB to 9.0 KB and the whole shell — header, nav, provenance, local time — cost under 1 KB,
+  because it stayed server-rendered.
+
+---
+
 ## B-006 · Team input and advice — manual, import by manager id, or recommended — done 2026-08-26
 
 ```
