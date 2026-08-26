@@ -105,15 +105,24 @@ It persists for past gameweeks within the current season; it is gone at season r
 There is no realised-points function in the codebase today. `scoring.ts` is a typed accessor over
 `scoring_config`; `model.ts` projects expected points. Phase 1 adds the missing half.
 
-- [ ] Record `event/1/live/` as a checked-in fixture — every element, not a slice — `fpl-backend/test/fixtures/event-live.sample.json`
-- [ ] `pointsFor(stats, position, scoring)` → `{ total, byIdentifier }`, reading every value from `scoring_config`, never a constant — `fpl-backend/src/modules/projections/points.ts`
-- [ ] Cover the whole scoring surface, not the common half: appearance (1–59 vs 60+), goals, assists, clean sheets, goals conceded (per 2), saves (per 3), defensive contribution, bonus, own goals, penalties saved, penalties missed, yellow and red cards — `points.ts`, `fpl-domain-rules`
-- [ ] Test: for every player in the fixture, our `byIdentifier` equals the `explain` entries and our total equals `total_points`. Per-identifier first — a total-only assertion says a player is wrong, not why — `src/modules/projections/__tests__/points.spec.ts`
-- [ ] Allowlist file with `{ fplId, reason, cause }`; any **unlisted** mismatch is red. Empty is the goal, and each entry names the upstream behaviour it encodes — `src/modules/projections/points-allowlist.ts`
-- [ ] Guard the check that cannot fail: assert the fixture's element count matches the live player count before the loop, so an empty or truncated fixture fails instead of passing vacuously (`fpl-testing-contract`, "the fixture is empty, so the loop body never runs")
-- [ ] **Double gameweek**: sum across a player's fixtures, never overwrite. GW1 has no double, so this needs a synthetic two-fixture case — mark it as synthetic in the test name — `points.spec.ts`
-- [ ] **Blank gameweek**: no fixture is distinct from a benched player and from a zero. Assert the three produce different outputs, not the same 0 — `points.spec.ts`
-- [ ] Sabotage run: flip one scoring value in the config mirror, confirm red, record the output in the PR body
+**Phase 1 landed 2026-08-26 — `fpl-backend` `2d05a5e`, all 610 players reproduce exactly, allowlist empty.**
+
+- [x] Record `event/1/live/` as a checked-in fixture — every element, not a slice. *Deviation: two files, not one, and neither is a "sample" — `test/fixtures/event-1-live.json` (610 elements, the answer key) and `test/fixtures/event-1-elements.json` (positions and the scoring table from the matching `bootstrap-static/` capture). Live data carries no position, and a fixture pair captured together cannot drift apart.*
+- [x] `pointsFor(stats, position, scoring)` → `{ total, byIdentifier }`, reading every value from `scoring_config`, never a constant — `fpl-backend/src/modules/projections/points.ts`
+- [x] Cover the whole scoring surface, not the common half: appearance (1–59 vs 60+), goals, assists, clean sheets, goals conceded (per 2), saves (per 3), defensive contribution, bonus, own goals, penalties saved, penalties missed, yellow and red cards. *`scoring.ts` gained the realised-only accessors — a projection never needed own goals or cards.*
+- [x] Test: for every player in the fixture, our `byIdentifier` equals the `explain` entries and our total equals `total_points`, per identifier first — `src/modules/projections/__tests__/points.spec.ts`
+- [x] Allowlist file with `{ fplId, event, reason, cause }`; any **unlisted** mismatch is red — `src/modules/projections/points-allowlist.ts`. *Empty, and a test asserts it stays empty.*
+- [x] Guard the check that cannot fail: four assertions on the fixture itself — 610 elements, a position for every scored player, the scoring table present, and more than 100 players who actually scored. *Verified by emptying the fixture: 5 tests red.*
+- [x] **Double gameweek**: sum across a player's fixtures, never overwrite — synthetic, marked as such in the test
+- [x] **Blank gameweek**: distinct from a benched player and from a scoreless appearance. *A blank is the absence of a call, which is the caller's business; the two the engine can see are asserted distinct (`{}` total 0 with `minutes: 0` present, versus total 1).*
+- [x] Sabotage run — three, all red before this landed: assists 3→4 in the scoring table (per-identifier mismatches across every assister), the DEF threshold 10→11 (4 tests), the emptied fixture (5 tests)
+
+**Established from the payload during Phase 1, beyond what the plan asked for:**
+
+- `defensive_contribution` is a **count of qualifying actions, not points** — DEF is CBI+tackles, MID/FWD adds recoveries. Asserted for every outfield player, not just sampled.
+- **The threshold is not published upstream.** `game_config.scoring.defensive_contribution` gives the *points* (2, and 0 for GKP) and nothing gives the threshold, so it is the one number in `points.ts` that cannot be read from config. GW1 separates it cleanly — DEF lowest paid 10 against highest unpaid 9, MID 12 against 11 — and the test **re-derives that boundary from the fixture** rather than trusting the constant. **FWD is assumed from MID and is not confirmed**: nobody reached it in GW1 (highest 8). The archive's 2025-26 season should settle it in Phase 2b.
+- **`points_modification`** is on every explain stat and is 0 throughout GW1. A test fails the day it is not, instead of a correction being dropped silently.
+- The **60-minute clean-sheet rule is already baked into the upstream stat** — no player has a clean sheet with under 60 minutes — so re-applying it in the engine would double-count.
 
 ## Phase 2 — capture what cannot be recovered later
 
