@@ -11,7 +11,7 @@ diagram, the data-direction rule, why there is a database, and the port gotchas.
 
 | Repo | Stack | Port | Owns |
 |---|---|---|---|
-| `../fpl-frontend` | Next.js (App Router, TS, Tailwind) | **5000** | UI. Talks only to the backend. |
+| `../fpl-frontend` | Next.js (App Router, TS, Tailwind) | **4000** | UI. Talks only to the backend. |
 | `../fpl-backend` | NestJS + Prisma + Postgres | **5001** | All data, the FPL sync, the projection model. |
 | `.` (this repo) | markdown + bash | — | Skills, hooks, subagents, scripts, the map. |
 

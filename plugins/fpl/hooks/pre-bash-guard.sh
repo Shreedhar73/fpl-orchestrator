@@ -32,6 +32,14 @@ if printf '%s' "$cmd" | grep -qE 'prisma[[:space:]]+migrate[[:space:]]+reset|pri
   esac
 fi
 
+# AI attribution trailers in a commit message. The built-in agent instruction appends these by
+# default, so this fires often and on purpose: the project's commit log names the human who owns
+# the change, and nothing else. workflow.md §Commit.
+if printf '%s' "$cmd" | grep -qE 'git[[:space:]]+commit'; then
+  printf '%s' "$cmd" | grep -qiE 'co-authored-by:[[:space:]]*claude|generated with \[claude code\]|🤖' \
+    && deny "Commit carries an AI attribution trailer. This project's log names the human author only. Re-run the same commit with the Co-Authored-By / 'Generated with Claude Code' lines removed from the message."
+fi
+
 # Force-push to a default branch.
 printf '%s' "$cmd" | grep -qE 'git[[:space:]]+push[^|;]*(--force|-f)([[:space:]]|$)' \
   && printf '%s' "$cmd" | grep -qE '(main|master|develop)' \

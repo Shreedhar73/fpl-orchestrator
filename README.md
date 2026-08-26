@@ -5,7 +5,7 @@ sibling repos:
 
 ```
 fantasy-premier-league/
-├── fpl-frontend/      Next.js (App Router, TS, Tailwind)   :5000
+├── fpl-frontend/      Next.js (App Router, TS, Tailwind)   :4000
 ├── fpl-backend/       NestJS + Prisma + Postgres           :5001
 └── fpl-orchestrator/  skills · hooks · subagents · scripts   —
 ```
@@ -48,6 +48,7 @@ claude plugin install fpl@fantasy-premier-league --scope user
 
 ## Known local gotcha
 
-macOS **AirPlay Receiver binds :5000** and will stop the frontend dev server. Turn it off in
-System Settings → General → AirDrop & Handoff → AirPlay Receiver. `doctor.sh` and the session-start
-hook both call it out.
+macOS **AirPlay Receiver binds :5000** by default, which is why the frontend runs on **:4000**
+instead. Ports live in [`orchestration/repos.json`](orchestration/repos.json) and the scripts read
+them from there — change the port in one place. `doctor.sh`, `dev.sh` and the session-start hook all
+name whoever is holding a port, AirPlay included.

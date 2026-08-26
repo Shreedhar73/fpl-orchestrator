@@ -17,7 +17,7 @@ machine, after a fresh clone, or when something is behaving strangely and the ca
 | Repos | all three present at the paths in `repos.json` |
 | Skills | every skill in `skills/` symlinked into both repos' `.claude/skills/`, no dangling links |
 | Hooks | every hook script exists, is executable, and survives a sample payload |
-| Ports | 5000 and 5001 — and specifically whether `:5000` is held by macOS AirPlay Receiver |
+| Ports | every port in `repos.json`, and which process holds one that is taken |
 | Database | reachable, migrations applied, row counts for the core tables |
 | Freshness | most recent `sync_runs` row and its age |
 | Upstream | `bootstrap-static/` reachable, current gameweek, next deadline |
@@ -26,8 +26,9 @@ machine, after a fresh clone, or when something is behaving strangely and the ca
 
 - **Dangling symlinks** → `bash scripts/link-skills.sh`. Usual cause: a fresh clone; symlinks are
   machine-local and not committed.
-- **`ControlCe` on :5000** → AirPlay Receiver. System Settings → General → AirDrop & Handoff →
-  AirPlay Receiver → Off. Do not move the port.
+- **A port held by `ControlCe`** → macOS AirPlay Receiver, which binds :5000 by default (the reason
+  the frontend runs on 4000). Turn it off in System Settings → General → AirDrop & Handoff, or change
+  the port in `orchestration/repos.json`. Never move a port silently.
 - **Pending migrations** → `pnpm prisma migrate dev` in `fpl-backend`.
 - **Empty tables** → `/fpl:sync-fpl` with `--full`.
 - **Stale sync** → `/fpl:sync-fpl`.

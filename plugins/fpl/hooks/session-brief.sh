@@ -7,7 +7,11 @@ root="${CLAUDE_PROJECT_DIR:-$PWD}"
 [ -f "$root/orchestration/repos.json" ] || root="$(cd "$root/.." 2>/dev/null && pwd)"
 man="$root/orchestration/repos.json"
 
-echo "fantasy-premier-league — fpl-frontend :5000 · fpl-backend :5001 · fpl-orchestrator (skills/hooks)"
+# Ports come from the manifest, never from a literal here — one source, no drift.
+FE_PORT=$(jq -r '.ports["fpl-frontend"] // 4000' "$man" 2>/dev/null || echo 4000)
+BE_PORT=$(jq -r '.ports["fpl-backend"] // 5001' "$man" 2>/dev/null || echo 5001)
+
+echo "fantasy-premier-league — fpl-frontend :$FE_PORT · fpl-backend :$BE_PORT · fpl-orchestrator (skills/hooks)"
 
 if [ -f "$man" ]; then
   missing=$(jq -r --arg r "$root" '.repos[] | select(.path != ".") | .path' "$man" \
@@ -16,12 +20,13 @@ if [ -f "$man" ]; then
 fi
 
 if command -v lsof >/dev/null 2>&1; then
-  h5000=$(lsof -nP -i :5000 -sTCP:LISTEN -t 2>/dev/null | head -1)
-  if [ -n "$h5000" ]; then
-    name=$(ps -o comm= -p "$h5000" 2>/dev/null | xargs basename 2>/dev/null)
+  holder=$(lsof -nP -i ":$FE_PORT" -sTCP:LISTEN -t 2>/dev/null | head -1)
+  if [ -n "$holder" ]; then
+    name=$(ps -o comm= -p "$holder" 2>/dev/null | xargs basename 2>/dev/null)
     case "$name" in
-      ControlCenter|ControlCe*) echo "PORT :5000 held by macOS AirPlay Receiver — the frontend cannot start. System Settings > General > AirDrop & Handoff > AirPlay Receiver > Off." ;;
-      *) echo "port :5000 in use by $name (frontend may already be running)" ;;
+      ControlCenter|ControlCe*) echo "PORT :$FE_PORT held by macOS AirPlay Receiver — the frontend cannot start. System Settings > General > AirDrop & Handoff > AirPlay Receiver > Off, or change the port in orchestration/repos.json." ;;
+      node|next*) echo "port :$FE_PORT in use by $name (frontend may already be running)" ;;
+      *) echo "PORT :$FE_PORT held by $name — the frontend cannot start." ;;
     esac
   fi
 fi

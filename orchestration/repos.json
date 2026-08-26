@@ -8,7 +8,7 @@
       "path": "../fpl-frontend",
       "role": "frontend",
       "stack": "nextjs-app-router-ts",
-      "port": 5000,
+      "port": 4000,
       "default_branch": "main",
       "commands": {
         "install": "pnpm install",
@@ -80,5 +80,5 @@
       "notes": "Read endpoints are unauthenticated. Write endpoints (making a transfer, setting a lineup) need the user's own FPL session cookie — not built yet, see MAP.md."
     }
   ],
-  "ports": { "fpl-frontend": 5000, "fpl-backend": 5001, "postgres": 5432, "redis": 6379 }
+  "ports": { "fpl-frontend": 4000, "fpl-backend": 5001, "postgres": 5432, "redis": 6379 }
 }

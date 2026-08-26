@@ -21,8 +21,10 @@ optimizer skill decides what "best" means here.
    recent price change window (overnight) or a completed match, run `/fpl:sync-fpl` **and say that you
    are doing it** before continuing. Stale data is the one input that invalidates everything below.
 
-3. **Get the user's current squad.** From the app's stored squad for the current gameweek. If it is
-   missing, ask for the FPL manager id once and fetch it — do not guess a squad.
+3. **Get the user's current squad.** From the app's stored squad for the current gameweek, keyed by
+   the signed-in user. If none is stored, say so and stop — do not guess a squad, and do not read a
+   manager id out of the environment. Until auth ships (see `docs/decisions.md`, D-007) this step has
+   no source and the skill cannot complete.
 
 4. **Read the projections** for the next 5 gameweeks. If none exist for the current `model_version`,
    run the projection job first. Never hand-wave a number the model has not produced.

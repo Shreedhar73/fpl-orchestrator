@@ -77,15 +77,18 @@ section "hooks"
 [ "$HOOKS_ONLY" = 1 ] && { echo; [ "$FAIL" = 0 ] && echo "hooks ok" || echo "$FAIL failing"; exit $FAIL; }
 
 section "ports"
-  for p in 5000 5001; do
-    pid=$(lsof -nP -i ":$p" -sTCP:LISTEN -t 2>/dev/null | head -1)
-    if [ -z "$pid" ]; then ok ":$p free"; else
-      nm=$(ps -o comm= -p "$pid" | xargs basename)
-      case "$nm" in ControlCenter|ControlCe*)
-        bad ":$p held by macOS AirPlay Receiver" "System Settings > General > AirDrop & Handoff > AirPlay Receiver > Off" ;;
-      *) warn ":$p in use by $nm" "probably your own dev server" ;; esac
-    fi
-  done
+  while IFS=$'\t' read -r name port; do
+    [ "$port" = "null" ] && continue
+    pid=$(lsof -nP -i ":$port" -sTCP:LISTEN -t 2>/dev/null | head -1)
+    if [ -z "$pid" ]; then ok "$name :$port free"; continue; fi
+    nm=$(ps -o comm= -p "$pid" | xargs basename)
+    case "$nm" in
+      node|next*|nest*) warn "$name :$port in use by $nm" "probably your own dev server" ;;
+      ControlCenter|ControlCe*)
+        bad "$name :$port held by macOS AirPlay Receiver" "AirPlay Receiver > Off, or change the port in orchestration/repos.json" ;;
+      *) bad "$name :$port held by $nm" "free it, or change the port in orchestration/repos.json" ;;
+    esac
+  done < <(jq -r '.repos[] | select(.port != null) | "\(.name)\t\(.port)"' "$MAN")
 
 section "database"
   BE="$ORCH/../fpl-backend"

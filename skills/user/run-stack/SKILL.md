@@ -1,6 +1,6 @@
 ---
 name: run-stack
-description: "Boot the whole stack — Postgres, backend on 5001, frontend on 5000 — and verify each is actually serving."
+description: "Boot the whole stack — Postgres, backend on 5001, frontend on 4000 — and verify each is actually serving."
 disable-model-invocation: true
 ---
 
@@ -8,9 +8,11 @@ disable-model-invocation: true
 
 ## Steps
 
-1. **Ports first.** `lsof -nP -i :5000 -i :5001`. On macOS, `ControlCe` on `:5000` is **AirPlay
-   Receiver** — the fix is System Settings → General → AirDrop & Handoff → AirPlay Receiver → Off, not
-   a different port. Tell the user; do not silently move the port they chose.
+1. **Ports first.** Read them from `orchestration/repos.json`, never from memory, then
+   `lsof -nP -i :<frontend> -i :<backend>`. If a port is held, name the process holding it. A
+   `ControlCe` holder is macOS **AirPlay Receiver** (it binds :5000 by default, which is why the
+   frontend is on 4000) — the fix is turning it off in System Settings → General → AirDrop &
+   Handoff, or changing the port in the manifest. Never silently move a port the user chose.
 2. **Postgres.** `docker compose up -d` in `fpl-backend/`, or confirm a local instance with
    `pg_isready -p 5432`.
 3. **Migrations.** `pnpm prisma migrate status`. Apply if pending.
@@ -19,7 +21,7 @@ disable-model-invocation: true
 5. **Verify, do not assume.** Both must return real responses:
    ```bash
    curl -s -o /dev/null -w '%{http_code}\n' localhost:5001/health
-   curl -s -o /dev/null -w '%{http_code}\n' localhost:5000
+   curl -s -o /dev/null -w '%{http_code}\n' localhost:4000
    ```
    A process that started is not a server that serves. Read the status codes and report them.
 

@@ -20,7 +20,7 @@ and transfers — all with the evidence behind each call visible in the UI.
       fpl-http-contract  │              │  fpl-official-api (read-only, unauthenticated)
                          ▼              ▼
                  ┌──────────────┐   fantasy.premierleague.com/api/
-                 │ fpl-frontend │   Next.js · :5000
+                 │ fpl-frontend │   Next.js · :4000
                  └──────────────┘
 
                    ┌────────────────────────────┐
@@ -77,7 +77,7 @@ site. Do not add cookie handling without an explicit decision recorded here.
 
 | Service | Port | Note |
 |---|---|---|
-| `fpl-frontend` | 5000 | **macOS AirPlay Receiver also binds :5000.** Turn it off in System Settings → General → AirDrop & Handoff → AirPlay Receiver, or the dev server never starts. `scripts/doctor.sh` checks this. |
+| `fpl-frontend` | 4000 | 5000 was the original choice; **macOS AirPlay Receiver binds :5000** by default and the dev server never started, so the project moved to 4000. |
 | `fpl-backend` | 5001 | |
 | Postgres | 5432 | `docker compose up -d` in `fpl-backend/`, or a local Homebrew Postgres. |
 | Redis | 6379 | Deferred. Not wired until a measured need — see `fpl-performance-budget`. |

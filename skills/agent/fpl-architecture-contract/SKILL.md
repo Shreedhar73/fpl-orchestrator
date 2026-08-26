@@ -1,11 +1,11 @@
 ---
 name: fpl-architecture-contract
-description: "The load-bearing design decisions of the fantasy-premier-league stack and why they exist: the three-repo split, ports 5000/5001, the one-way data rule (FPL API to backend to Postgres to frontend, never a shortcut), the NestJS module anatomy and layering (controller to service to repository to Prisma), the ApiResponse envelope, generated frontend API types, the Next.js server-component-first rule, and where a new page, endpoint or module belongs. Load BEFORE adding a module, route, page or endpoint, before changing the response shape, before wiring the frontend to a new backend call, or whenever you ask 'where does this code belong?' or 'is it safe to change this?'."
+description: "The load-bearing design decisions of the fantasy-premier-league stack and why they exist: the three-repo split, ports 4000/5001, the one-way data rule (FPL API to backend to Postgres to frontend, never a shortcut), the NestJS module anatomy and layering (controller to service to repository to Prisma), the ApiResponse envelope, generated frontend API types, the Next.js server-component-first rule, and where a new page, endpoint or module belongs. Load BEFORE adding a module, route, page or endpoint, before changing the response shape, before wiring the frontend to a new backend call, or whenever you ask 'where does this code belong?' or 'is it safe to change this?'."
 ---
 
 # Architecture contract
 
-**The system in one paragraph:** a Next.js App Router frontend on `:5000` renders an AI fantasy
+**The system in one paragraph:** a Next.js App Router frontend on `:4000` renders an AI fantasy
 football manager. A NestJS backend on `:5001` owns everything else — it syncs the official FPL API
 into its own Postgres, computes expected points per player per gameweek, solves for the best squad
 subject to FPL's constraints, and serves the result over HTTP. A third repo, `fpl-orchestrator`, ships
@@ -116,12 +116,14 @@ Feature-slice anatomy under `src/features/<feature>/`: `api/`, `hooks/`, `compon
 
 ## 5. Ports and environment
 
-`:5000` frontend, `:5001` backend, fixed. The frontend reads `NEXT_PUBLIC_API_URL`; the backend reads
+`:4000` frontend, `:5001` backend, fixed. The frontend reads `NEXT_PUBLIC_API_URL`; the backend reads
 `PORT` with `5001` as the default in `main.ts`. Both are in each repo's `.env.example` — an env var
 that is not in `.env.example` does not exist as far as the next session is concerned.
 
-**macOS AirPlay Receiver also binds :5000.** Turn it off in System Settings → General → AirDrop &
-Handoff, or the frontend dev server will not start. `bash scripts/doctor.sh` reports it.
+Ports live in `fpl-orchestrator/orchestration/repos.json` and the scripts read them from there —
+change a port in that one place, plus the matching `package.json` script. 4000 rather than 5000
+because macOS AirPlay Receiver binds :5000 by default. `bash scripts/doctor.sh` names whoever holds
+a taken port.
 
 ## 6. Invariants checklist
 
