@@ -168,3 +168,22 @@ specific committed change as the reason the squad is worse than the crowd's.
 Phase 3 is the largest and is the prerequisite for Phase 4 being anything other than an argument.
 
 **Nothing here waits on the calendar.** Every row is already in `archive_player_gameweek`.
+
+---
+
+## Verified on the served path, 2026-08-27
+
+Phases 2 and 4 changed programs a real user hits, and everything above measured them in a harness.
+
+- `GET /api/insights/transfers/7912139` — **HTTP 200 in 0.29–0.54 s** over three calls. B-024 tripled
+  the transfer program's binary families and added the `d` rows; the entry said "the LP grows … measure
+  it", and it is still sub-second on the served route rather than only in the simulator.
+- The plan it returns is coherent: 2 free transfers, 2 moves, **0 hits**, both DEF → DEF, +9.07 net
+  horizon EP, and the chip advice still answers "no gameweek in this horizon argues for one" rather
+  than hiding the absence.
+- `GET /squad/7912139` on the frontend renders it — HTTP 200.
+- `bash scripts/doctor.sh` — all checks passed. **The GW2 deadline snapshot is captured**: 614 rows at
+  2026-08-27 09:15, about 32 hours before the 17:30Z deadline. That is the one calendar-bound asset in
+  the register (B-015) and nothing in this plan was allowed to put it at risk.
+
+`modelVersion` did not move, as invariant 5 required. The incumbent serves GW2.
