@@ -2460,3 +2460,81 @@ rounds, verified rather than assumed. A weekly transfer erases an opening-squad 
 than anything the objective can produce. **The opening solve matters much less than the transfer
 policy acting on it**, which makes the shipped-planner arm the highest-value measurement left.
 
+---
+
+## B-032 · The shipped transfer planner has never walked a season — done 2026-08-27
+
+```
+Status   done — fpl-backend#60, PR #61
+Repos    fpl-backend
+Plan     docs/plans/021-power-and-the-planner-arm.md
+Issue    backend#60
+```
+
+**Why.** B-008 shipped the real transfer planner — an ILP with the −4 inside the objective, sell values
+reconstructed, chips recommended as a window. It is what the product actually does when a user opens
+`/squad/{id}`. It has never been run over a season.
+
+The season simulator takes its policy as a parameter and ships exactly two: `no-transfer`, which holds
+the opening fifteen for 38 rounds, and `greedy-1ft`, which is myopic, one round deep and **refuses
+every hit**. Plan 010 was explicit that both are floors and that B-008 "plugs into this same simulator
+rather than bringing its own". That wiring was never done. So every season total in
+`reports/decision-quality.md` measures a policy the product does not use, and the −4 path — which the
+optimizer skill calls the most error-amplifying thing the product does — is exercised by a unit test
+and by nothing else.
+
+**What to build.** `buildTransferLp`'s solve, wrapped as a third `SimPolicy`, walking the season with
+the real free-transfer bank, the real sell-on fee and hits allowed. Then the same paired comparison the
+other policies get, against `greedy-1ft` on identical opening squads.
+
+**What it is worth beyond the number.** It is the baseline B-024 is measured against. B-024 says the
+planner and the recommendation optimise different objectives; today there is no harness that would
+notice if closing that gap helped, hurt or did nothing, and adding the `y`/`c` families without one
+would be tuning by argument.
+
+**One thing to be careful of.** The planner takes a horizon and a decay, and a season walked at
+horizon 5 is five times the solves of one walked at horizon 1. Measure the wall clock before assuming
+a 38-round walk over five arms is cheap.
+
+Recorded 2026-08-27.
+
+---
+
+**Outcome — shipped 2026-08-27, `fpl-backend` PR #61.**
+
+| Policy | points | transfers | hits |
+|---|---:|---:|---:|
+| greedy-1ft (model) | **1881** | 37 | 0 |
+| **planner (model)** | **1846** | 47 | **40** |
+
+| comparison | mean Δ | ± s.e. | clears noise | detectable at |
+|---|---:|---:|---|---:|
+| planner − greedy-1ft, same opening fifteen | −0.95 | 1.51 | no | 112 pts |
+
+**The planner the product ships is 35 points behind a policy that never takes a hit, having spent 40
+on hits.** Same opening fifteen, same predictions — nothing but the policy separates them. It does not
+clear the 112-point floor, so it is not a verdict; it is the first time the number exists, and the −4
+path is now walked rather than unit-tested. **Do not restate this as "the planner is worse" anywhere.**
+
+**The horizon was the work, and the entry underestimated it.** A planner maximises
+`Σ EP(gw + i) × decay^i`, so it needs several rounds of projections at one deadline. Reading them out
+of `rowsByRound` uses predictions built from rounds nobody had played then — plan 010's invariant 2,
+producing no error and nothing wrong-looking. `walkRounds` gained an opt-in horizon that scores future
+rounds with the accumulators and the form window **frozen at the deadline**; only the fixture comes
+from the future row, because fixtures are published in advance and results are not. That is
+`PredictionRow.horizonEp`.
+
+**The refusal is the load-bearing part.** `plannerPolicy` throws when `horizonEp` is null rather than
+falling back to `predicted.model`. A planner silently demoted to a one-week horizon takes almost no
+hits and reads as a *cautious* planner rather than a broken one — the failure would have looked like a
+finding.
+
+**`HORIZON`, `HORIZON_DECAY`, `HIT_COST` and `MAX_TRANSFERS` moved to the pure modules.** They were
+private constants in `optimizer.service.ts` and `transfers.service.ts`; a harness cannot import a Nest
+service to reach them, and copying them is how a harness ends up measuring a planner nobody is served.
+
+**Where this leaves B-024.** The planner's objective prices neither the bench, nor the armband, nor
+defensive concentration, and B-024 is the entry that closes that. It now has a harness that would
+notice: the planner arm, paired against `greedy-1ft` on identical openings, at a 112-point floor.
+Before this, adding the `y`/`c` families would have been tuning by argument.
+

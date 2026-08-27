@@ -111,14 +111,27 @@ when held all season** lands on **exactly the same season total**, having scored
 
 ## Phase 3 — the real planner walks a season (B-032)
 
-- [ ] `buildTransferLp`'s solve wrapped as a `SimPolicy`, with the free-transfer bank, the sell-on fee
+**Landed 2026-08-27 — `fpl-backend` PR #61, issue #60. 367 tests green, three sabotage runs recorded.**
+
+**The planner loses to the dumb policy.** 1846 against `greedy-1ft`'s 1881 from the *same* opening
+fifteen, having spent **40 points on hits** to get there — against a paired floor of 112, so it does
+not clear and is not yet a verdict. It is the first time the number exists at all, and the −4 path is
+now walked rather than unit-tested.
+
+**The horizon was the work, and it was a leak waiting to happen.** `walkRounds` gained a horizon that
+scores future rounds with the accumulators and the form window frozen at the deadline; only the
+fixture comes from the future row. The policy **throws** when `horizonEp` is missing rather than
+falling back to a single round — a planner quietly demoted to one week takes almost no hits and reads
+as cautious rather than broken. Wall clock: the whole report runs in about 15 seconds.
+
+- [x] `buildTransferLp`'s solve wrapped as a `SimPolicy`, with the free-transfer bank, the sell-on fee
       and hits allowed — `src/modules/calibration/season-sim.ts`
-- [ ] Wall clock measured before the full matrix is run; horizon and decay stated in the report
-- [ ] The policy's season total lands in the same table as `no-transfer` and `greedy-1ft`, on identical
+- [x] Wall clock measured before the full matrix is run; horizon and decay stated in the report
+- [x] The policy's season total lands in the same table as `no-transfer` and `greedy-1ft`, on identical
       opening squads, paired against `greedy-1ft`
-- [ ] The **hits taken** column stops reading 0 for every row, or the report explains why the planner
+- [x] The **hits taken** column stops reading 0 for every row, or the report explains why the planner
       declined every hit over 37 rounds — a planner that never takes a hit has an untested −4 path
-- [ ] Sabotage, recorded: a planner arm whose projections are shuffled must lose to `greedy-1ft`
+- [x] Sabotage, recorded: a planner arm whose projections are shuffled must lose to `greedy-1ft`
 
 ## Phase 4 — B-024, measured rather than argued
 
