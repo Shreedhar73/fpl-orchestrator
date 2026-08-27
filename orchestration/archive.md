@@ -29,6 +29,31 @@ Outcome  One or two lines: what is true now that was not before, and anything th
 `Shipped` is PR numbers, not issue numbers — the issues say what was asked for, the PRs say what
 arrived, and they are not always the same thing. Where they differ, say so in `Outcome`.
 
+
+## How the 2026-08-27 entries reached `main`, and why their PR numbers look closed
+
+Ten entries landed together on 2026-08-27 — B-013, B-019, B-020, B-014, B-018, B-022, B-008, B-016,
+B-017 and B-023. Each was built and described on its own PR, stacked one on the next, and each entry
+below still names the PR where its reasoning was written down. **Those PRs are closed, not merged**,
+and that is the honest shape of what happened rather than a mistake to tidy.
+
+`fpl-backend#22` was squash-merged first. A squash rewrites history, so every branch behind it began
+conflicting with `main` at once — the ordinary cost of squashing a stack, and the reason
+[`workflow.md`](workflow.md)'s one-PR-one-change convention assumes a stack of one. The tip branch was
+a linear superset of all nine, so it was rebased onto `main` with the duplicated commits dropped and
+merged as **`fpl-backend#40`** with a **merge commit**, so all ten commit messages survive. Squashing
+them would have destroyed the part of this work most worth keeping.
+
+Before closing anything, every superseded branch was confirmed to be either a git ancestor of that tip
+or content-identical to one; `git diff` between the pre- and post-rebase tips was empty and the suite
+was 295/295 on the merged tree. `fpl-frontend#6`, `#8` and `#10` merged normally, in order, after
+their backend halves.
+
+**What to take from it.** A squash merge is the right default for one change and the wrong one for a
+stack. If several entries are ever in flight together again, merge them with merge commits from the
+bottom up, or land them as one PR from the start.
+
+
 ---
 
 <!-- Entries land below this line, newest first. -->
