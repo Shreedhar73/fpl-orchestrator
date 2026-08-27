@@ -2035,3 +2035,56 @@ real: `taken: []` and `penaltyEp: 0` are the only vocabulary the payload has, an
 `Σ EP·x − hitCost·h − λ·Σ z` — no `y`, no `c`, collisions on `x`. B-024 asks for the collision rows to
 be copied onto `y` "exactly as `buildLp` has them"; if this entry resolves to option 2 they belong on
 `x` where they already are, and B-024's scope shrinks to the XI and captain terms. Settle this first.
+
+---
+
+## B-026 · The collision charge stops being coupled to the bench weight — done 2026-08-27
+
+```
+Status   done
+Repos    fpl-backend, fpl-frontend
+Plan     docs/plans/019-collision-penalty-on-ownership.md (D2, reversed — no new plan)
+Issue    orchestrator#19 (parent), backend#46, frontend#13
+Shipped  backend#47, frontend#14
+Outcome  `chargedCollisionLambda` deleted rather than left returning its argument, `penalisedSquadEp`
+         drops its `benchWeight` parameter, and `lambdaConstant` leaves the payload — it existed only
+         because the effective charge differed from the constant. **Measured both ways and nothing
+         moves.** The GW2 recommendation of record is identical — same fifteen, same eleven, same
+         captain — and the only number that changes is what the panel says was paid, 1.40 to 2.00.
+         `pnpm replay:xi` at raw λ returns 1713 points, a pair owned in 30 rounds, both started in 27,
+         0.00 forgone: **identical round by round, all 38 of them**, to the 0.7 arm. That is the
+         lambda sweep's own finding arriving from a second direction, and it is the useful residue of
+         this entry — between 0.7 and 1.0 no decision in a squad-season flips, so anyone tempted to
+         argue this knob again should bring a case where one does. The `buildLp` bench-weight default
+         stays at the served value: it no longer disarms the collision guard when forgotten, but it
+         still silently solves an objective the product does not serve. The test that asserted the
+         0.7 coupling was inverted rather than deleted — the same charge at bench weights 0, 0.3, 0.7
+         and 1.
+```
+
+**Why.** B-025 shipped the collision penalty on `x` charged at `benchWeight × COLLISION_LAMBDA` =
+0.7. The reasoning was that B-023 changed what a squad place is worth, so the constant had to be
+re-scaled to keep the weight B-011 measured. Plan 019's own D2 records that the arithmetic behind it
+is only half right, and the half that fails is the half that matters:
+
+- a **benched** owned player carries `benchWeight · ep`, so a raw λ on `x` is 1.43× the measured
+  strength for him — the case the scaling was written for;
+- a **starter** carries `benchWeight · ep + (1 − benchWeight) · ep = ep`, exactly the pre-B-023
+  weight, so a raw λ was already right for him and 0.7λ **under-charges** him by 30%.
+
+Colliding pairs are usually startable players. So the scaling is wrong for the common case, right for
+the rare one, and immaterial for both — the sweep put every λ from 0.5 to 4 within 0.13 realised
+points of the others.
+
+**Decision, 2026-08-27: charge raw λ = 1.0.** Not because 0.7 is measurably worse — nothing at this
+resolution is measurably anything — but because the coupling costs more than it buys. Two knobs that
+move together need a harness that can see both, and `pnpm replay:xi` is one season old. One constant
+that means what its comment says beats a scaled one that means it for a player nobody owns.
+
+**`lambdaConstant` goes with it.** It was added to the payload precisely because the effective charge
+differed from the policy constant. When they are equal it is two fields saying one thing, and the
+second one reads as though it meant something. That is a contract change, so backend first.
+
+**What this is not.** Not a re-tune. The value B-011 measured is 1.0 and this restores exactly that;
+anyone proposing a different number is making a new argument and owes a new measurement — on the
+replay harness, which can now see the XI, and on ownership, which is where the charge lands.

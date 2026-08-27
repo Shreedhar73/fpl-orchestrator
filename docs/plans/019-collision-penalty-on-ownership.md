@@ -56,7 +56,13 @@ Colliding pairs are usually startable players, which is the case that matters.
 
 The sweep says this is immaterial — every λ from 0.5 to 4 lands within 0.13 realised points — so 0.7
 stands, chosen for the bench-valued reading and for keeping the constant tied to the coefficient that
-moved. **What must not be written anywhere is "restores the ratio exactly."** The `policy.ts` comment
+moved.
+
+> **Reversed 2026-08-27, same day, as B-026.** The scaling shipped and was then undone: it is exact
+> only for a pair nobody starts, and the reason to drop it is the coupling rather than the number.
+> Measured both ways and neither moves — the GW2 recommendation is identical apart from what the panel
+> says was paid (1.40 → 2.00), and `pnpm replay:xi` at raw λ is identical to the 0.7 arm round by
+> round, all 38 of them. See `orchestration/archive.md` B-026. **What must not be written anywhere is "restores the ratio exactly."** The `policy.ts` comment
 says: exact for bench-valued ownership, 0.7× measured for starters, and indistinguishable at the
 resolution the sweep can see.
 

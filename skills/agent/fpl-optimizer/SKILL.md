@@ -76,7 +76,7 @@ matter.
 Variables: `x_p ∈ {0,1}` player in the 15; `y_p ∈ {0,1}` player in the XI (`y_p ≤ x_p`);
 `c_p ∈ {0,1}` captain (`c_p ≤ y_p`).
 
-Maximise `Σ EP_p × (y_p + c_p) + bench_weight × Σ EP_p × (x_p − y_p) − λ_charged × Σ z_ij`, where
+Maximise `Σ EP_p × (y_p + c_p) + bench_weight × Σ EP_p × (x_p − y_p) − λ × Σ z_ij`, where
 `z_ij ≥ x_i + x_j − 1` prices every conflicting pair the squad HOLDS (below).
 
 **`bench_weight` is 0.7 and was measured, not estimated.** This skill said ~0.1 for a long time and
@@ -99,7 +99,11 @@ Subject to:
   worth more than 4 points over the horizon", and only the solver can answer it.
 - **Fixture collisions:** one row per pair of our own players on opposite sides of the same match —
   an attacker (FWD/MID) of ours against a defensive player (DEF/GKP) of ours. `z_ij ≥ x_i + x_j − 1`,
-  charged `λ_charged = bench_weight × λ` in the objective.
+  charged the policy `λ` in the objective, **unscaled**. It was briefly charged at `bench_weight × λ`
+  on the argument that B-023 had changed what a squad place is worth; that scaling is exact only for a
+  pair nobody starts — a *starter's* coefficients sum back to `ep` — and a colliding pair is usually
+  two startable players. Neither version is measurable, and the reason to keep them uncoupled is that
+  two knobs moving together need a harness that can see both.
 
 **The collision rows go on `x`, and this is the one thing about them worth remembering.** They were
 briefly moved onto `y` and `c` — charge the eleven, not the squad, on the argument that the bet is
