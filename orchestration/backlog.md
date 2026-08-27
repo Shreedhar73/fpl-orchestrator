@@ -275,57 +275,6 @@ should start and who should wear the armband. Today they need not, and nothing c
 
 ---
 
-## B-030 · The verdict report states a conclusion it no longer measures, and its headline number has no noise band
-
-```
-Status   backlog
-Repos    fpl-backend
-Plan     docs/plans/021-power-and-the-planner-arm.md
-Issue    —
-```
-
-**Why.** `reports/decision-quality.md` is the file the project's accuracy claims are read out of, and
-three things in it are wrong at HEAD, measured 2026-08-27 by regenerating it against current code.
-
-**One. The verdict prose is unconditional.** `decision.service.ts` writes "`modelVersion` does not
-move on this, and the serving version is not deleted" and "B-014 (team strength carries no signal, and
-both fixture elasticities fitted to 0) are where it gets answered" as **literal strings**, whatever
-the numbers say. Both statements are now false: the model was adopted as v3 (D-025) and B-014 shipped.
-A report whose conclusion is hard-coded cannot go red — it is the `checks-that-cannot-fail` shape
-applied to a verdict rather than to a test, and it is the most flattering possible version of it,
-because the conclusion it hard-codes is the one that keeps the register from noticing progress.
-
-**Two. The headline comparison is the only one exempt from the report's own noise test.** The
-"Is the difference bigger than the noise?" table pairs `model − form` and `model − priorSeason` and
-stops there. The number the report then calls "the most uncomfortable number in this report" —
-the template squad's total against the model's — is printed as a bare season difference with **no
-standard error at all**. `pairedDifference()` already exists and is already called twice in the same
-function. Measured at HEAD: template 1928 against model 1881, a gap of 47 over 37 rounds, which is
-**1.27 points a round** against a paired standard error of order 2.6 on the comparisons that do carry
-one. The headline finding of this report is very likely inside its own noise floor and the report does
-not say so.
-
-**Three. Nobody knows what the report can resolve.** Every argument in the register turns on season
-totals of 25–75 points, and a 37-round paired comparison at s.e. ≈ 2.7 a round has a minimum
-detectable effect (2 s.e.) of roughly **200 points a season**. That number belongs in the report,
-stated once, so that a future sub-noise claim is visibly sub-noise instead of being argued about.
-
-**What to build.** The prose reads the numbers rather than asserting a verdict — `modelVersion` moved
-or did not, `form` was beaten or was not, and the next-question sentence names whichever entry the
-measurements actually indict. The comparison table gains a `model − template` row on the same
-`pairedDifference()` path as the others. The report states its own minimum detectable effect beside
-the noise table.
-
-**The check that has to go red.** Invert the adoption fact and the verdict sentence must change; hand
-the template arm the model's own rounds and the new noise row must read a difference of zero. A prose
-generator that emits the same paragraph either way is the bug this entry is about, so the test for it
-has to be a diff of the prose, not of the numbers.
-
-**Why this is first.** Everything after it is a comparison, and the register currently has no way to
-tell a real 60-point movement from a coin flip. Recorded 2026-08-27.
-
----
-
 ## B-031 · Did the objective rewrite make the squad worse? Nothing has ever asked
 
 ```

@@ -51,18 +51,25 @@ one of its shapes, applied to a verdict instead of a test.
 
 ## Phase 1 — the verdict can go red (B-030)
 
-- [ ] The `modelVersion`/serving-version sentence is derived from whether the model actually beat the
+**Landed 2026-08-27 — `fpl-backend` PR #57, issue #56. 333 tests green, two sabotage runs recorded.**
+
+**The finding, and it reframes the plan.** With the template comparison finally paired, the crowd gap
+is **47 points against a noise floor of 156**. The number this project has treated as its headline
+defect since B-012 — "our squad solve is worse than owning what everyone else owned" — is inside its
+own noise and always was. Nobody had computed the floor.
+
+- [x] The `modelVersion`/serving-version sentence is derived from whether the model actually beat the
       baselines in *this run*, not written unconditionally — `src/modules/calibration/decision.service.ts`
-- [ ] The "next question" sentence names the entries the current measurements indict, and stops citing
+- [x] The "next question" sentence names the entries the current measurements indict, and stops citing
       B-014's fixture elasticities as an open finding — it shipped — `decision.service.ts`
-- [ ] `model − template` gains a row in the noise table, on the same `pairedDifference()` path as the
+- [x] `model − template` gains a row in the noise table, on the same `pairedDifference()` path as the
       other two comparisons — `decision.service.ts`
-- [ ] The report states its own **minimum detectable effect** beside the noise table: 2 × s.e. × rounds,
+- [x] The report states its own **minimum detectable effect** beside the noise table: 2 × s.e. × rounds,
       in points of season, so a sub-noise claim is visibly sub-noise — `decision.service.ts`
-- [ ] Sabotage, recorded: invert the "was the model adopted" input and the verdict paragraph must
+- [x] Sabotage, recorded: invert the "was the model adopted" input and the verdict paragraph must
       differ as a **string diff**; hand the template arm the model's own rounds and the new noise row
       must read exactly 0.00 — `src/modules/calibration/__tests__/`
-- [ ] Regenerate `reports/decision-quality.md` and commit it **in the same change as the prose fix**, so
+- [x] Regenerate `reports/decision-quality.md` and commit it **in the same change as the prose fix**, so
       the register never holds a version stating things that are false
 
 ## Phase 2 — the objective A/B (B-031)
