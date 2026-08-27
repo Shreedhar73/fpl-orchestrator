@@ -2787,3 +2787,12 @@ verdict.
 is one leg, and that leg names its own fix: the features OpenFPL has that the archive lacks are
 exactly the haul-sizing ones (shots, xGChain, key passes, team Deep/PPDA). That is B-037.
 
+**Amended same day, PR #72 — the legs got the noise bands the rest of the report has (B-030's rule,
+applied a PR late), and the pairing sharpened every reading.** Zeros −0.434 ± 0.023 and Blanks
+−0.202 ± 0.085 both clear: the improvements are real. Tickers +0.267 ± 0.062 **clears**: the
+regression is real, so B-037's premise is measured rather than assumed. Haulers −0.012 ± 0.335 is a
+wash and is called one. The v4 sim arms are paired too — `model − v4` held all season is +6.49 ±
+2.91 and clears, so the incumbent's fifteen really is better held, consistent with the compressed
+top end. Had neither high-return miss cleared its noise, the verdict would have called the deciding
+leg unresolved at this sample; that branch exists, is tested, and did not fire.
+
