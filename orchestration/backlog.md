@@ -318,10 +318,14 @@ twice):
 | `λ = 1.0` (today) | `0.3(−3.30) + 4` = **+3.01** |
 | `(1−benchWeight)·λ = 0.3` (option 1) | `0.3(−3.30) + 1.2` = **+0.21** |
 
-Option 1 shrinks the margin 14× and still benches. It is not a pure rescale either — the captain
-term `Σ EP·c` carries no `(1−w)` factor, which is the only reason the two rows differ at all. So
-**only options 2 and 3 change the recommendation of record**; option 1 changes how close the call is,
-which is worth knowing but is not the fix.
+Option 1 shrinks the margin 14× and still benches. **And it fails for a deeper reason than the
+scaling.** This swap is defender-for-defender with Palmer captain either way, so `ΔC = 0` and the
+captain term never enters either row — which means we can ask what happens at B-011's *own* measured
+ratio, EP coefficient 1 against `λ = 1`: `−3.30 + 4` = **+0.70**. Still benches. The penalty was
+measured when it sat on `x`, where the only way to avoid the charge was **not to own the pair**;
+moving it to `y` opened an escape route that did not exist at measurement time, and no value of `λ`
+closes a route rather than pricing it. So **only options 2 and 3 change the recommendation of
+record**; option 1 changes how close the call is, which is worth knowing but is not the fix.
 
 `policy.ts` corroborates the mechanism from the other side and reaches the opposite verdict about it
 — it documents the same benching, computes the same `(1 − 0.7) × 3.30 = 0.99` against 4 penalty
