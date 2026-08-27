@@ -1430,3 +1430,51 @@ The check that could not fail, closed: a count test never sees a cuid, so the gu
 test on the emitted strings, with a second arm asserting a real cuid does match the pattern — without
 which it would pass forever by matching nothing.
 
+---
+
+## B-022 · Adopt the model — v3, and a GW2 recommendation from it
+
+```
+Status   done — shipped 2026-08-27
+Repos    fpl-backend
+Plan     — (no plan file: one constant, one re-run, and a report)
+Issue    orchestrator#14, backend#31 · PR fpl-backend#32
+```
+
+**Why.** Opened 2026-08-27 mid-session. D-021 declined to adopt v2 and the accuracy-first order was
+set twice. Three structural changes since — B-019, B-020 and B-014 — moved every number that decision
+rested on, so the decision is re-made rather than inherited.
+
+---
+
+**Outcome — shipped 2026-08-27, backend#32.**
+
+| | before | after |
+|---|---:|---:|
+| `P(any appearance)` Brier reliability | 0.0121 | **0.0009** |
+| `P(defcon ≥ threshold)` predicted, base rate 0.054 | 0.013 | **0.048** |
+| `attack.xaFixtureElasticity` | 0 | **2.5** |
+| overall bias | −0.025 | +0.059 |
+| ordering spearman | 0.518 | **0.529** |
+| points captured in the top 15 | 36.9% | **38.4%** |
+| season under `greedy-1ft`, against the crowd template | 1896 vs 1998 | **1943 vs 1917** |
+
+**The last line is what changed the decision, and it is the line D-021 named.** That decision's stated
+reason for not adopting was that the crowd's opening fifteen outscored ours by 102 points under the
+same policy and the same projections — so a transfer planner would start by correcting a squad we knew
+was worse than the template. It now finishes 26 points ahead, which unblocks B-008 on its own terms
+rather than by overruling the condition.
+
+`MODEL_VERSION` is `v3-fitted-2026-08-27`, and the major number is not decoration: v2 was v1's
+structure with fitted constants, and all three changes are structural. 3,070 rows written for GW2–GW6;
+the v1 and v2 rows stay where they are, so the three remain comparable on identical gameweeks.
+
+`reports/gw2-recommendation-v3.md` is the recommendation from the adopted model — 3-5-2, £99.6m,
+objective 250.57, Saka captain and Palmer vice, with the guards' reasoning read out of the solve.
+The 2026-08-26 report is marked superseded and **left uncorrected**: it is the record of what was
+recommended on the day, and a corrected record is not a record.
+
+**What did not change.** The availability multiplier is still unfitted (B-015, calendar-bound), the
+projections still carry no dispersion (B-017), and the fixture term is non-zero and unproven
+out-of-sample (D-024).
+

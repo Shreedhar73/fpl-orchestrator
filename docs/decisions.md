@@ -827,3 +827,52 @@ validation, widen a grid, or record the neutral result — and it must do one of
    finishes ahead of the crowd's template for the first time, 1943 to 1917. D-021's headline deficit
    of 102 points is closed — by B-019, B-020 and this entry together, not by any one of them.
 4. The goalkeeper fit that rode with this entry is unbuilt and is now **B-021**.
+
+---
+
+## D-025 · 2026-08-27 · The model is adopted as v3, on the number D-021 declined it for
+
+**Context.** D-021 declined to adopt `v2-fitted-2026-08-26`. Its stated reason was not a general
+scepticism: it was one measurement. Under the same season policy and the same projections, **the
+crowd's most-owned legal fifteen outscored ours by 102 points**, so a transfer planner built on that
+model would have started by correcting a squad we already knew was worse than the template. The
+accuracy-first order was set on that finding, and B-013 and B-014 were routed as the next work
+precisely to explain it.
+
+**What changed.** Three structural changes, each measured on the same 29,482 held-out 2025-26 rows and
+each shipped with its own report: the substitute-appearance term became a per-player curve (B-019);
+every non-linear term is integrated over the minutes distribution and not only over the count (B-020);
+team strength reads decay-weighted actual goals alongside expected goals (B-014).
+
+| | v2, 2026-08-26 | v3, 2026-08-27 |
+|---|---:|---:|
+| `P(any appearance)` Brier reliability | 0.0121 | **0.0009** |
+| `P(defcon ≥ threshold)` predicted (base 0.054) | 0.013 | **0.048** |
+| overall bias | −0.025 | +0.059 |
+| ordering spearman | 0.518 | **0.529** |
+| points captured in the top 15 | 36.9% | **38.4%** |
+| season under `greedy-1ft` vs the crowd template | 1896 vs 1998 | **1943 vs 1917** |
+
+**Decision.** `MODEL_VERSION` becomes `v3-fitted-2026-08-27` and the live gameweeks are re-projected
+under it. The condition D-021 set is met on its own terms rather than overruled.
+
+**Why the major number moves.** v2 was v1's structure with fitted constants; all three changes above
+are structural. Two models that disagree about a player's expected points must not share a name in a
+table that is queried by name, and `v2-fitted-2026-08-27` would have been exactly that.
+
+**What adoption does NOT claim, and each has an entry.**
+
+1. **The model still loses to `form` on ordering spearman** — 0.529 against 0.574. It wins on the
+   metric that describes a squad decision (points captured in the top 15 and top 11) and loses on the
+   one that describes the whole field. That split has been in every report since D-020 and adoption
+   does not resolve it.
+2. **The availability multiplier is not fitted** and cannot be until deadline snapshots accumulate
+   (B-015).
+3. **The projections carry no dispersion**, so a 21.9 from a nailed premium and a 21.9 from a rotation
+   risk read identically (B-017).
+4. **The fixture term is non-zero and unproven out-of-sample** (D-024).
+
+**And the register keeps the old recommendation as it was.** `reports/gw2-recommendation.md` is marked
+superseded, not corrected. It records what was recommended on 2026-08-26, from a model that did not
+yet have the guards — which is why it contains two players the appearance floor now removes. A record
+that is edited to match the present is not a record.
