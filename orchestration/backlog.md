@@ -136,6 +136,20 @@ and still a guess. **The archive carries no per-gameweek `status` or `chance_of_
 limit 3), so no amount of past data fixes it. The only source is our own
 `player_deadline_snapshot`, which holds **614 rows for GW2 and nothing else** (measured 2026-08-26).
 
+**Status as of 2026-08-27 — the capture machinery now exists, and the clock is unchanged.** B-016
+shipped: the deadline snapshot rides the ordinary sync inside a 36-hour window, `doctor.sh` reports a
+passed deadline with no snapshot behind it, and `pnpm score:gameweek` will score the served
+projections the moment a gameweek is `dataChecked`. What has NOT changed is the arithmetic: the table
+still holds **one** capture — 614 rows for GW2, taken 46.1 hours out — and a usable fit needs on the
+order of ten gameweeks. The earliest honest attempt is still around November, and it still requires
+every deadline between now and then to be captured. The capture depends on a backend process being
+alive at the hour the window opens; nothing in this repository can guarantee that.
+
+**One half of the minutes model came off this entry and is done.** B-019 fitted the
+substitute-appearance term from the archive alone — it needs only lagged starts, appearances and
+matches, none of which requires `status`. The two halves were being treated as one blocked thing and
+they are not. What remains here is `availabilityMultiplier()` and nothing else.
+
 **This is the one genuinely calendar-bound entry in the register, and the clock is running.** Roughly
 one gameweek arrives per week; a deadline that passes without a snapshot is a row that can never be
 reconstructed, because by the following morning `status` says what was true *after* the match. A
@@ -191,3 +205,45 @@ with the confidence of one fitted on 29,482.
 
 
 ---
+
+---
+
+## B-024 · The transfer planner and the recommendation stopped optimising the same thing
+
+```
+Status   backlog
+Repos    fpl-backend
+Plan     —
+Issue    —
+```
+
+**Why.** B-023 moved the squad ILP to the program the skill specifies — `Σ EP(y + c) + benchWeight ×
+Σ EP(x − y)`, with the collision penalty on the **XI** and the captain's exposure doubled.
+`transfer-lp.ts` did not move with it: it still emits `Σ EP × x` over all fifteen, with the collision
+penalty on `x`, and no captain term at all.
+
+So on one screen a user now sees a recommendation that prices the armband and a transfer plan that
+does not, and the two can prefer different players for the same money. That is the failure mode
+B-018's whole design was about — the app contradicting itself where a reader can see both halves.
+
+**There is a false comment sitting in the code, and it should be read as the bug report.**
+`transfers.service.ts` says the plan solves under "the SAME collision guard the recommendation is
+solved under". It passes `universe.collisions`, which is true of the *pairs* and no longer true of the
+*objective*: the recommendation charges them against `y` and doubles the captain's, and the planner
+charges them against `x`. Fix the comment in the same change, or it will outlive the divergence.
+
+**What to build.** `buildTransferLp` gains the same `y` and `c` families with `y ≤ x`, `c ≤ y`,
+`Σ y = 11`, `Σ c = 1`, the formation rows, and `BENCH_WEIGHT` — and the collision rows move to `y`
+with the captain's `w` rows alongside, exactly as `buildLp` has them. The two files then differ only
+where they should: the transfer LP's budget row prices a kept player at his sell value and carries the
+hit variable.
+
+**Two things to be careful of.** The hit `h` and the bench weight interact — a −4 is now traded
+against an objective whose XI term is scaled by `1 − benchWeight`, so a transfer that was worth taking
+may stop being, and that is a real change in advice rather than a refactor. And the LP grows: the
+transfer program already carries the whole market as binaries, so tripling the variable families is a
+size question the squad solve did not face at the same scale. Measure it.
+
+**The bar.** The plan and the recommendation, run on the same squad, agree about who should start and
+who should wear the armband. Today they need not, and nothing checks it.
+

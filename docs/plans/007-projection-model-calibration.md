@@ -139,6 +139,11 @@ gameweek of backtest.
 - [ ] Add the snapshot assertion to `/fpl:plan-gameweek` step 2 — **not done**. The capture now rides on the ordinary sync, so the skill change is a check rather than the trigger, but an empty table should still be caught there
 - [ ] Decide and implement `explain`-block retention before season rollover: a raw-JSON capture table, versus 38 committed fixtures at ~440 KB each (~17 MB in-repo, which argues for the table) — `prisma/schema.prisma`, `sync.service.ts`
 - [ ] `SyncService.runLive` currently rejects (`sync.service.ts:299`). Decide in this phase whether it is needed at all: `--full` re-reads finished gameweeks and `explain` persists within the season, so live sync may be unnecessary for calibration and only useful for in-play display. Record the decision either way — `docs/decisions.md`
+- [x] **Correction, 2026-08-27: `gh issue create` is NOT denied.** The 2026-08-26 note recorded both
+      `gh issue create` and `gh pr merge` as blocked by the permission classifier. The session of
+      2026-08-27 created ten issues across the three repos without a single denial; only
+      **`gh pr merge` is still refused**, so a session can open a PR and cannot land it. Recorded here
+      because the original note is the kind a later session obeys without retesting.
 - [x] **A second GW2 capture was taken 2026-08-26 19:25 UTC — 46.1 hours before the deadline**, via
       `pnpm sync:fpl -- --snapshot` (forced, outside the 36-hour window). 614 players. The first was
       at 15:45 UTC on the 26th. A third, closer to the 17:30 UTC deadline on the 28th, is still the
