@@ -2153,3 +2153,65 @@ was considered and refused: 3.17 EP is a large bet on a rule its own measurement
 **The payload has to say which pair the armband is on.** `penaltyEp` becomes the total, an `armbandEp`
 carries what the doubling added, and each pair says whether our captain is one side of it. A charge
 the panel cannot attribute is the same defect B-018 and B-025 both had to fix.
+
+---
+
+## B-028 · Measure the collision, instead of assuming it — done 2026-08-27
+
+```
+Status   done
+Repos    fpl-backend
+Plan     — (measurement only; the decision it feeds is B-011's lambda)
+Issue    orchestrator#21 (parent), backend#50
+Shipped  backend#51 — `pnpm measure:collision`, `reports/collision-correlation.md`
+Outcome  101,103 pairs over three seasons. **Three findings, and all three cut against B-011 as
+         written.** (1) The collision is real — correlation −0.195 ± 0.003, stable per season, and a
+         defensive player takes 1.48 points in matches where the attacker facing him returned against
+         3.04 where he blanked — but it is a HEDGE: holding both sides cuts the pair's variance 19.5%,
+         and expectation is linear so no correlation can make the objective wrong in the mean.
+         "Betting against itself" describes insurance. (2) The defensive-contribution category did NOT
+         change the arithmetic: the clean-sheet share of a defender's points is 27.4% / 29.7% / 27.8%
+         across the three seasons, defcon added ~11% on top, and qualifying actions are FLAT across
+         concession buckets (7.36 / 7.48 / 7.52 / 7.44). Both halves of the B-027 claim are refuted by
+         the data — recorded here because that claim was made in this repo, in writing, to justify a
+         change. (3) The concentration the rule MISSES is bigger than the one it prices: in the
+         1-attacker-2-defender shape, collision covariance is −4.15 and the two defenders' covariance
+         with each other is +5.58. Adding the attacker who faces a pair of defenders costs 0.65
+         points² against 8.96 for an uncorrelated attacker — he is the SAFEST attacker available, and
+         B-011 charges extra for him.
+         Also established: the 2026/27 defcon thresholds are externally confirmed unchanged (10 CBIT /
+         12 CBIRT, capped at 2), matching `DEFCON_THRESHOLD`; and **the model has no head-to-head term
+         at all** — for CHE v BHA the model rates Chelsea stronger on league-wide rolling form while
+         Brighton have won the last four meetings, Chelsea's last win being September 2024.
+         Bug found and fixed in the same change: `defensive_contribution` is a COUNT, and read as a
+         flag it pays 2 points to 3,000 of 3,026 defender-matches instead of 816.
+```
+
+**Why.** B-011 has been argued three times (B-023, B-025, B-027) and measured once — the lambda sweep,
+which asked "does the penalty earn points" and answered no. Nobody has measured the thing the penalty
+is *about*: whether one of our attackers and one of our defenders in the same match actually work
+against each other, and by how much.
+
+Two claims are load-bearing and neither is tested:
+
+1. **"A squad that owns both sides bets against itself."** In portfolio terms a negative correlation
+   between two holdings *reduces* variance — it is a hedge, not a mistake. And a linear objective is
+   correct in expectation whatever the correlation; correlation moves variance, not the mean. So the
+   penalty cannot be an EP correction, and calling it one is a category error. What is the covariance,
+   and what does holding a pair do to the variance of the pair?
+2. **"The defenders are betting on a clean sheet."** Under 2025/26 scoring a defender is also paid for
+   defensive contribution, which plausibly moves the OPPOSITE way — more opponent pressure means more
+   clearances, blocks and interceptions. On the live GW2 numbers the clean sheet is 14% of Wieffer's
+   EP and his defcon term is 1.37 against it. If that holds in the data, the category changed the
+   arithmetic B-011 was written on, and nobody re-checked.
+
+**What to measure.** Over the three archived seasons (87k player-gameweeks): the realised covariance
+and correlation of every (our attacker, their defender) pair in the same fixture; the conditional —
+what a defender scores when the opposing attacker returned versus when he blanked; the effect on
+variance of holding one, and of holding the 1-attacker-2-defenders shape the live squad has; the
+composition of a defender's points by era; and, for 2025-26 where the columns exist, whether defensive
+contribution rises with opponent pressure.
+
+**The bar.** Split by season, because the point of the exercise is that 2025-26 may not behave like
+2023-24. Report the noise on every number — the collision sweep's own paired difference was +0.59
++/- 0.92, and this project has been burned by reading a mean over 38 rounds as a result.
