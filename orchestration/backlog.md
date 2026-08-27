@@ -274,3 +274,147 @@ code to point at — only the divergence itself.
 should start and who should wear the armband. Today they need not, and nothing checks it.
 
 ---
+
+## B-030 · The verdict report states a conclusion it no longer measures, and its headline number has no noise band
+
+```
+Status   backlog
+Repos    fpl-backend
+Plan     docs/plans/021-power-and-the-planner-arm.md
+Issue    —
+```
+
+**Why.** `reports/decision-quality.md` is the file the project's accuracy claims are read out of, and
+three things in it are wrong at HEAD, measured 2026-08-27 by regenerating it against current code.
+
+**One. The verdict prose is unconditional.** `decision.service.ts` writes "`modelVersion` does not
+move on this, and the serving version is not deleted" and "B-014 (team strength carries no signal, and
+both fixture elasticities fitted to 0) are where it gets answered" as **literal strings**, whatever
+the numbers say. Both statements are now false: the model was adopted as v3 (D-025) and B-014 shipped.
+A report whose conclusion is hard-coded cannot go red — it is the `checks-that-cannot-fail` shape
+applied to a verdict rather than to a test, and it is the most flattering possible version of it,
+because the conclusion it hard-codes is the one that keeps the register from noticing progress.
+
+**Two. The headline comparison is the only one exempt from the report's own noise test.** The
+"Is the difference bigger than the noise?" table pairs `model − form` and `model − priorSeason` and
+stops there. The number the report then calls "the most uncomfortable number in this report" —
+the template squad's total against the model's — is printed as a bare season difference with **no
+standard error at all**. `pairedDifference()` already exists and is already called twice in the same
+function. Measured at HEAD: template 1928 against model 1881, a gap of 47 over 37 rounds, which is
+**1.27 points a round** against a paired standard error of order 2.6 on the comparisons that do carry
+one. The headline finding of this report is very likely inside its own noise floor and the report does
+not say so.
+
+**Three. Nobody knows what the report can resolve.** Every argument in the register turns on season
+totals of 25–75 points, and a 37-round paired comparison at s.e. ≈ 2.7 a round has a minimum
+detectable effect (2 s.e.) of roughly **200 points a season**. That number belongs in the report,
+stated once, so that a future sub-noise claim is visibly sub-noise instead of being argued about.
+
+**What to build.** The prose reads the numbers rather than asserting a verdict — `modelVersion` moved
+or did not, `form` was beaten or was not, and the next-question sentence names whichever entry the
+measurements actually indict. The comparison table gains a `model − template` row on the same
+`pairedDifference()` path as the others. The report states its own minimum detectable effect beside
+the noise table.
+
+**The check that has to go red.** Invert the adoption fact and the verdict sentence must change; hand
+the template arm the model's own rounds and the new noise row must read a difference of zero. A prose
+generator that emits the same paragraph either way is the bug this entry is about, so the test for it
+has to be a diff of the prose, not of the numbers.
+
+**Why this is first.** Everything after it is a comparison, and the register currently has no way to
+tell a real 60-point movement from a coin flip. Recorded 2026-08-27.
+
+---
+
+## B-031 · Did the objective rewrite make the squad worse? Nothing has ever asked
+
+```
+Status   backlog
+Repos    fpl-backend
+Plan     docs/plans/021-power-and-the-planner-arm.md
+Issue    —
+```
+
+**Why.** The simulated season under `greedy-1ft`, model-picked fifteen against the crowd's, moved like
+this across the commits that regenerated the report:
+
+| commit | subject | model | template | model − template |
+|---|---|---:|---:|---:|
+| `ebf4da4` | team strength from decay-weighted goals (B-014) | **1943** | 1917 | **+26** |
+| `6cf0590` | the ILP maximises the XI, the bench and the captain (B-023) | **1881** | 1928 | **−47** |
+
+Between those two commits the model's own opening fifteen lost **62 points of simulated season** and
+went from beating the crowd proxy to losing to it. The report at HEAD reproduces `6cf0590` exactly
+(re-run 2026-08-27, model and template rows byte-identical), so this is current behaviour and not a
+stale artefact.
+
+**The attribution is NOT established and must not be written down as if it were.** Three commits sit
+in that window — `73bf9da` (score the served projections), `c436e71` (the points distribution) and
+`6cf0590` (the objective rewrite) — and only the first and last regenerated the report. Git archaeology
+cannot separate them cleanly because each commit moves several things at once.
+
+**So the measurement is an A/B at HEAD, not a bisect.** Run the season simulator twice with everything
+fixed except the squad objective: the current one — `Σ EP(y + c) + benchWeight × Σ EP(x − y)` minus the
+defensive-concentration charge — against the pre-B-023 one, `Σ EP × x` over all fifteen equally. Same
+season, same predictor, same policy, same seeds.
+
+**This is where the statistical power actually is, and it is worth saying why.** More archived seasons
+buys √n: three seasons take a 200-point minimum detectable effect to roughly 115, and the differences
+this register argues about are smaller than that. But the two arms of this A/B hold *mostly the same
+players*, so the round-to-round variance that dominates a season total cancels in the pairing, and the
+paired standard error should fall well under a point a round. A same-model paired A/B can resolve a
+62-point effect that no amount of extra seasons can. **Maximise the overlap between the arms; that is
+the technique.**
+
+**What the outcome means, both ways.** If the current objective loses and clears the paired noise
+floor, then the answer to "the squad is not well optimised" is that a change made to fix the objective
+made the squad worse, and the fix is in the objective — which is the single highest-value thing this
+register could find. If it does not clear, the 47-point crowd gap goes back to being unresolved and
+the honest report says so rather than naming a culprit.
+
+**Two traps.** The arms must be named after the change and not after the run, exactly as `xi-replay.md`
+already warns, or a baseline arm gets silently overwritten by the thing it is the baseline for. And
+the A/B flag must reach `buildLp` only through the harness — a knob that can change what the app
+serves is a knob that will, eventually, change what the app serves.
+
+Recorded 2026-08-27.
+
+---
+
+## B-032 · The shipped transfer planner has never walked a season
+
+```
+Status   backlog
+Repos    fpl-backend
+Plan     docs/plans/021-power-and-the-planner-arm.md
+Issue    —
+```
+
+**Why.** B-008 shipped the real transfer planner — an ILP with the −4 inside the objective, sell values
+reconstructed, chips recommended as a window. It is what the product actually does when a user opens
+`/squad/{id}`. It has never been run over a season.
+
+The season simulator takes its policy as a parameter and ships exactly two: `no-transfer`, which holds
+the opening fifteen for 38 rounds, and `greedy-1ft`, which is myopic, one round deep and **refuses
+every hit**. Plan 010 was explicit that both are floors and that B-008 "plugs into this same simulator
+rather than bringing its own". That wiring was never done. So every season total in
+`reports/decision-quality.md` measures a policy the product does not use, and the −4 path — which the
+optimizer skill calls the most error-amplifying thing the product does — is exercised by a unit test
+and by nothing else.
+
+**What to build.** `buildTransferLp`'s solve, wrapped as a third `SimPolicy`, walking the season with
+the real free-transfer bank, the real sell-on fee and hits allowed. Then the same paired comparison the
+other policies get, against `greedy-1ft` on identical opening squads.
+
+**What it is worth beyond the number.** It is the baseline B-024 is measured against. B-024 says the
+planner and the recommendation optimise different objectives; today there is no harness that would
+notice if closing that gap helped, hurt or did nothing, and adding the `y`/`c` families without one
+would be tuning by argument.
+
+**One thing to be careful of.** The planner takes a horizon and a decay, and a season walked at
+horizon 5 is five times the solves of one walked at horizon 1. Measure the wall clock before assuming
+a 38-round walk over five arms is cheap.
+
+Recorded 2026-08-27.
+
+---
