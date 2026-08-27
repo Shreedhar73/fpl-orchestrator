@@ -2365,3 +2365,98 @@ season total, and a 37-round paired comparison at s.e. ≈ 2.6 a round cannot se
 inside that floor. More archived seasons do not fix it: three buy √3 and take the floor to roughly 90.
 **Power comes from pairing arms that hold the same players**, which is what B-031 is.
 
+---
+
+## B-031 · Did the objective rewrite make the squad worse? Nothing has ever asked — done 2026-08-27
+
+```
+Status   done — fpl-backend#58, PR #59
+Repos    fpl-backend
+Plan     docs/plans/021-power-and-the-planner-arm.md
+Issue    backend#58
+```
+
+**Why.** The simulated season under `greedy-1ft`, model-picked fifteen against the crowd's, moved like
+this across the commits that regenerated the report:
+
+| commit | subject | model | template | model − template |
+|---|---|---:|---:|---:|
+| `ebf4da4` | team strength from decay-weighted goals (B-014) | **1943** | 1917 | **+26** |
+| `6cf0590` | the ILP maximises the XI, the bench and the captain (B-023) | **1881** | 1928 | **−47** |
+
+Between those two commits the model's own opening fifteen lost **62 points of simulated season** and
+went from beating the crowd proxy to losing to it. The report at HEAD reproduces `6cf0590` exactly
+(re-run 2026-08-27, model and template rows byte-identical), so this is current behaviour and not a
+stale artefact.
+
+**The attribution is NOT established and must not be written down as if it were.** Three commits sit
+in that window — `73bf9da` (score the served projections), `c436e71` (the points distribution) and
+`6cf0590` (the objective rewrite) — and only the first and last regenerated the report. Git archaeology
+cannot separate them cleanly because each commit moves several things at once.
+
+**So the measurement is an A/B at HEAD, not a bisect.** Run the season simulator twice with everything
+fixed except the squad objective: the current one — `Σ EP(y + c) + benchWeight × Σ EP(x − y)` minus the
+defensive-concentration charge — against the pre-B-023 one, `Σ EP × x` over all fifteen equally. Same
+season, same predictor, same policy, same seeds.
+
+**This is where the statistical power actually is, and it is worth saying why.** More archived seasons
+buys √n: three seasons take a 200-point minimum detectable effect to roughly 115, and the differences
+this register argues about are smaller than that. But the two arms of this A/B hold *mostly the same
+players*, so the round-to-round variance that dominates a season total cancels in the pairing, and the
+paired standard error should fall well under a point a round. A same-model paired A/B can resolve a
+62-point effect that no amount of extra seasons can. **Maximise the overlap between the arms; that is
+the technique.**
+
+**What the outcome means, both ways.** If the current objective loses and clears the paired noise
+floor, then the answer to "the squad is not well optimised" is that a change made to fix the objective
+made the squad worse, and the fix is in the objective — which is the single highest-value thing this
+register could find. If it does not clear, the 47-point crowd gap goes back to being unresolved and
+the honest report says so rather than naming a culprit.
+
+**Two traps.** The arms must be named after the change and not after the run, exactly as `xi-replay.md`
+already warns, or a baseline arm gets silently overwritten by the thing it is the baseline for. And
+the A/B flag must reach `buildLp` only through the harness — a knob that can change what the app
+serves is a knob that will, eventually, change what the app serves.
+
+Recorded 2026-08-27.
+
+---
+
+**Outcome — shipped 2026-08-27, `fpl-backend` PR #59. `pnpm ab:objective`, `reports/objective-ab.md`.**
+
+**The answer is no.** Every objective this project has shipped picks the same fifteen, player for
+player:
+
+| policy | arm − baseline | season Δ | ± s.e. | detectable at | overlap |
+|---|---|---:|---:|---:|---:|
+| no-transfer | B-023 (XI, bench, armband) | +0 | 0.00 | 0 pts | 100% |
+| no-transfer | served (B-023 + B-029 concentration, λ=1.0) | +0 | 0.00 | 0 pts | 100% |
+| no-transfer | *positive control: bench worth nothing* | **−178** | 1.19 | **88 pts** | 67% |
+
+Three consequences, and none of them was the one the entry expected.
+
+1. **The objective rewrite did not cost the 62 points.** The other two commits in that window
+   (`73bf9da`, `c436e71`) changed the projections, not the selection. The entry was right to refuse
+   the bisect and right that the A/B would settle it; it settled it the other way.
+2. **B-029's defensive-concentration charge is inert on the squad solve.** Six register entries —
+   B-011, B-025, B-026, B-027, B-028, B-029 — and at λ=1.0 on this season it does not change which
+   fifteen is bought. It may still change an XI (that is `replay:xi`'s question, not this one), but
+   the squad it charges is the squad it would have picked anyway.
+3. **The pairing bought the power the entry said it would.** 88-point floor at 67% overlap against
+   156–212 next door. Recorded because it is the transferable part: *power comes from overlapping
+   arms, not from more seasons.*
+
+**A null is also what a broken harness returns, and this is the part worth carrying.** A positive
+control (bench weight 0, which must buy a different fifteen) was NOT enough — with the objective flag
+made inert it still passed, because it varies a different knob. The arm that catches it is a
+**negative** control: lower a bench weight that `all-fifteen-equal` does not read and require the
+baseline back exactly. If the flag stops reaching the solver, that arm silently becomes the positive
+control and the run throws. Both are permanent arms, and `assertObjectiveReachesSolver` has a test on
+its red path.
+
+**One measurement that reframes B-032.** Under `greedy-1ft`, the fifteen that is 178 points worse when
+held all season lands on **exactly the same season total** — having scored differently in 36 of 37
+rounds, verified rather than assumed. A weekly transfer erases an opening-squad difference far larger
+than anything the objective can produce. **The opening solve matters much less than the transfer
+policy acting on it**, which makes the shipped-planner arm the highest-value measurement left.
+

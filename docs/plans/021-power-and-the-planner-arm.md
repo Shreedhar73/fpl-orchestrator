@@ -74,18 +74,40 @@ own noise and always was. Nobody had computed the floor.
 
 ## Phase 2 — the objective A/B (B-031)
 
-- [ ] `buildLp` gains an explicit, harness-only way to emit the pre-B-023 objective — `Σ EP × x` over all
+**Landed 2026-08-27 — `fpl-backend` PR #59, issue #58. 350 tests green, sabotage recorded.**
+
+**The answer is no, and two more things came with it.** Every objective this project has shipped —
+`Σ EP × x`, B-023's XI/bench/armband rewrite, and the served version with B-029's concentration charge
+at λ=1.0 — picks **the same fifteen, player for player**. So the objective rewrite did not cost the 62
+points; the two remaining commits in that window changed the projections, not the selection. And the
+concentration charge, six register entries in the making, is **inert on the squad solve**.
+
+**The pairing worked exactly as the entry predicted.** Floor of **88 points** of season at 67% squad
+overlap, against 156–212 for the cross-predictor comparisons next door. Power came from overlapping
+arms, not from more seasons.
+
+**And the finding that reframes Phase 3.** Under `greedy-1ft` a fifteen that is **178 points worse
+when held all season** lands on **exactly the same season total**, having scored differently in 36 of
+37 rounds. The opening solve matters far less than the transfer policy acting on it.
+
+- [x] `buildLp` gains an explicit, harness-only way to emit the pre-B-023 objective — `Σ EP × x` over all
       fifteen, no `y`, no `c`, no concentration charge — `src/modules/optimizer/ilp.ts`
-- [ ] The season simulator accepts the objective as an arm and labels it after the change —
+- [x] The season simulator accepts the objective as an arm and labels it after the change —
       `src/modules/calibration/season-sim.ts`
-- [ ] A script runs both arms over the test season, paired by round, and reports mean difference,
+- [x] A script runs both arms over the test season, paired by round, and reports mean difference,
       standard error and the realised overlap between the two squads round by round. **The overlap is
       the point**: it is what makes the pairing tight enough to resolve the effect
-- [ ] The report says which objective wins, by how much, and whether it clears the paired noise floor —
+- [x] The report says which objective wins, by how much, and whether it clears the paired noise floor —
       and if it does not clear, says that plainly instead of naming a culprit
-- [ ] Sabotage, recorded: give both arms the same objective and the paired difference must be 0.00 with
+- [x] Sabotage, recorded: give both arms the same objective and the paired difference must be 0.00 with
       a standard error of 0.00; a solver failure in either arm must fail the run rather than fall back
-      to `pickBestXi`, which is the blindness `fpl-optimizer` names explicitly
+      to `pickBestXi`, which is the blindness `fpl-optimizer` names explicitly. *Deviation, and it is
+      the most useful thing this phase produced: the expected result was a null, and **a null is also
+      what a harness that varies nothing returns**. A positive control (bench weight 0, which must buy
+      a different fifteen) is not enough — with the objective flag made inert it still passed. The arm
+      that catches it is a **negative** control: lower a bench weight that `all-fifteen-equal` does not
+      read, and require the baseline back exactly. If the flag stops working that arm becomes the
+      positive control and the run throws.*
 
 ## Phase 3 — the real planner walks a season (B-032)
 
