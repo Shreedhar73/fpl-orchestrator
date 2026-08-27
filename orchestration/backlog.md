@@ -269,3 +269,41 @@ true of the pairs and still not true of the objective.
 
 
 ---
+
+---
+
+## B-026 · The collision charge stops being coupled to the bench weight
+
+```
+Status   planned
+Repos    fpl-backend, fpl-frontend
+Plan     docs/plans/019-collision-penalty-on-ownership.md (D2, reversed — no new plan)
+Issue    —
+```
+
+**Why.** B-025 shipped the collision penalty on `x` charged at `benchWeight × COLLISION_LAMBDA` =
+0.7. The reasoning was that B-023 changed what a squad place is worth, so the constant had to be
+re-scaled to keep the weight B-011 measured. Plan 019's own D2 records that the arithmetic behind it
+is only half right, and the half that fails is the half that matters:
+
+- a **benched** owned player carries `benchWeight · ep`, so a raw λ on `x` is 1.43× the measured
+  strength for him — the case the scaling was written for;
+- a **starter** carries `benchWeight · ep + (1 − benchWeight) · ep = ep`, exactly the pre-B-023
+  weight, so a raw λ was already right for him and 0.7λ **under-charges** him by 30%.
+
+Colliding pairs are usually startable players. So the scaling is wrong for the common case, right for
+the rare one, and immaterial for both — the sweep put every λ from 0.5 to 4 within 0.13 realised
+points of the others.
+
+**Decision, 2026-08-27: charge raw λ = 1.0.** Not because 0.7 is measurably worse — nothing at this
+resolution is measurably anything — but because the coupling costs more than it buys. Two knobs that
+move together need a harness that can see both, and `pnpm replay:xi` is one season old. One constant
+that means what its comment says beats a scaled one that means it for a player nobody owns.
+
+**`lambdaConstant` goes with it.** It was added to the payload precisely because the effective charge
+differed from the policy constant. When they are equal it is two fields saying one thing, and the
+second one reads as though it meant something. That is a contract change, so backend first.
+
+**What this is not.** Not a re-tune. The value B-011 measured is 1.0 and this restores exactly that;
+anyone proposing a different number is making a new argument and owes a new measurement — on the
+replay harness, which can now see the XI, and on ownership, which is where the charge lands.
