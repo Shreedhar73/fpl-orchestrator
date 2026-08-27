@@ -113,10 +113,10 @@ to FPL" paragraph — the answer is now that we handle no FPL cookies at all.
 ## B-015 · Minutes and availability — the half of the model that is still a guess
 
 ```
-Status   in progress
+Status   backlog — plan 024 built and read; prospective referee running, successor is a register call
 Repos    fpl-backend
 Plan     docs/plans/024-minutes-refit-wayback-availability.md
-Issue    orchestrator#23 (parent), backend#89
+Issue    orchestrator#23 (closed), backend#89 (closed, PR #90 merged)
 ```
 
 **Why.** The guide is unambiguous: "the minutes model is the real model" (§3.3), and "minutes are the
@@ -183,6 +183,21 @@ etiquette-fine. Open cautions: per-deadline gap must be verified (a missing day 
 flag, still bounded well under our own 46.1 h GW2 capture); `status` code semantics spot-checked
 one season, check the others. The live `player_deadline_snapshot` capture (B-016) stays — it is
 the forward referee this fit will be scored against.
+
+**Plan 024 built and read 2026-08-27 (backend PR #90, D-032) — the bar was NOT met, and the miss
+teaches the next attempt.** All three seasons ingested (114/114 rounds, 111 inside the 72 h bound;
+2024-25 GW8–10 Wayback-dark, trained as unknown with their own fitted coefficient). The joint refit
+lost the decisive uncertain band to the hand rule — Brier P(start) +0.0138 ± 0.0020, P(play)
++0.0365 ± 0.0044 — because FPL's chance percentage is near-calibrated applied MULTIPLICATIVELY and
+a linear-in-logit term cannot express a multiplicative rescale. It won everywhere else: unflagged
+Brier −0.0064/−0.0090 (2se-clear, the base curves improved by excluding rule rows), ordering up at
+every k (10.0/12.3/14.7 vs 8.6/10.9/13.6), RMSE noise. Incumbent stands per the pre-committed rule.
+**What runs on its own:** `v3-avail-2026-08-27` rides `pnpm project` weekly, scored beside the
+incumbent by `pnpm score:gameweek` — the 2026-27 season referees prospectively. **What would need a
+register decision:** the multiplicative-chance hybrid (refit base curves + chance % kept
+multiplicative in the uncertain band), selected on VALIDATE, with a pre-registered SECOND test
+reading. What remains genuinely calendar-bound is only the richer feature set (squad depth, rest
+days, European midweeks) — unchanged from the paragraph above.
 
 ---
 

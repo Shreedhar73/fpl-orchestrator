@@ -1,7 +1,7 @@
 ---
 name: ship
 description: "Branch, commit and open a pull request for work in one or both sibling repos, in this project's git conventions."
-disable-model-invocation: true
+<!-- disable-model-invocation: true -->
 ---
 
 # Ship a change

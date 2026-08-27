@@ -1,7 +1,7 @@
 ---
 name: cross-repo
 description: "Implement a change that spans backend and frontend, in the order that keeps the API contract from drifting."
-disable-model-invocation: true
+<!-- disable-model-invocation: true -->
 ---
 
 # Cross-repo change

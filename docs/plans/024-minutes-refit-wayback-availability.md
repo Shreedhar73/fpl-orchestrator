@@ -43,21 +43,21 @@ explicitly rather than defaulting to fit.
 
 ## Tasks
 
-- [ ] Schema: `ArchiveAvailabilitySnapshot` history table — `season`, `round`, `playerCode`,
+- [x] Schema: `ArchiveAvailabilitySnapshot` history table — `season`, `round`, `playerCode`,
       `status`, `chanceOfPlayingNextRound` (nullable), `news`, `snapshotAt`, `deadlineAt`,
       `gapHours`; unique `(season, round, playerCode)` — `fpl-backend/prisma/schema.prisma`,
       new migration.
-- [ ] Wayback ingest: CDX query per deadline for last 200-status capture strictly before
+- [x] Wayback ingest: CDX query per deadline for last 200-status capture strictly before
       `deadline_time` (deadlines read from a **season-end** snapshot's `events[]`, where deadline times are historical
       fact — a season-start snapshot can carry deadlines that later moved); fetch `id_` raw
       form with `curl`-equivalent gzip handling; parse `elements[]`; upsert on the unique key;
       cache raw JSON to a gitignored `data/wayback/` for reproducibility; polite rate limit —
       `src/modules/calibration/wayback-ingest.ts`, `src/scripts/ingest-availability.ts`,
       `package.json` script `ingest:availability`.
-- [ ] Coverage report: per (season, round) — snapshot found or not, `gapHours`, flagged-player
+- [x] Coverage report: per (season, round) — snapshot found or not, `gapHours`, flagged-player
       count; exclusion rule pre-committed (drop rounds with gap > 72 h, count reported) —
       `reports/availability-coverage.md`.
-- [ ] Feature encoding, split rule-vs-fitted: deterministic statuses are **rules, not features** —
+- [x] Feature encoding, split rule-vs-fitted: deterministic statuses are **rules, not features** —
       `u` → 0 and `s` → 0 (for the banned match; a suspension does not decay) hard-coded, never
       fed to the logistic, because one-hotting a status whose outcome is always 0 re-runs the
       complete-separation failure B-015 already paid for (the `7.3e8` slope). The **fitted** band
@@ -66,22 +66,50 @@ explicitly rather than defaulting to fit.
       full-refit choice was made for) and report its fitted term — extend
       `src/modules/calibration/fit.ts` feature builder and `MinutesParams` in
       `src/modules/projections/fitted.ts`.
-- [ ] Full refit: start/sub/60/minutes regressions refitted jointly with availability features on
+- [x] Full refit: start/sub/60/minutes regressions refitted jointly with availability features on
       TRAIN (2023-24 + 2024-25), same splits as `calibration.service.ts:46` — `pnpm fit:model`;
       new `FITTED_PARAMS` version string in `fitted.ts`; incumbent params kept.
-- [ ] Leak guard + edge tests: training rows assert `snapshotAt < deadlineAt`; null-chance means
+- [x] Leak guard + edge tests: training rows assert `snapshotAt < deadlineAt`; null-chance means
       fit; missing-player rows carry no availability default; break each on purpose per
       `fpl-testing-contract` — calibration spec files.
-- [ ] Model wiring: new version's `minutesDistribution` (`model-v2.ts:425`) consumes availability
+- [x] Model wiring: new version's `minutesDistribution` (`model-v2.ts:425`) consumes availability
       params; `availabilityMultiplier()` calls at `forecast.service.ts:141` and
       `candidate.service.ts:102` bypassed for the new version only; serving stays pinned to
       incumbent.
-- [ ] One TEST reading against the bar above: `pnpm calibrate` + `pnpm decision-quality`; write
+- [x] One TEST reading against the bar above: `pnpm calibrate` + `pnpm decision-quality`; write
       `reports/calibration-<label>.md` with the verdict per leg.
-- [ ] Prospective referee unchanged: new version rides `pnpm project` beside incumbent, scored
+- [x] Prospective referee unchanged: new version rides `pnpm project` beside incumbent, scored
       weekly by `pnpm score:gameweek`. At inference the fitted terms read the **live `players`
       fields** (`status`, `chance_of_playing_next_round`) — the same inputs the hand multiplier
       consumes today at `forecast.service.ts:141` and `candidate.service.ts:102`;
       `PlayerDeadlineSnapshot` (B-016) stays what it is, the audit/scoring record, not an
       inference input.
-- [ ] Register: backlog B-015 updated, decision entry drafted for the (later) adoption call.
+- [x] Register: backlog B-015 updated, decision entry drafted for the (later) adoption call.
+
+## Outcome — 2026-08-27, all tasks landed (backend PR #90)
+
+**Deviations from the written tasks, each deliberate:**
+- The ingest lives in the ARCHIVE module (`wayback-availability.service.ts`), not calibration — it
+  is an external scrape, and that module owns the scrape conventions (own table, wholesale
+  per-season replace in one transaction, `.archive-cache/` on disk).
+- The availability report carries all three measurable legs itself (banded Briers, paired points
+  RMSE, precision@k) rather than delegating two to calibrate/decision-quality — one file, one
+  reading. `pnpm report:availability` writes `reports/availability-fit.md`.
+- Coverage beat the plan's fears: 114/114 rounds captured, 111 inside the 72 h bound; only
+  2024-25 GW8–10 (a Wayback-dark month) train as unknown. No exclusion list beyond those three.
+
+**The one TEST reading: bar NOT met, and the miss is informative.** The decisive uncertain band
+went to the incumbent — Brier P(start) +0.0138 ± 0.0020, P(play) +0.0365 ± 0.0044 against the
+candidate: FPL's own chance percentage applied multiplicatively beats a linear-in-logit inj term
+exactly where the flags matter. Everywhere else the joint refit is a 2se-clear win (unflagged
+Brier P(start) −0.0064, P(play) −0.0090; ordering up at every k: 10.0/12.3/14.7 vs 8.6/10.9/13.6;
+RMSE −0.019 ± 0.010, noise). Per the pre-committed rule the incumbent stands and the reading is
+recorded, not retried.
+
+**What runs on without anyone remembering:** the candidate (`v3-avail-2026-08-27`) rides
+`pnpm project` beside the incumbent and is scored weekly by `pnpm score:gameweek` — the
+prospective referee accumulates either way. Serving stays pinned.
+
+**If anyone designs a successor:** the obvious hybrid — the refit base curves with the chance
+percentage applied multiplicatively in the uncertain band — must be selected on VALIDATE and
+costs a SECOND pre-registered TEST reading, which is a register decision, not a session one.

@@ -1166,3 +1166,39 @@ The serving version moves by this entry (the pin reads the constant — backend#
 unable to do it), and `v3-fitted-2026-08-27`'s rows are kept, per D-020. The candidate's residual
 base moved with it, so the candidate is refit on the new base — a maintenance refit of the frozen
 architecture, not a new selection; no selection decision reads the archive holdout again.
+
+## D-032 · 2026-08-27 · Availability is fitted from the Wayback archive, and the reading says: keep FPL's own percentage where the flags matter
+
+B-015's "cannot be fitted from history at all" fell: the Wayback Machine holds near-daily captures
+of `bootstrap-static` for 2023-24..2025-26 (probed live, plan 024), each carrying every player's
+deadline-time `status` and `chance_of_playing_next_round`. `pnpm ingest:availability` recovers them
+— the last capture STRICTLY before each deadline, deadlines from a season-end capture, a 72 h
+staleness bound — into `archive_availability_snapshot`: 114/114 rounds captured, 111 in bound, only
+2024-25 GW8–10 (a Wayback-dark month) training as *unknown*, which carries its own fitted
+coefficient rather than a default of fit.
+
+The full minutes refit (backend PR #90, `v3-avail-2026-08-27`) excluded rule rows (u/n/s,
+effective 0%) from the curves and fitted the uncertain band as `inj` terms. **Plan 024's one
+pre-committed TEST reading: the bar is NOT met, and the incumbent stands.** The decisive uncertain
+band went to the hand rule — Brier P(start) +0.0138 ± 0.0020, P(play) +0.0365 ± 0.0044 against the
+candidate. The informative part: FPL's chance percentage applied MULTIPLICATIVELY is close to
+calibrated, and a linear-in-logit term cannot reproduce a multiplicative rescale — the fit lost
+exactly where the flags matter, and won everywhere else (unflagged Brier −0.0064/−0.0090 2se-clear,
+ordering up at every k: 10.0/12.3/14.7 vs 8.6/10.9/13.6, RMSE −0.019 ± 0.010 noise).
+
+Standing consequences:
+
+- Serving stays pinned to `v3-fitted-2026-08-27-gkp`. The candidate rides `pnpm project` under its
+  own version and `pnpm score:gameweek` scores both weekly — the live 2026-27 season referees the
+  whole regime prospectively, alongside the archive verdict.
+- The archive backtest is availability-aware from now on: legacy params get the hand multiplier
+  applied to the historical flags (the incumbent as it would actually have served), so every future
+  calibration number includes what the flags knew. Reports fitted before this entry treated all
+  rows as available and are not comparable on that term.
+- Any successor — the obvious one is the refit base curves with the chance percentage kept
+  multiplicative in the uncertain band — must be selected on VALIDATE and costs a SECOND
+  pre-registered TEST reading. That is a register decision, not a session one.
+- D-016 limit 3 ("per-gameweek status is unreconstructable") is superseded for 2023-24 onward;
+  `PlayerDeadlineSnapshot` remains the hours-accurate prospective capture and the only source for
+  2026-27.
+

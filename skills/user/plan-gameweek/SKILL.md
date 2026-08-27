@@ -1,7 +1,7 @@
 ---
 name: plan-gameweek
 description: "Produce this week's team recommendation: squad, captain, bench order, transfers and chip advice, with the reasoning behind each call."
-disable-model-invocation: true
+<!-- disable-model-invocation: true -->
 ---
 
 # Plan the gameweek
