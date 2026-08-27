@@ -247,25 +247,30 @@ size question the squad solve did not face at the same scale. Measure it.
 **The bar.** The plan and the recommendation, run on the same squad, agree about who should start and
 who should wear the armband. Today they need not, and nothing checks it.
 
-**Scope shrunk by B-025, 2026-08-27 — read this before building.** B-025 moved the collision penalty
-back onto `x` and deleted the XI and captain conflict rows entirely, so the instruction above to move
-the collision rows onto `y` "exactly as `buildLp` has them" is now wrong twice over:
+**Restated 2026-08-27 after B-029 — this supersedes the B-025 amendment that used to sit here, and
+everything above it about collisions.** The collision penalty no longer exists anywhere. B-028
+measured it over 101,103 archived pairs and found it was pricing a hedge (D-030), so B-029 deleted the
+rule, its constant, its sweep script and its rows in `transfer-lp.ts`. Every instruction above about
+moving collision rows onto `y`, or keeping λ at 1.0 here, is about machinery that is gone.
 
-- **The collision rows stay where they already are.** `transfer-lp.ts` charges pairs on `x`, which is
-  what `buildLp` does again. Nothing to move. What remains is the `y`/`c` families, `Σ y = 11`,
-  `Σ c = 1`, the formation rows and `BENCH_WEIGHT` — the armband and the discounted bench, which the
-  planner still does not price.
-- **λ stays at raw 1.0 here, and this is not an inconsistency to harmonise.** `buildLp` charges
-  `benchWeight × λ` because its coefficient on `x` is `benchWeight · ep`; the transfer LP's is the
-  full `ep`, so the same rule — λ scales with the coefficient it is charged against — gives it 1.0.
-  Anyone changing it to 0.7 to "match" is applying the constant instead of the rule. **When the `y`
-  and `c` families do land here, this changes**: the coefficient on `x` becomes `benchWeight · ep` and
-  the charge must become `chargedCollisionLambda(BENCH_WEIGHT)` in the same commit, or the planner
-  will price a pair 1.43× harder than the recommendation does.
+**What is actually left of this entry, and it is still real.** `buildTransferLp` emits
+`Σ EP·x − hitCost·h` and nothing else. The recommendation's objective prices three things the planner
+does not: the discounted bench (`benchWeight`), the captain's double (`c`), and the defensive
+concentration charge (`d`). So the two can still prefer different players for the same money, and a
+user can still see both halves on one screen.
 
-The false comment in `transfers.service.ts` is still false and still the bug report — it now says the
-plan solves under the same guard as a recommendation that charges ownership, which is accidentally
-true of the pairs and still not true of the objective.
+**One thing got harder.** The concentration charge keys off `y`, and this program has no `y` at all —
+it chooses a fifteen and never an eleven. So the planner cannot carry that charge without first
+growing the `y` and `c` families, which is the bulk of the work this entry always described. The
+ordering is now: add `y`/`c` and the formation rows, THEN the concentration rows on `y`, in that
+order, because the second is meaningless without the first.
 
+The false comment in `transfers.service.ts` has been **fixed** (B-029): it used to claim the plan
+solved under "the SAME collision guard the recommendation is solved under", which stopped being true
+at B-023. It now states the divergence instead of denying it, so this entry no longer has a lie in the
+code to point at — only the divergence itself.
+
+**The bar is unchanged.** The plan and the recommendation, run on the same squad, agree about who
+should start and who should wear the armband. Today they need not, and nothing checks it.
 
 ---

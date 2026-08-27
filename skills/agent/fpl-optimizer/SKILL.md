@@ -170,7 +170,8 @@ random-number generator.
   simulator and the bench sweep both re-choose the lineup each round by predicted points, so neither
   can see the LP's `y` and `c` columns at all — and both were used to defend knobs that act only
   through them. B-025 built `pnpm replay:xi`, which holds a fifteen for a season and scores the eleven
-  the **solver itself** returned. Before changing anything in the objective, ask which harness would
+  the **solver itself** returned; B-028 built `pnpm measure:collision`, which asks what a correlated
+  holding actually does over the archive rather than what a rule assumed. Before changing anything in the objective, ask which harness would
   see the change; if the answer is none, that is the first thing to build. And never let such a
   harness fall back to `pickBestXi` when a solve is unreadable: the enumeration is a second
   implementation of the same argmax, so the fallback restores exactly the blindness and the season

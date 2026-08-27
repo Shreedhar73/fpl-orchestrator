@@ -1067,6 +1067,11 @@ coefficient is `1 − benchWeight`. At exactly 1.0 it is **zero**, and the start
 determined by anything except the collision penalty — live at 1.0 the solver benched a 17.22 defender
 behind a 15.20 one, because within a chosen fifteen it no longer cared who played.
 
+> **Marked 2026-08-27 — the collision penalty this paragraph refers to no longer exists (D-030).** The
+> argument still holds and the number is unchanged: at `benchWeight = 1` the XI coefficient is zero and
+> the eleven is decided by whatever penalty happens to be on it, which is now the defensive
+> concentration charge. The reason for 0.7 is the same reason.
+
 **And the sweep could not have caught that.** The season simulator re-chooses its lineup every round
 from realised availability; it never reads the LP's XI. **A measurement that does not look at the
 thing you are about to serve is not a licence to ship it** — that generalises past this entry, and it
@@ -1091,3 +1096,56 @@ manager has the fewest moves.
 3. **The rule that generalises: a guard written as `x !== undefined && check(x)` disables itself on
    thin data.** That is the shape, and it reads as defensive. If the check matters, the missing value
    is an error, not a pass.
+
+---
+
+## D-030 · 2026-08-27 · The collision penalty is retired on its own evidence, and a charge is keyed to the decision it means to change
+
+**Decision.** B-011's fixture-collision penalty — charging a squad for holding one of our attackers
+against one of our defensive players in the same match — is **removed from the objective entirely**.
+In its place, a charge on **starting two defensive players of the same club**. The constant is a
+policy choice and the payload says so.
+
+**Why.** It was measured (B-028, `fpl-backend/reports/collision-correlation.md`), over 101,103 pairs
+across three archived seasons, and it did not survive:
+
+| | |
+|---|---|
+| the collision is real | correlation **−0.195 ± 0.003**, stable per season; a defensive player takes **1.48** points in matches where the attacker facing him returned against **3.04** where he blanked |
+| but it is a **hedge** | `Var(A + D) = Var(A) + Var(D) + 2·Cov(A, D)`; the covariance is negative, so holding both sides cut the pair's variance by **19.5%** |
+| and the real concentration went unpriced | two defensive players of one club covary **+5.58**, against −4.15 for both collision terms together |
+| so the rule charged extra for the safest choice | given a squad already holding two of a club's defence, adding the attacker who faces them cost **0.65** points² of variance against **8.96** for an uncorrelated attacker — 92.7% cheaper |
+
+The lambda sweep had already found the rule earned nothing (+0.59 ± 0.92 realised points over 103
+gameweeks). B-028 explains why: it was pricing insurance.
+
+**Two generalisations, and they are the expensive part.**
+
+1. **A correlation cannot make a linear objective wrong in expectation.** `E[A + B] = E[A] + E[B]`
+   however they covary. Any penalty argued as "the projections are honest marginally and the squad is
+   still wrong" is a statement about VARIANCE and must say so. B-011 never did, and four entries were
+   spent moving it around before anyone asked what it was for.
+2. **Key a charge to the decision you want to change.** B-011's belonged on ownership — the bet was
+   *buying* both sides — which is why B-023's XI-keyed version was simply dodged by benching, and why
+   B-025 moved it back. The replacement keys to the XI for the opposite reason: a benched player
+   carries no variance, so benching genuinely answers it. **If benching answers a charge and you did
+   not intend it to, the charge is on the wrong variable.**
+
+**Consequences.**
+
+- `buildConflictPairs`, `Collisions`, `COLLISION_LAMBDA`, the `z`/`w` rows, `pnpm sweep:collision` and
+  the collision rows in `transfer-lp.ts` are deleted rather than left inert. `reports/guards-009.md`
+  stays as the record of what was measured; the command in its header no longer exists.
+- `penalisedSquadEp` returns raw horizon EP and says why — it is handed a fifteen with no eleven
+  chosen, and the only remaining penalty is charged on the eleven.
+- **The replacement is honestly unproven, and this entry refuses to pretend otherwise.** Over a
+  simulated season it returns 1682 against 1673 with no penalty at all and 1713 with the retired rule
+  — one squad, different fifteens, no result in any direction — while giving up **71.34 projected
+  points in the eleven**, which is not noise. B-028 measured that the covariance exists and its sign;
+  nothing has measured that a narrower squad scores more, and nothing can from this data, because that
+  depends on optimising expected rank and this project optimises expected points. Setting
+  `DEFENCE_CONCENTRATION_LAMBDA = 0` is a one-line change and is a defensible reading of the evidence.
+- B-024 widened: the transfer LP has no `y` and cannot carry the new charge at all.
+- The model has **no head-to-head term** (found while checking this). For CHE v BHA it rates Chelsea
+  stronger on league-wide rolling form while Brighton have won the last four meetings. Not acted on —
+  recorded so nobody assumes it was considered.
