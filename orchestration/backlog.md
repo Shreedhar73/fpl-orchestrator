@@ -247,108 +247,25 @@ size question the squad solve did not face at the same scale. Measure it.
 **The bar.** The plan and the recommendation, run on the same squad, agree about who should start and
 who should wear the armband. Today they need not, and nothing checks it.
 
+**Scope shrunk by B-025, 2026-08-27 — read this before building.** B-025 moved the collision penalty
+back onto `x` and deleted the XI and captain conflict rows entirely, so the instruction above to move
+the collision rows onto `y` "exactly as `buildLp` has them" is now wrong twice over:
+
+- **The collision rows stay where they already are.** `transfer-lp.ts` charges pairs on `x`, which is
+  what `buildLp` does again. Nothing to move. What remains is the `y`/`c` families, `Σ y = 11`,
+  `Σ c = 1`, the formation rows and `BENCH_WEIGHT` — the armband and the discounted bench, which the
+  planner still does not price.
+- **λ stays at raw 1.0 here, and this is not an inconsistency to harmonise.** `buildLp` charges
+  `benchWeight × λ` because its coefficient on `x` is `benchWeight · ep`; the transfer LP's is the
+  full `ep`, so the same rule — λ scales with the coefficient it is charged against — gives it 1.0.
+  Anyone changing it to 0.7 to "match" is applying the constant instead of the rule. **When the `y`
+  and `c` families do land here, this changes**: the coefficient on `x` becomes `benchWeight · ep` and
+  the charge must become `chargedCollisionLambda(BENCH_WEIGHT)` in the same commit, or the planner
+  will price a pair 1.43× harder than the recommendation does.
+
+The false comment in `transfers.service.ts` is still false and still the bug report — it now says the
+plan solves under the same guard as a recommendation that charges ownership, which is accidentally
+true of the pairs and still not true of the objective.
+
 
 ---
-
-## B-025 · B-023 made the collision penalty 3.3× stronger, and its own display can no longer go red
-
-```
-Status   tracked
-Repos    fpl-backend, fpl-frontend
-Plan     docs/plans/019-collision-penalty-on-ownership.md
-Issue    orchestrator#18 (parent), backend#43, frontend#11
-```
-
-> **Resolved to option 2, 2026-08-27.** The penalty is charged on ownership (`x`) and leaves the XI
-> and the captain entirely — `z` and `w` deleted, `z_own` in their place, charged at
-> `benchWeight × COLLISION_LAMBDA` so it carries the weight B-011 measured against the `x`
-> coefficient B-023 changed. The evidence bar was NOT waived: the plan builds the XI-observing
-> harness first and baselines it on unchanged code. On the GW2 solve of record this means Wieffer and
-> De Cuyper start if the solver still buys them — the intent of the decision, not a regression.
-
-**Why.** B-023 rewrote the objective as `benchWeight·Σ EP·x + (1−benchWeight)·Σ EP·y + Σ EP·c`, and
-shipped `BENCH_WEIGHT = 0.7`. The XI coefficient is therefore `1 − 0.7 = 0.3`. `COLLISION_LAMBDA`
-stayed at 1.0. Against XI decisions the penalty is now **3.3× the weight it carried when B-011
-measured it** — and B-011's measurement is the one in `policy.ts` that says the penalty did NOT
-improve realised points (+0.59 +/- 0.92 per gameweek over 103 archived gameweeks, per-season signs
-that flip, downside worse). The knob was re-scaled by a change that was not about it.
-
-**Visible on the GW2 recommendation of record (2026-08-27, `v3-fitted-2026-08-27`).** Palmer is
-captain and Chelsea play Brighton, so the solver benches both Brighton defenders it owns:
-
-| benched | epHorizon | started instead | epHorizon |
-|---|---:|---|---:|
-| Wieffer (BHA) | 17.22 | Ballard (SUN) | 15.20 |
-| De Cuyper (BHA) | 16.34 | Lacroix (CHE) | 15.06 |
-
-Both swaps are DEF-for-DEF and legal in the 1-3-5-2 that shipped. **3.30 horizon points given up in
-the XI**, while still paying £9.6m to own the two players it refuses to start.
-
-**The second half, and the worse half: the guard's display cannot go red.** B-018 put the collision
-penalty on screen so a refusal states itself. B-023 moved the penalty from the squad variables to
-the XI variables, so the solver now satisfies it by BENCHING rather than by not owning. The payload
-reads `lambda: 1, pairsConsidered: 4665, penaltyEp: 0, taken: []` — a user is told there is no
-conflict in a squad that holds both sides of one. `penaltyEp` is 0 by construction on every solve
-the optimizer produces, which makes it exactly the shape `oe:checks-that-cannot-fail` names: a
-number that reads healthy because it can no longer be anything else.
-
-**What to decide, before what to build.** Three options and they are not equivalent:
-
-1. **Re-scale λ with the XI coefficient** — charge `(1−benchWeight)·λ` so the penalty keeps the
-   weight it was measured at. Smallest change, keeps B-011's measurement meaningful.
-2. **Put the penalty back on `x`** — refuse to OWN both sides, which is what B-011's statement
-   actually claims ("a squad that bets against itself is not one we want to recommend"). Benching
-   your way out was never the intent.
-3. **Retire the penalty.** It is the honest reading of its own evidence, and it was already kept on
-   policy grounds rather than measured ones. B-023 changed the price of that policy without anyone
-   choosing to pay it.
-
-**Either way the payload has to change.** If a pair is resolved by benching, say so — "held, not
-started" is a different fact from "not held", and the panel currently cannot express it.
-
-**The trap.** Do not re-tune `BENCH_WEIGHT` to fix this. The two knobs now interact, and the bench
-sweep in `reports/bench-weight.md` cannot see XI quality at all — the season simulator re-chooses
-its lineup from realised availability and never reads the LP's `y`. Any change here must be judged
-on a harness that can observe which eleven the LP actually picked, and no such harness exists yet.
-That gap is the reason this entry exists rather than a one-line constant change.
-
-**Measured against the code 2026-08-27, before any plan — option 1 does not fix the case it was
-written for.** `BENCH_WEIGHT = 0.7` and `COLLISION_LAMBDA = 1.0` are both as the entry states
-(`policy.ts:53`, `policy.ts:113`), and the objective in `ilp.ts` is
-`w·Σ EP·x + (1−w)·Σ EP·y + Σ EP·c − λ(Σz + Σw)`. For a **fixed fifteen** the `x` term is constant, so
-the XI choice is decided by `(1−w)·ΔB − λ·ΔP`, where `ΔB` is horizon EP given up and `ΔP` the change
-in charged pairs. On the measured GW2 swap, `ΔB = −3.30` and `ΔP = −4` (the captain's exposure counts
-twice):
-
-| λ as charged | margin favouring the bench |
-|---|---:|
-| `λ = 1.0` (today) | `0.3(−3.30) + 4` = **+3.01** |
-| `(1−benchWeight)·λ = 0.3` (option 1) | `0.3(−3.30) + 1.2` = **+0.21** |
-
-Option 1 shrinks the margin 14× and still benches. **And it fails for a deeper reason than the
-scaling.** This swap is defender-for-defender with Palmer captain either way, so `ΔC = 0` and the
-captain term never enters either row — which means we can ask what happens at B-011's *own* measured
-ratio, EP coefficient 1 against `λ = 1`: `−3.30 + 4` = **+0.70**. Still benches. The penalty was
-measured when it sat on `x`, where the only way to avoid the charge was **not to own the pair**;
-moving it to `y` opened an escape route that did not exist at measurement time, and no value of `λ`
-closes a route rather than pricing it. So **only options 2 and 3 change the recommendation of
-record**; option 1 changes how close the call is, which is worth knowing but is not the fix.
-
-`policy.ts` corroborates the mechanism from the other side and reaches the opposite verdict about it
-— it documents the same benching, computes the same `(1 − 0.7) × 3.30 = 0.99` against 4 penalty
-points, and calls it "B-011 working, not failing", noting the swap still wins at `benchWeight = 0.1`
-(margin `+1.03`). That is a genuine disagreement about intent, not about arithmetic, and it is the
-thing the plan interview has to settle: B-011's own words say a squad should not *hold* both sides,
-and the code now only stops it *starting* both sides.
-
-**One claim in this entry is overstated and should not be carried forward as written.** `penaltyEp`
-is `λ × (pairs inside the chosen XI + the captain's conflicts)` (`ilp.ts:402`), so it is 0 whenever
-the XI carries no colliding pair — true of the XI, not false by construction, and a formation that
-forced a pair into the eleven would still report it. The defect that stands is narrower and still
-real: `taken: []` and `penaltyEp: 0` are the only vocabulary the payload has, and neither can say
-"held, benched to avoid the charge" — which is precisely what happened on the GW2 solve of record.
-
-**B-024 is downstream of this decision, confirmed.** `transfer-lp.ts:114-118` emits
-`Σ EP·x − hitCost·h − λ·Σ z` — no `y`, no `c`, collisions on `x`. B-024 asks for the collision rows to
-be copied onto `y` "exactly as `buildLp` has them"; if this entry resolves to option 2 they belong on
-`x` where they already are, and B-024's scope shrinks to the XI and captain terms. Settle this first.

@@ -111,77 +111,104 @@ between a change and its number.
 
 ### Phase 1 — the harness, before the change it exists to judge
 
-- [ ] Extract the LP-solution reading (`x`, `y_`, `k_` columns) out of `optimizer.service.ts`'s local
+- [x] Extract the LP-solution reading (`x`, `y_`, `k_` columns) out of `optimizer.service.ts`'s local
       `solve()` into an exported helper so the harness and the service read one implementation —
       `fpl-backend/src/modules/optimizer/ilp.ts`, `fpl-backend/src/modules/optimizer/optimizer.service.ts`
-- [ ] New `xi-replay` module: build a round's universe from `ArchivePlayerGameweek`, solve with
+- [x] New `xi-replay` module: build a round's universe from `ArchivePlayerGameweek`, solve with
       `buildLp`, keep the LP's **own** `y`/`k`, score against realised points via `scoreLineup` with
-      auto-subs and bench order — `fpl-backend/src/modules/calibration/xi-replay.ts`
-- [ ] Assert inside the harness that the LP's `y` is a legal XI under `Rules` and that exactly one `k`
+      auto-subs and bench order — `fpl-backend/src/modules/calibration/xi-replay.ts`,
+      `xi-replay.service.ts`. **Deviation:** the round records carry raw observables (pairs owned,
+      pairs started, the captain's exposure, projected points forgone) rather than a computed
+      `lpPenaltyEp`. What the objective *charges* is the thing under test and changes between arms; a
+      harness that recomputed the charge would have to be edited alongside the change it judges.
+- [x] Assert inside the harness that the LP's `y` is a legal XI under `Rules` and that exactly one `k`
       is set; a solve whose columns are unreadable must throw, never silently fall back to
       `pickBestXi` — that fallback would recreate the blindness the harness exists to remove —
       `fpl-backend/src/modules/calibration/xi-replay.ts`
-- [ ] Unit test the harness against a hand-built solve whose LP XI and EP-optimal XI differ, so a
+- [x] Unit test the harness against a hand-built solve whose LP XI and EP-optimal XI differ, so a
       harness that quietly re-chose the lineup fails — `fpl-backend/src/modules/calibration/__tests__/xi-replay.spec.ts`
-- [ ] CLI + package script `pnpm replay:xi`, writing `reports/xi-replay.md` —
+- [x] CLI + package script `pnpm replay:xi`, writing `reports/xi-replay.md` —
       `fpl-backend/src/scripts/xi-replay.ts`, `fpl-backend/package.json`
-- [ ] **Baseline run on unchanged code**, recorded in the report: the GW2 benching of record must
-      appear in it — `fpl-backend/reports/xi-replay.md`
+- [x] **Baseline run on unchanged code**, recorded in the report — `fpl-backend/reports/xi-replay.md`
+      — 1604 points, a conflicting pair owned in all 38 rounds and both sides started in 8, 78.56
+      projected points forgone over 34 rounds. **Deviation:** the plan asked for the GW2 solve of
+      record to appear in the baseline; the harness is archive-based, so it shows the same behaviour
+      counted over a season instead, and the GW2 solve is checked directly in Phase 4. A second arm
+      at `--lambda 0` (1673 points, 0.00 forgone) was added and was not in the plan: it isolates the
+      penalty from the bench weight, and its exact zero is what proves the forgone measure attributes
+      to the penalty alone.
 
 ### Phase 2 — the objective
 
-- [ ] `buildLp`: delete the `conf_`, `capconf_a_`, `capconf_d_` rows and the `z`/`w` objective terms;
-      emit `own_conf_i: x_i + x_j − z_own_i <= 1` with objective coefficient `−benchWeight · λ`;
-      bounds section follows the new variable — `fpl-backend/src/modules/optimizer/ilp.ts`
-- [ ] `pickBestXi`: stop charging collisions in `score` and in the captain's `gain`, so the
+- [x] `buildLp`: delete the `conf_`, `capconf_a_`, `capconf_d_` rows and the `z`/`w` objective terms;
+      emit the held-pair row with objective coefficient `−benchWeight · λ`; bounds section follows —
+      `fpl-backend/src/modules/optimizer/ilp.ts`. **Deviation:** the row and variable keep their names
+      (`conf_i`, `z_i`) rather than becoming `own_conf_i`/`z_own_i` — there are no other conflict rows
+      left to tell them apart from, and the test asserts the row names `x` and explicitly not `y_`.
+      **Added, not in the plan:** `benchWeight` now defaults to the SERVED value rather than 0. Since
+      the charge is `benchWeight × λ`, a forgotten argument would have set the penalty to zero with
+      every row still present and every collision test still green.
+- [x] `pickBestXi`: stop charging collisions in `score` and in the captain's `gain`, so the
       enumeration and the LP still optimise one expression and the drift warning in
       `optimizer.service.ts` keeps meaning what it says — `fpl-backend/src/modules/optimizer/ilp.ts`
-- [ ] `XiResult`: `penaltyPoints` and `collisions` stop being scoring outputs. Keep the owned-pair
+- [x] `XiResult`: `penaltyPoints` and `collisions` stop being scoring outputs. Keep the owned-pair
       report, renamed to what it now is (pairs **held**, with whether both sides start), and delete
       what no longer exists rather than leaving a field that always reads 0 —
       `fpl-backend/src/modules/optimizer/ilp.ts`, `fpl-backend/src/modules/optimizer/optimizer.service.ts`
-- [ ] `penalisedSquadEp`: charge `benchWeight · λ` so the insights gap and the solve price a pair
+- [x] `penalisedSquadEp`: charge `benchWeight · λ` so the insights gap and the solve price a pair
       identically — `fpl-backend/src/modules/optimizer/ilp.ts`,
       `fpl-backend/src/modules/insights/insights.service.ts`
-- [ ] Rewrite the `COLLISION_LAMBDA` and `BENCH_WEIGHT` doc comments: both currently argue that the
+- [x] Rewrite the `COLLISION_LAMBDA` and `BENCH_WEIGHT` doc comments: both currently argue that the
       GW2 benching is "B-011 working, not failing", which this plan settles the other way. Say what
       was decided, when, and against what — `fpl-backend/src/modules/optimizer/policy.ts`
-- [ ] Rewrite `COLLISION_STATEMENT` — the user-facing sentence now describes a refusal to own, and
+- [x] Rewrite `COLLISION_STATEMENT` — the user-facing sentence now describes a refusal to own, and
       must keep saying the guard was measured not to improve realised points —
       `fpl-backend/src/modules/optimizer/policy.ts`
-- [ ] Update `collision-sweep.ts` and `guards-report.ts` to the ownership vocabulary; the sweep
+- [x] Update `collision-sweep.ts` and `guards-report.ts` to the ownership vocabulary; the sweep
       currently reports `xi.collisions.length` as "pairs held", which after this is a different
       quantity from the one the solver charges —
       `fpl-backend/src/scripts/collision-sweep.ts`, `fpl-backend/src/scripts/guards-report.ts`
-- [ ] Tests: an owned-pair fixture proving `penaltyEp > 0` and `taken` non-empty; a fixture proving a
-      pair is never held-and-benched; the λ = 0 sabotage that must turn the first one red —
-      `fpl-backend/src/modules/optimizer/__tests__/guards.spec.ts`
+- [x] Tests — `fpl-backend/src/modules/optimizer/__tests__/guards.spec.ts`: a held pair is charged
+      when one side is benched; the charge is identical across two fifteens holding the same pairs but
+      fielding different elevens (the XI-invariance the plan's check #2a asks for); λ = 0 turns both
+      red while the pairs stay built, so an empty list still means "holds none" rather than "charged
+      none". **Deviation, as the plan's own check #2 anticipated:** there is no test that a pair is
+      "never held-and-benched" — that is a legitimate outcome on projection or formation grounds, and
+      the test asserting it would be false or vacuous. The `bothStarted` field is what states it.
 
 ### Phase 3 — the payload and the panel
 
-- [ ] `FixtureCollisionsDto`: `lambda` becomes the **effective** charge with the constant beside it,
+- [x] `FixtureCollisionsDto`: `lambda` becomes the **effective** charge with the constant beside it,
       `penaltyEp` is what the squad was charged for pairs **owned**, `taken[]` gains whether both
       sides start. Descriptions rewritten — a stale `@ApiProperty` description ships straight to the
       frontend as documentation — `fpl-backend/src/modules/insights/dto/advice.dto.ts`
-- [ ] Build the payload from owned pairs in `reasoning.fixtureCollisions`, and record the effective
+- [x] Build the payload from owned pairs in `reasoning.fixtureCollisions`, and record the effective
       charge alongside the constant in `writeRun`'s `inputs` — a run whose stored inputs name only
       `collisionLambda: 1.0` cannot be reconstructed after this change —
       `fpl-backend/src/modules/optimizer/optimizer.service.ts`
-- [ ] Confirm nothing on a serving path reads `optimizer_runs.reasoning` back (today only `writeRun`
-      touches it); if a reader appears, it must tolerate rows written in the old vocabulary rather
-      than assume the new one — `fpl-backend/src/modules/optimizer/optimizer.repository.ts`
-- [ ] `pnpm openapi:emit` in fpl-backend, then `pnpm generate:api` in fpl-frontend —
+- [x] Confirmed: `writeRun` is the only thing that touches `optimizer_runs.reasoning`, and
+      `calibration/decision.service.ts` + `calibration.repository.ts` touch `OptimizerRun` only to
+      COUNT rows (the no-persistence invariant). No reader to make version-tolerant —
+      `fpl-backend/src/modules/optimizer/optimizer.repository.ts`
+- [x] `pnpm openapi:emit` in fpl-backend, then `pnpm generate:api` in fpl-frontend —
       `fpl-backend/openapi.json`, `fpl-frontend/src/lib/api/types.gen.ts`
-- [ ] Panel copy: the subtitle claims "this XI kept N", which is no longer the quantity. State what
+- [x] Panel copy: the subtitle claims "this XI kept N", which is no longer the quantity. State what
       was owned and what it cost — `fpl-frontend/src/features/squad/components/reasoning-panel.tsx`
 
 ### Phase 4 — measure, then record
 
-- [ ] Re-run `pnpm replay:xi` after the change; both arms in one report, with the
-      cannot-tell-apart case reported as a result — `fpl-backend/reports/xi-replay.md`
-- [ ] Re-run the GW2 recommendation of record and record what changed —
-      `fpl-backend/reports/gw2-recommendation-v3.md`
-- [ ] Update the objective spec in the `fpl-optimizer` skill; it carries the program `ilp.ts`
-      implements and this plan changes it — `fpl-orchestrator/skills/agent/fpl-optimizer/SKILL.md`
-- [ ] Update B-024's entry with its shrunken scope, and move B-025 to the archive with the outcome —
+- [x] Re-ran `pnpm replay:xi`; three arms in one report — `fpl-backend/reports/xi-replay.md`.
+      1604 points (penalty on the XI) / 1673 (λ = 0) / **1713 (penalty on ownership)**, and projected
+      points forgone in the eleven 78.56 / 0.00 / **0.00**. The arms hold different fifteens, so the
+      spread is not an XI effect and is reported as behaviour rather than as a points result.
+- [x] Re-ran the GW2 recommendation of record — `fpl-backend/reports/gw2-recommendation-v3.md`.
+      Same fifteen, same £99.6m, same 3-5-2, same captain; Wieffer (17.22) and De Cuyper (16.34) now
+      START and Canvot/Ballard bench, and the served payload reads `penaltyEp: 1.4` with both pairs
+      named and `bothStarted: true` where it read `penaltyEp: 0, taken: []`.
+- [x] Updated the objective spec in the `fpl-optimizer` skill —
+      `fpl-orchestrator/skills/agent/fpl-optimizer/SKILL.md`. **Two things beyond the plan:** the
+      skill still said the bench weight was "~0.1", which B-023 measured to be wrong by ~180 points of
+      season, and it gained an honesty rule — a measurement that cannot observe the thing you changed
+      is not evidence about it, with the `pickBestXi` fallback named as the specific trap.
+- [x] Update B-024's entry with its shrunken scope, and move B-025 to the archive with the outcome —
       `fpl-orchestrator/orchestration/backlog.md`, `fpl-orchestrator/orchestration/archive.md`
