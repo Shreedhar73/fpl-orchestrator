@@ -253,11 +253,18 @@ who should wear the armband. Today they need not, and nothing checks it.
 ## B-025 · B-023 made the collision penalty 3.3× stronger, and its own display can no longer go red
 
 ```
-Status   backlog
-Repos    fpl-backend
-Plan     —
+Status   planned
+Repos    fpl-backend, fpl-frontend
+Plan     docs/plans/019-collision-penalty-on-ownership.md
 Issue    —
 ```
+
+> **Resolved to option 2, 2026-08-27.** The penalty is charged on ownership (`x`) and leaves the XI
+> and the captain entirely — `z` and `w` deleted, `z_own` in their place, charged at
+> `benchWeight × COLLISION_LAMBDA` so it carries the weight B-011 measured against the `x`
+> coefficient B-023 changed. The evidence bar was NOT waived: the plan builds the XI-observing
+> harness first and baselines it on unchanged code. On the GW2 solve of record this means Wieffer and
+> De Cuyper start if the solver still buys them — the intent of the decision, not a regression.
 
 **Why.** B-023 rewrote the objective as `benchWeight·Σ EP·x + (1−benchWeight)·Σ EP·y + Σ EP·c`, and
 shipped `BENCH_WEIGHT = 0.7`. The XI coefficient is therefore `1 − 0.7 = 0.3`. `COLLISION_LAMBDA`
