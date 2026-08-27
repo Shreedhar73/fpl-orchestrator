@@ -1921,8 +1921,14 @@ Shipped  backend#44, frontend#12
 Outcome  Option 2. The penalty is charged on `x` again at `benchWeight × λ`; `z` and `w` are gone
          and nothing is charged on the XI or the armband, so benching cannot answer it. The GW2
          recommendation of record now STARTS Wieffer (17.22) and De Cuyper (16.34) and the panel
-         reads `penaltyEp: 1.4` with both pairs named, where it read `penaltyEp: 0, taken: []` over
-         the same fifteen. `taken[]` carries `bothStarted`, which is the vocabulary the payload
+         reads `penaltyEp: 1.4` with both pairs named, where it read `penaltyEp: 0, taken: []`.
+         **It changed the FIFTEEN, not only the eleven** — four of them: Lacroix, Foden, Gakpo and
+         João Pedro out, Canvot, B.Fernandes, Gomez and Nketiah in, with every shared projection
+         identical between the two solves, so none of it is drift. Charging the XI made a cheap
+         non-colliding defender valuable *to start*, so the squad bought one and sat two better
+         defenders it already owned; charging ownership removes that incentive and the money goes
+         where the points are. (The first version of this entry and of backend#44's body said the
+         fifteen was unchanged. It was not — corrected in backend#45.) `taken[]` carries `bothStarted`, which is the vocabulary the payload
          lacked: a pair CAN still be owned with one side benched, and the entry's claim that this
          becomes unreachable was wrong — what became unreachable is dodging the CHARGE by benching.
          The bigger thing built is `pnpm replay:xi`: the first harness here that scores the eleven
