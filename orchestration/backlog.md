@@ -247,3 +247,60 @@ size question the squad solve did not face at the same scale. Measure it.
 **The bar.** The plan and the recommendation, run on the same squad, agree about who should start and
 who should wear the armband. Today they need not, and nothing checks it.
 
+
+---
+
+## B-025 · B-023 made the collision penalty 3.3× stronger, and its own display can no longer go red
+
+```
+Status   backlog
+Repos    fpl-backend
+Plan     —
+Issue    —
+```
+
+**Why.** B-023 rewrote the objective as `benchWeight·Σ EP·x + (1−benchWeight)·Σ EP·y + Σ EP·c`, and
+shipped `BENCH_WEIGHT = 0.7`. The XI coefficient is therefore `1 − 0.7 = 0.3`. `COLLISION_LAMBDA`
+stayed at 1.0. Against XI decisions the penalty is now **3.3× the weight it carried when B-011
+measured it** — and B-011's measurement is the one in `policy.ts` that says the penalty did NOT
+improve realised points (+0.59 +/- 0.92 per gameweek over 103 archived gameweeks, per-season signs
+that flip, downside worse). The knob was re-scaled by a change that was not about it.
+
+**Visible on the GW2 recommendation of record (2026-08-27, `v3-fitted-2026-08-27`).** Palmer is
+captain and Chelsea play Brighton, so the solver benches both Brighton defenders it owns:
+
+| benched | epHorizon | started instead | epHorizon |
+|---|---:|---|---:|
+| Wieffer (BHA) | 17.22 | Ballard (SUN) | 15.20 |
+| De Cuyper (BHA) | 16.34 | Lacroix (CHE) | 15.06 |
+
+Both swaps are DEF-for-DEF and legal in the 1-3-5-2 that shipped. **3.30 horizon points given up in
+the XI**, while still paying £9.6m to own the two players it refuses to start.
+
+**The second half, and the worse half: the guard's display cannot go red.** B-018 put the collision
+penalty on screen so a refusal states itself. B-023 moved the penalty from the squad variables to
+the XI variables, so the solver now satisfies it by BENCHING rather than by not owning. The payload
+reads `lambda: 1, pairsConsidered: 4665, penaltyEp: 0, taken: []` — a user is told there is no
+conflict in a squad that holds both sides of one. `penaltyEp` is 0 by construction on every solve
+the optimizer produces, which makes it exactly the shape `oe:checks-that-cannot-fail` names: a
+number that reads healthy because it can no longer be anything else.
+
+**What to decide, before what to build.** Three options and they are not equivalent:
+
+1. **Re-scale λ with the XI coefficient** — charge `(1−benchWeight)·λ` so the penalty keeps the
+   weight it was measured at. Smallest change, keeps B-011's measurement meaningful.
+2. **Put the penalty back on `x`** — refuse to OWN both sides, which is what B-011's statement
+   actually claims ("a squad that bets against itself is not one we want to recommend"). Benching
+   your way out was never the intent.
+3. **Retire the penalty.** It is the honest reading of its own evidence, and it was already kept on
+   policy grounds rather than measured ones. B-023 changed the price of that policy without anyone
+   choosing to pay it.
+
+**Either way the payload has to change.** If a pair is resolved by benching, say so — "held, not
+started" is a different fact from "not held", and the panel currently cannot express it.
+
+**The trap.** Do not re-tune `BENCH_WEIGHT` to fix this. The two knobs now interact, and the bench
+sweep in `reports/bench-weight.md` cannot see XI quality at all — the season simulator re-chooses
+its lineup from realised availability and never reads the LP's `y`. Any change here must be judged
+on a harness that can observe which eleven the LP actually picked, and no such harness exists yet.
+That gap is the reason this entry exists rather than a one-line constant change.
