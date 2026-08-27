@@ -170,44 +170,6 @@ every healthy player. A suspension is knowable in advance, is not an injury, and
 
 ---
 
-## B-021 · Goalkeepers, fitted separately
-
-```
-Status   backlog
-Repos    fpl-backend
-Plan     —
-Issue    —
-```
-
-**Why.** Owed from plan 007 (items 238, 263), carried through B-014 as a rider and not built there —
-named here so it stops travelling as somebody else's footnote.
-
-Keepers share every global parameter in the model today; only the save term is keeper-specific. They
-are the one position whose points come mostly from the **opponent's** attack rather than their own
-team's, so they are also the position most exposed to B-014's rebuilt λ. `P(CS) = exp(−λ_against)`
-and `E[⌊saves/3⌋]` both hang off it.
-
-**Two measurements say the position is being flattered.** They are the best-fitting position on MAE
-(0.774 against DEF's 1.277), which means the fit is being scored on the easiest rows; and B-013's
-per-position table shows `P(any appearance)` is their worst term — 0.353 predicted against a 0.225
-base rate before B-019, the largest positional gap in the model, because a second-choice keeper is a
-different animal from a second-choice midfielder. He does not come on.
-
-**What to build.** Position-specific minutes curves — at minimum a keeper-specific `startSlope`,
-`subIntercept` and `subSlope` — and a keeper-specific save model that reads the rebuilt λ_against
-rather than a pressure ratio hand-scaled from it. Then re-run `pnpm calibrate:components` and require
-the GKP rows of the per-position tables to improve without the other three degrading.
-
-**The trap.** Four positions times the minutes parameters is four times the parameters on a quarter
-of the rows each. Fit only the parameters whose per-position tables actually disagree, and report the
-per-position `n` beside every fitted number, so a parameter fitted on 3,396 keeper rows is not read
-with the confidence of one fitted on 29,482.
-
-
----
-
----
-
 ## B-033 · The defensive-concentration charge changes no squad, gives up 71 projected points and returns 9
 
 ```

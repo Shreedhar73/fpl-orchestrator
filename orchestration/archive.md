@@ -2834,3 +2834,67 @@ projections never did, and a forgotten `pnpm project` was a gameweek the prospec
 silently lost. Incumbent and candidate rows refresh together, upsert-idempotent, and the final
 pre-deadline write carries the freshest availability — exactly the row `score:gameweek` grades.
 
+---
+
+## B-021 · Goalkeepers, fitted separately — done 2026-08-27
+
+```
+Status   done — fpl-backend#85, PR #86; adopted D-031
+Repos    fpl-backend
+Plan     —
+Issue    backend#85
+```
+
+**Why.** Owed from plan 007 (items 238, 263), carried through B-014 as a rider and not built there —
+named here so it stops travelling as somebody else's footnote.
+
+Keepers share every global parameter in the model today; only the save term is keeper-specific. They
+are the one position whose points come mostly from the **opponent's** attack rather than their own
+team's, so they are also the position most exposed to B-014's rebuilt λ. `P(CS) = exp(−λ_against)`
+and `E[⌊saves/3⌋]` both hang off it.
+
+**Two measurements say the position is being flattered.** They are the best-fitting position on MAE
+(0.774 against DEF's 1.277), which means the fit is being scored on the easiest rows; and B-013's
+per-position table shows `P(any appearance)` is their worst term — 0.353 predicted against a 0.225
+base rate before B-019, the largest positional gap in the model, because a second-choice keeper is a
+different animal from a second-choice midfielder. He does not come on.
+
+**What to build.** Position-specific minutes curves — at minimum a keeper-specific `startSlope`,
+`subIntercept` and `subSlope` — and a keeper-specific save model that reads the rebuilt λ_against
+rather than a pressure ratio hand-scaled from it. Then re-run `pnpm calibrate:components` and require
+the GKP rows of the per-position tables to improve without the other three degrading.
+
+**The trap.** Four positions times the minutes parameters is four times the parameters on a quarter
+of the rows each. Fit only the parameters whose per-position tables actually disagree, and report the
+per-position `n` beside every fitted number, so a parameter fitted on 3,396 keeper rows is not read
+with the confidence of one fitted on 29,482.
+
+
+---
+
+---
+
+**Outcome — shipped and ADOPTED 2026-08-27, PR #86, decision D-031. The entry's own bar, met on
+every term it named.**
+
+Keeper minutes curves fitted on GKP rows alone (start n=4,627, sub n=3,514 — the per-position n the
+entry demanded, printed by the fit): keeper sub-intercept **−1.082 against the global +0.575**, so a
+benched second-choice keeper is finally priced like one. The save pressure exponent, grid-searched on
+keeper validation rows only, found an **interior optimum at 0.5** — opponent pressure moves saves at
+square-root strength, and the hand-drawn linear ratio overweighted it.
+
+On held-out 2025-26: all four GKP component terms improved — the appearance gap the entry opened with
+(0.353 predicted vs 0.225 base before B-019; 0.258 after it) closed to **0.229 vs 0.225** — with
+DEF/MID/FWD byte-identical by construction (every global parameter reproduced the incumbent
+byte-for-byte). Ordering still ahead of `form` at every k. The simulated `greedy-1ft` season rose
+**1881 → 1926** and moved ahead of the crowd proxy (+0.59/round) for the first time in the
+project's history.
+
+**The trap the entry warned about was engineered around, not resisted**: only the parameters whose
+per-position tables disagreed were fitted (four minutes params + one exponent, not four positions
+times everything), and the fit prints n beside the keeper block.
+
+Serving moved to `v3-fitted-2026-08-27-gkp` by D-031; the old version's rows kept (D-020). The
+candidate was maintenance-refit on the new base (PR #88) — frozen architecture, no selection reading
+the archive holdout.
+
