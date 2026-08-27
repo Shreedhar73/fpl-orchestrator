@@ -113,10 +113,10 @@ to FPL" paragraph — the answer is now that we handle no FPL cookies at all.
 ## B-015 · Minutes and availability — the half of the model that is still a guess
 
 ```
-Status   planned
+Status   in progress
 Repos    fpl-backend
 Plan     docs/plans/024-minutes-refit-wayback-availability.md
-Issue    —
+Issue    orchestrator#23 (parent), backend#89
 ```
 
 **Why.** The guide is unambiguous: "the minutes model is the real model" (§3.3), and "minutes are the
