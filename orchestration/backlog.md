@@ -269,3 +269,43 @@ true of the pairs and still not true of the objective.
 
 
 ---
+
+---
+
+## B-028 · Measure the collision, instead of assuming it
+
+```
+Status   planned
+Repos    fpl-backend
+Plan     — (measurement only; the decision it feeds is B-011's lambda)
+Issue    —
+```
+
+**Why.** B-011 has been argued three times (B-023, B-025, B-027) and measured once — the lambda sweep,
+which asked "does the penalty earn points" and answered no. Nobody has measured the thing the penalty
+is *about*: whether one of our attackers and one of our defenders in the same match actually work
+against each other, and by how much.
+
+Two claims are load-bearing and neither is tested:
+
+1. **"A squad that owns both sides bets against itself."** In portfolio terms a negative correlation
+   between two holdings *reduces* variance — it is a hedge, not a mistake. And a linear objective is
+   correct in expectation whatever the correlation; correlation moves variance, not the mean. So the
+   penalty cannot be an EP correction, and calling it one is a category error. What is the covariance,
+   and what does holding a pair do to the variance of the pair?
+2. **"The defenders are betting on a clean sheet."** Under 2025/26 scoring a defender is also paid for
+   defensive contribution, which plausibly moves the OPPOSITE way — more opponent pressure means more
+   clearances, blocks and interceptions. On the live GW2 numbers the clean sheet is 14% of Wieffer's
+   EP and his defcon term is 1.37 against it. If that holds in the data, the category changed the
+   arithmetic B-011 was written on, and nobody re-checked.
+
+**What to measure.** Over the three archived seasons (87k player-gameweeks): the realised covariance
+and correlation of every (our attacker, their defender) pair in the same fixture; the conditional —
+what a defender scores when the opposing attacker returned versus when he blanked; the effect on
+variance of holding one, and of holding the 1-attacker-2-defenders shape the live squad has; the
+composition of a defender's points by era; and, for 2025-26 where the columns exist, whether defensive
+contribution rises with opponent pressure.
+
+**The bar.** Split by season, because the point of the exercise is that 2025-26 may not behave like
+2023-24. Report the noise on every number — the collision sweep's own paired difference was +0.59
++/- 0.92, and this project has been burned by reading a mean over 38 rounds as a result.
