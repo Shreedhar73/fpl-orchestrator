@@ -113,9 +113,9 @@ to FPL" paragraph — the answer is now that we handle no FPL cookies at all.
 ## B-015 · Minutes and availability — the half of the model that is still a guess
 
 ```
-Status   backlog
+Status   planned
 Repos    fpl-backend
-Plan     —
+Plan     docs/plans/024-minutes-refit-wayback-availability.md
 Issue    —
 ```
 

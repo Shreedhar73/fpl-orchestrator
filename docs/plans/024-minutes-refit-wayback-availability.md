@@ -1,0 +1,87 @@
+# 024 — Full minutes-model refit with fitted availability, from Wayback deadline snapshots
+
+**Goal** — The minutes model currently multiplies its fitted start/sub/minutes terms by a
+hand-drawn `availabilityMultiplier()` (`forecast.service.ts:276`) because the archive holds no
+per-gameweek `status`/`chance_of_playing`. The Wayback Machine does (probed 2026-08-27, B-015):
+near-daily `bootstrap-static` snapshots across 2023-24, 2024-25 and 2025-26, each carrying every
+player's `status`, `chance_of_playing_next_round` and `code`. After this plan, the whole minutes
+model — P(start), P(sub appearance), P(60+), E[minutes] — is refitted with deadline-time
+availability as a fitted input, the hand multiplier is retired from the new model version, and the
+new version is measured against the incumbent on the untouched TEST season before any adoption call.
+
+**Backlog** — B-015.
+**Repos** — fpl-backend (all code); fpl-orchestrator (plan, backlog, decision record).
+**Contract change** — no. New projection rows under a new `model_version`; response shapes unchanged.
+**Skills to load** — fpl-optimizer, fpl-data-model, fpl-testing-contract, fpl-api-reference,
+fpl-domain-rules.
+
+**Out of scope**
+- Squad depth, days of rest, European fixtures, international breaks (B-015 wishlist — later).
+- Curated press-conference inputs (explicitly out until someone owns the table).
+- Serving switch: incumbent stays pinned; adoption is a separate D-numbered call.
+- Frontend anything.
+
+**How we will know it works** — pre-committed before the fit runs, read on TEST (2025-26) once:
+1. **The uncertain band is decisive** — players whose deadline-time status is `d` (any chance
+   value) or whose chance is 25/50/75: Brier for P(appearance) and P(start) beats the incumbent
+   params + hand multiplier **on that band**. Per-status Briers are reported for the whole flagged
+   set, but `u`/`s` rows are near-deterministic for both models and cannot carry the verdict —
+   a win made of trivial rows is the checks-that-cannot-fail shape this leg is written to exclude.
+2. **Overall**: Brier for P(start), P(60+), P(appearance) and points RMSE no worse than incumbent
+   (outside noise, same paired construction the project already uses).
+3. **Decisions**: `pnpm decision-quality` ordering (precision@k) no worse.
+4. Leak guard test proves every availability row used in training has `snapshotAt < deadline_time`.
+One TEST reading. If a leg fails, the result is recorded and the incumbent stands — same rule as
+B-036/B-037.
+
+**The silent-failure case this plan must not build**: a snapshot taken *after* the deadline encodes
+what the match revealed — training on it makes availability look brilliantly predictive. Ingest
+must select the **last snapshot strictly before** each deadline, store the gap, and the fit must
+assert it. Second case: a player absent from a season's snapshot (mid-season signing) is *unknown*,
+not available — such rows carry no availability features, and the fit must handle their absence
+explicitly rather than defaulting to fit.
+
+## Tasks
+
+- [ ] Schema: `ArchiveAvailabilitySnapshot` history table — `season`, `round`, `playerCode`,
+      `status`, `chanceOfPlayingNextRound` (nullable), `news`, `snapshotAt`, `deadlineAt`,
+      `gapHours`; unique `(season, round, playerCode)` — `fpl-backend/prisma/schema.prisma`,
+      new migration.
+- [ ] Wayback ingest: CDX query per deadline for last 200-status capture strictly before
+      `deadline_time` (deadlines read from a **season-end** snapshot's `events[]`, where deadline times are historical
+      fact — a season-start snapshot can carry deadlines that later moved); fetch `id_` raw
+      form with `curl`-equivalent gzip handling; parse `elements[]`; upsert on the unique key;
+      cache raw JSON to a gitignored `data/wayback/` for reproducibility; polite rate limit —
+      `src/modules/calibration/wayback-ingest.ts`, `src/scripts/ingest-availability.ts`,
+      `package.json` script `ingest:availability`.
+- [ ] Coverage report: per (season, round) — snapshot found or not, `gapHours`, flagged-player
+      count; exclusion rule pre-committed (drop rounds with gap > 72 h, count reported) —
+      `reports/availability-coverage.md`.
+- [ ] Feature encoding, split rule-vs-fitted: deterministic statuses are **rules, not features** —
+      `u` → 0 and `s` → 0 (for the banned match; a suspension does not decay) hard-coded, never
+      fed to the logistic, because one-hotting a status whose outcome is always 0 re-runs the
+      complete-separation failure B-015 already paid for (the `7.3e8` slope). The **fitted** band
+      is `d`, `i` and the chance values, with **null = fully fit**; include the
+      status × lagged-start-rate interaction (the "injured player's lagged starts decay" case the
+      full-refit choice was made for) and report its fitted term — extend
+      `src/modules/calibration/fit.ts` feature builder and `MinutesParams` in
+      `src/modules/projections/fitted.ts`.
+- [ ] Full refit: start/sub/60/minutes regressions refitted jointly with availability features on
+      TRAIN (2023-24 + 2024-25), same splits as `calibration.service.ts:46` — `pnpm fit:model`;
+      new `FITTED_PARAMS` version string in `fitted.ts`; incumbent params kept.
+- [ ] Leak guard + edge tests: training rows assert `snapshotAt < deadlineAt`; null-chance means
+      fit; missing-player rows carry no availability default; break each on purpose per
+      `fpl-testing-contract` — calibration spec files.
+- [ ] Model wiring: new version's `minutesDistribution` (`model-v2.ts:425`) consumes availability
+      params; `availabilityMultiplier()` calls at `forecast.service.ts:141` and
+      `candidate.service.ts:102` bypassed for the new version only; serving stays pinned to
+      incumbent.
+- [ ] One TEST reading against the bar above: `pnpm calibrate` + `pnpm decision-quality`; write
+      `reports/calibration-<label>.md` with the verdict per leg.
+- [ ] Prospective referee unchanged: new version rides `pnpm project` beside incumbent, scored
+      weekly by `pnpm score:gameweek`. At inference the fitted terms read the **live `players`
+      fields** (`status`, `chance_of_playing_next_round`) — the same inputs the hand multiplier
+      consumes today at `forecast.service.ts:141` and `candidate.service.ts:102`;
+      `PlayerDeadlineSnapshot` (B-016) stays what it is, the audit/scoring record, not an
+      inference input.
+- [ ] Register: backlog B-015 updated, decision entry drafted for the (later) adoption call.
