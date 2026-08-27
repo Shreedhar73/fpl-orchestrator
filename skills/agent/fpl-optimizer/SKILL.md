@@ -76,9 +76,15 @@ matter.
 Variables: `x_p ∈ {0,1}` player in the 15; `y_p ∈ {0,1}` player in the XI (`y_p ≤ x_p`);
 `c_p ∈ {0,1}` captain (`c_p ≤ y_p`).
 
-Maximise `Σ EP_p × (y_p + c_p) + bench_weight × Σ EP_p × (x_p − y_p)` — the bench term small but
-nonzero (~0.1), because bench players do score through auto-subs and a squad with a dead bench is
-fragile.
+Maximise `Σ EP_p × (y_p + c_p) + bench_weight × Σ EP_p × (x_p − y_p) − λ_charged × Σ z_ij`, where
+`z_ij ≥ x_i + x_j − 1` prices every conflicting pair the squad HOLDS (below).
+
+**`bench_weight` is 0.7 and was measured, not estimated.** This skill said ~0.1 for a long time and
+that number is wrong: B-023 swept it over a full archived season and every value at or below 0.5 cost
+about 180 points of season, because a bench bought as fodder cannot cover a blank — an auto-sub only
+fires for a player who did not play, and if the substitute did not play either the manager keeps the
+zero. 0.7 through 1.0 could not be told apart on points; 0.7 is taken because the XI coefficient is
+`1 − bench_weight`, and at exactly 1.0 the objective stops caring who starts.
 
 Subject to:
 
@@ -91,6 +97,23 @@ Subject to:
 - **Transfers:** `Σ transfers_out ≤ free_transfers + hits`, objective penalised by `4 × hits`. The
   hit must be inside the objective, not a post-hoc filter — the question is always "is this player
   worth more than 4 points over the horizon", and only the solver can answer it.
+- **Fixture collisions:** one row per pair of our own players on opposite sides of the same match —
+  an attacker (FWD/MID) of ours against a defensive player (DEF/GKP) of ours. `z_ij ≥ x_i + x_j − 1`,
+  charged `λ_charged = bench_weight × λ` in the objective.
+
+**The collision rows go on `x`, and this is the one thing about them worth remembering.** They were
+briefly moved onto `y` and `c` — charge the eleven, not the squad, on the argument that the bet is
+made on the pitch. The solver answered by benching one side and keeping both: it gave up 3.3 horizon
+points in a live eleven while paying £9.6m for two players it would not start, and over an archived
+season it owned a pair in every round and started both sides in eight of them. Charge what you want
+to refuse. If the refusal is "do not own both sides", the row belongs on the ownership variable, and
+nothing else needs a row.
+
+**The penalty is a policy choice that its own measurement did not support**, and any code touching it
+has to keep saying so: swept over 103 archived gameweeks it gained +0.59 ± 0.92 realised points per
+gameweek, the per-season sign flipped, and the downside it was argued for as insurance got worse. It
+is on because a squad that bets on a clean sheet and against it at once is not one worth defending to
+a user.
 
 Read every constraint value from `rules_config`, never from a constant.
 
@@ -130,6 +153,15 @@ random-number generator.
   disagreement with FPL's own model, not a measured error. Sizing a defect against it is how this
   project spent a cycle chasing an over-projection that turned out, against realised points, to be an
   *under*-projection (D-020). Fitting to it reproduces FPL's model instead of improving on ours.
+- **A measurement that cannot observe the thing you changed is not evidence about it.** The season
+  simulator and the bench sweep both re-choose the lineup each round by predicted points, so neither
+  can see the LP's `y` and `c` columns at all — and both were used to defend knobs that act only
+  through them. B-025 built `pnpm replay:xi`, which holds a fifteen for a season and scores the eleven
+  the **solver itself** returned. Before changing anything in the objective, ask which harness would
+  see the change; if the answer is none, that is the first thing to build. And never let such a
+  harness fall back to `pickBestXi` when a solve is unreadable: the enumeration is a second
+  implementation of the same argmax, so the fallback restores exactly the blindness and the season
+  total still looks healthy.
 - **Never delete the serving model version until its successor has beaten it.** A rule that says
   "don't ship the new model on a negative result" needs something to fall back to; deleting the old
   version in the same change makes the rule unfireable, which is exactly what happened in B-007
