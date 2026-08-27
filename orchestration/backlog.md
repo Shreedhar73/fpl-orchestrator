@@ -110,76 +110,6 @@ to FPL" paragraph — the answer is now that we handle no FPL cookies at all.
 
 ---
 
-## B-008 · Transfer planning — one free transfer, hits, chip windows
-
-```
-Status   backlog — harness dependency cleared 2026-08-26; the accuracy bar was NOT met (D-021)
-Repos    fpl-backend
-Plan     —
-Issue    —
-```
-
-**Why.** Split from B-005 on 2026-08-26 because it needs an *owned* squad to plan from, which arrives
-with B-006's import — so it is verified against a real squad, not a mock. Given a current squad and the
-projections, decide the transfer(s) that maximise horizon points net of cost: `Σ transfers_out ≤
-free_transfers + hits`, objective penalised by `4 × hits`, the hit **inside** the objective (the
-question is always "is this player worth more than 4 points over the horizon"). Chips are a separate,
-coarser season-level decision — recommend the *window* (a double gameweek for Bench Boost, a blank for
-Free Hit) and let the user commit; a chip is unspendable once spent, so the model never spends it.
-Uses sell value (purchase + half the rise, rounded down), not market price. Extends `OptimizerRun`.
-Depends on B-005 and B-006.
-
-**The block moves from B-007 to B-012 — 2026-08-26.** B-006 unblocked this entry and it was
-deliberately not started, because a transfer planner is a machine for acting on expected points and
-B-004's were known to be skewed. B-007 has now archived: the skew it was opened for is **gone** (the
-premium head is no longer over-projected — see the correction on B-004 in `archive.md`), but the
-promise that replaced it — beat the baselines — **was not kept**. On held-out 2025-26 the model beats
-`form` on RMSE and bias and loses to it on MAE, and neither number is about a transfer decision.
-
-**Half-unblocked, 2026-08-26 — and the maintainer decides the other half.** Two things gated this
-entry and only one has cleared.
-
-- **Cleared: the harness.** `season-sim.ts` exists, with the transfer policy as a parameter so a
-  planner plugs in rather than bringing a harness written to flatter it. Both shipped policies refuse
-  hits, so every season total B-012 reports is a **floor** — beating them is this entry's first job.
-- **NOT cleared: the accuracy precondition this entry was repointed to.** The condition was "B-012's
-  bar", and **B-012 did not meet it** (D-021): the model beats `form` on ordering, and on season
-  points only when neither side may transfer. Plan 010's own Phase 6 routes a negative result to
-  **B-013 and B-014**, not here.
-
-And B-012 found something that bears directly on this entry: **the crowd's opening fifteen outscores
-ours by 102 points** under the same policy and the same projections, so a planner starting from our
-squad solve starts behind. A transfer planner would be correcting a squad we already know is worse
-than the template.
-
-**So this is a maintainer call, not a session call.** Proceeding now means building the planner on a
-model that did not clear its bar — the exact thing the accuracy-first order was set up to prevent,
-twice. The alternative is B-013/B-014 first, which is what the plan says and what D-021 recommends.
-
-The original condition, kept for the reasoning: **this entry waited on B-012**, whose bar
-is ordering quality and a simulated season under the real rules. Two reasons, and the second is the
-practical one. A hit is a −4 bet that a projected difference is real, so it is the most
-error-amplifying thing the product does. And **B-012 builds the season simulator this entry needs to
-be measured in at all** — FT banking, hits, sell-on fees and auto-subs, walked over a full season. A
-transfer planner with no simulator behind it can only be argued about.
-
-**Sell value must be reconstructed here — B-006 cannot supply it.** Probed live 2026-08-26:
-`entry/{id}/event/{gw}/picks/` carries only `{ element, position, multiplier, is_captain,
-is_vice_captain, element_type }`. There is **no `purchase_price` and no `selling_price`** in any
-public endpoint; both live in `my-team/{id}/`, which is 403 without auth (D-013 — we never
-authenticate). So B-006's import writes `SquadPick.sellValue` as **`null`**, deliberately: an
-approximation from `now_cost` would be a wrong number consumed here with no tell, and a null is loud
-where a wrong number is quiet. The reconstruction is available and is this entry's first task:
-`entry/{id}/transfers/` exists (probed — returns `[]` for a manager with no transfers, which is the
-normal empty case) and carries `element_in_cost` / `element_out_cost` per transfer per event; replay
-it against `player_price_history` back to the GW1 deadline price to recover purchase price, then
-sell value.
-
----
-
-
----
-
 ## B-015 · Minutes and availability — the half of the model that is still a guess
 
 ```
@@ -362,3 +292,66 @@ of the rows each. Fit only the parameters whose per-position tables actually dis
 per-position `n` beside every fitted number, so a parameter fitted on 3,396 keeper rows is not read
 with the confidence of one fitted on 29,482.
 
+
+---
+
+## B-023 · The ILP maximises all 15 equally — the XI, bench and captain variables the spec calls for were never built
+
+```
+Status   backlog
+Repos    fpl-backend
+Plan     —
+Issue    —
+```
+
+**Why. The code does not implement the program `fpl-optimizer` specifies.** The skill's Selection
+section names three variable families — `x_p` in the 15, `y_p ≤ x_p` in the XI, `c_p ≤ y_p` captain
+— and the objective
+
+```
+Maximise  Σ EP_p × (y_p + c_p)  +  bench_weight × Σ EP_p × (x_p − y_p)      bench_weight ≈ 0.1
+```
+
+`ilp.ts:buildLp` emits **only `x`**, at coefficient `c.ep`, for all fifteen: `Σ EP_p × x_p`. There is
+no `y`, no `c`, and no bench weight. `pickBestXi` picks the XI and the armband afterwards, from a
+fifteen the solver already committed the money to — a second optimisation the first one could not
+see. So the objective optimises a quantity FPL never pays out, and the divergence is from a written
+design, not a newly-noticed idea.
+
+**Measured on the live GW2 recommendation (2026-08-27, model `v3-fitted-2026-08-27`).** Objective
+value 252.57 over gameweeks 2–6. The four bench players — Petrović £4.5m, Nketiah £5.5m, Ballard
+£5.0m, Canvot £5.0m — contribute **57.56 of that 252.57 (22.8%)** against a specified weight of
+~10%, and hold **£20.0m of the £99.6m squad (20% of budget)** while scoring only through auto-subs.
+The captain's double — Palmer's 21.9 again over the horizon — is in the objective **nowhere**.
+
+**What this produces, and it is what was reported.** Both omissions push the same way: away from
+premiums. A bench place valued at par means bench fodder is never fodder, so the money that would
+buy the marginal premium goes into a fourth £5.0m defender; a captain worth nothing at selection
+time means the one slot that pays twice is bought at single price. The GW2 squad holds 5 of the top
+6 by `epNextGw` but skips Haaland (3rd, £15.5m) and the Liverpool mid-price block, and benches four
+players averaging 4.1 xP.
+
+**Not a bug, and out of scope here: 3-per-club.** Three Brighton players in the recommendation is
+the legal maximum. `club_<teamId> <= rules.clubLimit()` is correct and doing its job.
+
+**What to build.** The program the skill already specifies: `y_p` and `c_p` as decision variables
+with `y_p ≤ x_p`, `c_p ≤ y_p`, `Σ y_p = 11`, `Σ c_p = 1`, the formation min/max on `y` (GKP 1/1,
+DEF 3/5, MID 2/5, FWD 1/3), and the objective above. `pickBestXi` then becomes a read-back of the
+solve rather than a second optimisation that can disagree with it — and `arrangeSquad` still owns
+bench *order*, which is `P(plays) × EP` and stays outside the ILP.
+
+**The trap — three of them.**
+
+1. **`bench_weight ≈ 0.1` is the skill's own estimate, not a fitted number.** Shipping it unmeasured
+   trades one arbitrary weight (1.0) for another (0.1). Fit it against realised auto-sub points on
+   the archive, or state on the recommendation that it is a policy constant.
+2. **Solve size.** Three binary families over the pruned pool instead of one, plus the formation
+   rows. Measure `durationMs` before and after; `optimizer_runs` already stores it.
+3. **The evidence bar is realised points, not plausibility.** Require the change to raise realised
+   XI points on the archived gameweeks (B-012 harness) before believing it. That a corrected
+   objective *would* buy Haaland is a hypothesis this entry does not get to assume — what is proven
+   is that the current one is structurally biased against him.
+
+**Owed alongside:** `arrangeSquad` is called by `insights` to arrange a squad a user brought, so
+whatever replaces `pickBestXi` must keep serving that path — the two must not end up with different
+definitions of "best XI", which is the thing the current comment says it exists to prevent.

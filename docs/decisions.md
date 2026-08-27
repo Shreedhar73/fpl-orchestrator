@@ -876,3 +876,48 @@ table that is queried by name, and `v2-fitted-2026-08-27` would have been exactl
 superseded, not corrected. It records what was recommended on 2026-08-26, from a model that did not
 yet have the guards — which is why it contains two players the appearance floor now removes. A record
 that is edited to match the present is not a record.
+
+---
+
+## D-026 · 2026-08-27 · A manager's private state is reconstructed from the public record, and each field carries its own source
+
+**Context.** Transfer planning needs three things FPL keeps behind `my-team/{id}/`, which is 403 and
+which we never call (D-013): what each player cost the manager, how many free transfers they hold, and
+which chips remain. D-014 responded to the first by writing `SquadPick.sellValue` as **null** — a
+correct refusal at the time, and one that made B-008 unbuildable.
+
+**Decision.** All three are *derived* facts the public record supports, and they are derived rather
+than approximated.
+
+| | derived from |
+|---|---|
+| purchase price | `entry/{id}/transfers/` `element_in_cost`, newest first per element |
+| — otherwise | the player's price in the manager's starting gameweek, `player_gameweek_stats.value` |
+| free transfers | `current[].event_transfers` from `entry/{id}/history/`, replayed against the one-per-gameweek grant and the cap in `scoring_config` |
+| chips remaining | the complement of `history.chips`, which lists what was used |
+
+**Every field carries its own source, and null stays available.** `sellValueSource` is
+`transfer-log`, `starting-gameweek-price` or `unknown`, and where the record supports nothing the
+value is null. That is D-014's rule kept rather than abandoned: a null is loud where a wrong number is
+quiet. A sell value silently replaced by the market price overstates a budget in exactly the direction
+that produces a plan the manager cannot afford, and nothing downstream would look wrong.
+
+**The fallback table is not the obvious one.** B-008's backlog entry said to replay against
+`player_price_history`. That table's earliest row in this database is 2026-08-26, *after* the GW1
+deadline, so it would have substituted today's price for the one paid — in the one field whose entire
+purpose is that the two differ. `player_gameweek_stats.value` is FPL's own price for that gameweek and
+is exact for a player held since the start.
+
+**Nothing is persisted.** The reconstruction is a pure function of two upstream reads and one table.
+Storing it would add a cache that goes stale against a transfer log which changes weekly, and a stale
+purchase price is the same silent wrong number in a slower form.
+
+**Consequences.**
+
+1. `SquadPick.sellValue` stays null on import. The planner computes what it needs per request; the
+   column is not the source of truth and was never going to be.
+2. **The transfer-log path is untested against live data.** Nobody has transferred in 2026/27 yet, so
+   every price observed so far came from the starting-gameweek route. It is unit-tested, including the
+   bought-twice case; the first manager with a real transfer history is the check it still owes.
+3. The free-transfer replay reports `complete`. A gap in a manager's history makes the count a lower
+   bound, and the payload and the UI both say so rather than rounding it to a number.

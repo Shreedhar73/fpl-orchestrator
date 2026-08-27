@@ -1478,3 +1478,115 @@ recommended on the day, and a corrected record is not a record.
 projections still carry no dispersion (B-017), and the fixture term is non-zero and unproven
 out-of-sample (D-024).
 
+---
+
+## B-008 · Transfer planning — one free transfer, hits, chip windows
+
+```
+Status   backlog — harness dependency cleared 2026-08-26; the accuracy bar was NOT met (D-021)
+Repos    fpl-backend
+Plan     —
+Issue    —
+```
+
+**Why.** Split from B-005 on 2026-08-26 because it needs an *owned* squad to plan from, which arrives
+with B-006's import — so it is verified against a real squad, not a mock. Given a current squad and the
+projections, decide the transfer(s) that maximise horizon points net of cost: `Σ transfers_out ≤
+free_transfers + hits`, objective penalised by `4 × hits`, the hit **inside** the objective (the
+question is always "is this player worth more than 4 points over the horizon"). Chips are a separate,
+coarser season-level decision — recommend the *window* (a double gameweek for Bench Boost, a blank for
+Free Hit) and let the user commit; a chip is unspendable once spent, so the model never spends it.
+Uses sell value (purchase + half the rise, rounded down), not market price. Extends `OptimizerRun`.
+Depends on B-005 and B-006.
+
+**The block moves from B-007 to B-012 — 2026-08-26.** B-006 unblocked this entry and it was
+deliberately not started, because a transfer planner is a machine for acting on expected points and
+B-004's were known to be skewed. B-007 has now archived: the skew it was opened for is **gone** (the
+premium head is no longer over-projected — see the correction on B-004 in `archive.md`), but the
+promise that replaced it — beat the baselines — **was not kept**. On held-out 2025-26 the model beats
+`form` on RMSE and bias and loses to it on MAE, and neither number is about a transfer decision.
+
+**Half-unblocked, 2026-08-26 — and the maintainer decides the other half.** Two things gated this
+entry and only one has cleared.
+
+- **Cleared: the harness.** `season-sim.ts` exists, with the transfer policy as a parameter so a
+  planner plugs in rather than bringing a harness written to flatter it. Both shipped policies refuse
+  hits, so every season total B-012 reports is a **floor** — beating them is this entry's first job.
+- **NOT cleared: the accuracy precondition this entry was repointed to.** The condition was "B-012's
+  bar", and **B-012 did not meet it** (D-021): the model beats `form` on ordering, and on season
+  points only when neither side may transfer. Plan 010's own Phase 6 routes a negative result to
+  **B-013 and B-014**, not here.
+
+And B-012 found something that bears directly on this entry: **the crowd's opening fifteen outscores
+ours by 102 points** under the same policy and the same projections, so a planner starting from our
+squad solve starts behind. A transfer planner would be correcting a squad we already know is worse
+than the template.
+
+**So this is a maintainer call, not a session call.** Proceeding now means building the planner on a
+model that did not clear its bar — the exact thing the accuracy-first order was set up to prevent,
+twice. The alternative is B-013/B-014 first, which is what the plan says and what D-021 recommends.
+
+The original condition, kept for the reasoning: **this entry waited on B-012**, whose bar
+is ordering quality and a simulated season under the real rules. Two reasons, and the second is the
+practical one. A hit is a −4 bet that a projected difference is real, so it is the most
+error-amplifying thing the product does. And **B-012 builds the season simulator this entry needs to
+be measured in at all** — FT banking, hits, sell-on fees and auto-subs, walked over a full season. A
+transfer planner with no simulator behind it can only be argued about.
+
+**Sell value must be reconstructed here — B-006 cannot supply it.** Probed live 2026-08-26:
+`entry/{id}/event/{gw}/picks/` carries only `{ element, position, multiplier, is_captain,
+is_vice_captain, element_type }`. There is **no `purchase_price` and no `selling_price`** in any
+public endpoint; both live in `my-team/{id}/`, which is 403 without auth (D-013 — we never
+authenticate). So B-006's import writes `SquadPick.sellValue` as **`null`**, deliberately: an
+approximation from `now_cost` would be a wrong number consumed here with no tell, and a null is loud
+where a wrong number is quiet. The reconstruction is available and is this entry's first task:
+`entry/{id}/transfers/` exists (probed — returns `[]` for a manager with no transfers, which is the
+normal empty case) and carries `element_in_cost` / `element_out_cost` per transfer per event; replay
+it against `player_price_history` back to the GW1 deadline price to recover purchase price, then
+sell value.
+
+---
+
+---
+
+**Outcome — shipped 2026-08-27, backend#34 and frontend#8. The gate opened on its own terms.**
+
+D-021 declined this entry for one measured reason: the crowd's opening fifteen outscored ours by 102
+points, so a planner would have started by correcting a squad we knew was worse than the template.
+B-019, B-020 and B-014 closed that gap — 1943 against 1917 under `greedy-1ft` — and the model is
+adopted as v3 (D-025). The condition was met, not overruled.
+
+**The three reconstructions the entry said were blocked.**
+
+| | source | exactness |
+|---|---|---|
+| purchase price | `entry/{id}/transfers/` `element_in_cost`, newest first | exact |
+| — otherwise | the player's price in the manager's **starting gameweek**, from `player_gameweek_stats.value` | exact for a pick held since the start |
+| free transfers | `current[].event_transfers` replayed forward against the grant and the cap from `scoring_config` | exact when the history has no gap; the payload says which |
+| chips remaining | the complement of `history.chips` | exact |
+
+**The entry pointed at the wrong table for the fallback, and it matters.** It said to replay against
+`player_price_history`. That table's earliest row here is 2026-08-26 — *after* the GW1 deadline — so
+it would have substituted today's price for the one actually paid, in the one field whose entire
+purpose is that the two differ. `player_gameweek_stats.value` is FPL's own price for that gameweek and
+is exact.
+
+**The plan is an ILP with the −4 inside the objective**, because the question is never "can I afford
+a hit" but "is this player worth more than four points over the horizon". The budget row is written so
+a kept player costs his own sell value — keeping him is declining that money — which makes it one
+linear row with no buy/sell split. It solves under the same collision guard the recommendation uses,
+so plan and recommendation are one objective rather than two.
+
+**Chips are recommended as a window and never spent**, exactly as the entry asked. Early in a season
+the honest answer is "no gameweek in this horizon argues for a chip", and that is what it returns —
+rendered as an answer rather than hidden as an absence.
+
+Live against manager 1: 2 free transfers, 2 moves, 0 hits, **+9.66 horizon EP** — Raya to Trafford and
+Semenyo to Palmer, both sell values reconstructed. `GET localhost:4000/squad/1` renders it.
+
+**Two things left standing, both stated rather than buried.** The transfer-log path is unit-tested,
+including the bought-twice case, but has not been exercised against live data — nobody has transferred
+yet in 2026/27, so every price came from the starting-gameweek route. And the planner has no
+uncertainty: a hit is a −4 bet on a projected difference, which is the most error-amplifying thing the
+product does, and every number it bets on is a mean with no dispersion (B-017).
+
