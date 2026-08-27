@@ -921,3 +921,48 @@ purchase price is the same silent wrong number in a slower form.
    bought-twice case; the first manager with a real transfer history is the check it still owes.
 3. The free-transfer replay reports `complete`. A gap in a manager's history makes the count a lower
    bound, and the payload and the UI both say so rather than rounding it to a number.
+
+---
+
+## D-027 · 2026-08-27 · The explain blocks go in a table, and live sync is decided against rather than deferred
+
+**Context.** Two items sat unresolved at the end of plan 007 and were carried by B-016.
+
+**`explain`-block retention (item 140).** `event/{gw}/live/` carries FPL's own per-identifier answer
+key — what each player was paid for, term by term — and it is the only thing that ever let this
+project verify its points engine against the source rather than against its own reading of the rules.
+The endpoint serves the **current season only** and no archive carries those blocks, so at season
+rollover they are gone. The choice was 38 committed JSON fixtures at roughly 440 KB each — about 17 MB
+in every clone — or a table.
+
+**Decision: a table, `gameweek_live_snapshot`, captured by the ordinary sync.** Three payloads per
+run, so a fresh database catches up within a day without a burst of 38 requests. Stored **whole and
+unparsed**: the value of a raw capture is that it still answers a question nobody has asked yet, and a
+parsed subset only answers the ones we thought of.
+
+The capture rides the sync for the same reason the deadline snapshot does. A retention job that
+depends on somebody remembering to run a command will be missed exactly once, and once is enough.
+`doctor.sh` reports a finished gameweek with no capture behind it, so a trigger that stops firing is
+visible rather than silent. An **empty** payload is deliberately not stored — it would satisfy the
+has-a-snapshot check for ever with nothing behind it.
+
+**`SyncService.runLive` (item 141).** It has rejected since B-003 with "not implemented yet", which is
+a promise nobody was keeping.
+
+**Decision: it stays unimplemented, and is no longer owed.** It was opened for two reasons and both
+are answered elsewhere. Calibration needed the `explain` blocks, and the capture above takes the whole
+payload on the ordinary sync — strictly better than a mode a human has to remember. And nothing in
+this product displays an in-play score: the entire surface is a pre-deadline advisor, so a half-built
+live path would be an unused code path polling an endpoint every few minutes, which is the opposite of
+being a good guest. It rejects with a sentence rather than being deleted, so a caller passing `--live`
+learns why instead of hitting a silence.
+
+**Consequences.**
+
+1. GW1's payload is captured — 610 elements — and every finished gameweek will be, before the season
+   that serves them ends.
+2. `--full` remains the way to re-read finished gameweeks. `explain` persists within a season, so it
+   was never the mode that needed replacing.
+3. The `pnpm score:gameweek` report and the `doctor.sh` weekly-loop section are the two places a
+   missed capture becomes visible. Neither existed before this entry, which is why B-016 could be
+   owed for weeks without anything looking wrong.

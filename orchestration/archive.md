@@ -1590,3 +1590,96 @@ yet in 2026/27, so every price came from the starting-gameweek route. And the pl
 uncertainty: a hit is a −4 bet on a projected difference, which is the most error-amplifying thing the
 product does, and every number it bets on is a mean with no dispersion (B-017).
 
+---
+
+## B-016 · The weekly loop — capture the deadline, score what we served, write the post-mortem
+
+```
+Status   backlog
+Repos    fpl-backend, fpl-orchestrator
+Plan     —
+Issue    —
+```
+
+**Why.** The guide's §5.4 step 8 — *after the gameweek, log predicted versus actual for every player
+and for the squad, update calibration, write a short post-mortem* — does not exist, and it is the only
+mechanism by which the live season becomes evidence rather than elapsed time. Everything measured so
+far is measured on a third-party archive of seasons that are over. **We have never once scored a
+projection we actually served.**
+
+**Two things are recoverable only if captured before the deadline, and one is already lost per week
+that passes.**
+
+- **`ep_next`** — the headline baseline B-007 promised and never delivered. It is a scalar on
+  `players`, overwritten every sync, with **no history table and no archive to backfill from**. The
+  archive's `xP` cannot substitute: it is FPL's `ep_this` scraped *after* the gameweek (D-016).
+  `player_deadline_snapshot` now captures it; **GW1's is gone permanently.**
+- **`status` and `chance_of_playing_next_round`** — B-015's whole input.
+
+**Immediate and unschedulable by this repo: the GW2 deadline is 2026-08-28 17:30 UTC — tomorrow.** One
+snapshot was taken 2026-08-26 at 15:45 UTC; a second, closer capture is owed via `pnpm sync:fpl --
+--snapshot`. `hoursToDeadline` is stored per row, so a capture at 50 hours and one at 2 are
+distinguishable rather than silently equal. This is a human action with a hard clock on it.
+
+**What to build.**
+
+1. **Score the served projections against realised points, per gameweek**, once the gameweek is
+   `dataChecked` — never on `finished`, which flips before bonus and corrections land. Rows already
+   exist per `modelVersion` in `projections` (6,130 today across `v1-fdr-blend` and
+   `v2-fitted-2026-08-26`), so two model versions can be scored on identical gameweeks. Report against
+   `ep_next` and `form` from the deadline snapshot — the comparison that only live data can make.
+2. **A committed per-gameweek post-mortem** under `fpl-backend/reports/`: what was predicted, what
+   happened, and **whether the miss was variance or model**. The guide (§6) insists decision quality
+   is graded separately from outcome — a −4 hit worth +7 xP that returned −2 was a good decision.
+   Grade the process, not the scoreboard, and resist re-fitting on one gameweek (guardrail 10).
+3. **The capture becomes checkable, not remembered.** A missing snapshot for a passed deadline is
+   reported by `doctor.sh` and asserted in `/fpl:plan-gameweek` step 2 (owed from plan 007, item 139).
+   The capture rides on the ordinary sync inside a 36-hour window, so the check is a check and not the
+   trigger — which is exactly why it can silently never fire.
+
+**Two decisions owed from plan 007 that belong here because they are both about retention.**
+
+- **`explain`-block retention before season rollover** (item 140). `event/{gw}/live/` carries the
+  per-identifier answer key that made B-007's Phase 1 possible, and it is **gone at season rollover**.
+  A raw-JSON capture table, or 38 committed fixtures at ~440 KB each (~17 MB in-repo, which argues for
+  the table). Decide and build before May.
+- **`SyncService.runLive` currently rejects** (`sync.service.ts:299`, item 141). `--full` re-reads
+  finished gameweeks and `explain` persists within the season, so live sync may be unnecessary for
+  calibration and useful only for in-play display. Record the decision either way in
+  `docs/decisions.md`.
+
+---
+
+**Outcome — shipped 2026-08-27, backend#36.**
+
+`pnpm score:gameweek` scores every served `modelVersion` against realised points and against
+`ep_next` and `form` from the deadline snapshot, gated on `dataChecked` and never on `finished`. Its
+first run reports **nothing scored**, which is correct — `projections` starts at GW2 and no gameweek
+has completed under a served projection — and it names the five gameweeks it passed over rather than
+reporting an empty success.
+
+**The perishable half is done and was the urgent one.** `event/{gw}/live/` is captured whole into
+`gameweek_live_snapshot` by the ordinary sync, three gameweeks per run. GW1's payload is in, 610
+elements. Those `explain` blocks are FPL's own per-identifier answer key, no archive carries them,
+and they were one season rollover from being gone for good. An empty payload is deliberately not
+stored: it would satisfy the has-a-snapshot check for ever with nothing behind it.
+
+**Both owed decisions are closed** (D-027): the explain blocks go in a table rather than 38 committed
+fixtures, and `SyncService.runLive` stays unimplemented — calibration needed the explain blocks and
+now has them, and nothing in this product shows an in-play score.
+
+`doctor.sh` grew a **weekly loop** section covering all three silent failures: a passed deadline with
+no snapshot, a finished gameweek with no live capture, a next gameweek with no projections.
+
+**And the section's first draft was itself a check that could not fail.** All three passed because
+psql rejected every query — `.env` carries `?schema=public`, which libpq does not accept — with
+stderr suppressed, so every count defaulted to zero and every check reported ok. Found by noticing
+that the one check with a visible number printed nothing at all. The connection is now proved once
+before anything is inferred from a silence, and the missing-snapshot query was shown able to go red.
+
+**Still owed, and named rather than quietly dropped:** the snapshot assertion in `/fpl:plan-gameweek`
+step 2 (plan 007 item 139). The `skills/user/` files carry an uncommitted local edit that disables
+their `disable-model-invocation` frontmatter, and touching one would sweep that into a commit — making
+permanent a change that breaks this project's own rule. The automated half, which is the half that
+runs without anyone reading a skill, is done.
+

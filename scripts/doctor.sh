@@ -198,6 +198,72 @@ section "database"
   elif command -v pg_isready >/dev/null && pg_isready -q -d "${url%%\?*}" 2>/dev/null; then ok "postgres reachable"
   else bad "postgres not reachable at $url" "cd fpl-backend && docker compose up -d  (or start a local postgres)"; fi
 
+section "the weekly loop"
+  # B-016. Three things that are supposed to happen every gameweek and that fail SILENTLY, because a
+  # trigger that never fires looks exactly like a trigger with nothing to do.
+  #
+  #   1. a deadline snapshot behind every passed deadline — `status`, `chance_of_playing` and
+  #      `ep_next` are scalars that every sync overwrites, so a deadline that passes uncaptured is
+  #      data that cannot be recovered by any later run;
+  #   2. an `event/{gw}/live/` capture behind every finished gameweek — the `explain` blocks are gone
+  #      at season rollover;
+  #   3. a projection for the next gameweek, or there is nothing to serve.
+  #
+  # All three ride the ordinary sync. That is the point of checking them here rather than trusting it.
+  #
+  # **The query string has to come off the URL, and getting that wrong made every check here pass.**
+  # `.env` carries `?schema=public`, which Prisma understands and libpq does not — psql rejects it
+  # with `invalid URI query parameter: "schema"`. With stderr suppressed, every query returned an
+  # empty string, every count defaulted to zero, and all three checks reported ok. A check that
+  # passes because its data source is unreachable is the worst kind: it is green, and it is green for
+  # a reason that has nothing to do with what it claims to prove. So the connection is proved once,
+  # loudly, before anything is inferred from a silence.
+  db="${url%%\?*}"
+  if [ -n "${url:-}" ] && command -v psql >/dev/null &&
+     psql "$db" -t -A -c 'select 1' >/dev/null 2>&1; then
+    q() { psql "$db" -t -A -c "$1" 2>/dev/null | tr -d '[:space:]'; }
+
+    missing=$(q "select coalesce(string_agg(g.id::text, ', ' order by g.id), '') from gameweeks g
+                 left join player_deadline_snapshot s on s.\"gameweekId\" = g.id
+                 where g.\"deadlineTime\" < now() and s.id is null
+                   and g.id >= (select min(\"gameweekId\") from player_deadline_snapshot)")
+    if [ -n "$missing" ]; then
+      bad "no deadline snapshot for gameweek(s) $missing" \
+          "unrecoverable — status and ep_next are overwritten every sync. Capture the NEXT one: cd fpl-backend && pnpm sync:fpl -- --snapshot"
+    else
+      ok "every passed deadline since capture began has a snapshot"
+    fi
+
+    nolive=$(q "select count(*) from gameweeks g
+                left join gameweek_live_snapshot l on l.\"gameweekId\" = g.id
+                where g.finished and l.\"gameweekId\" is null")
+    if [ "${nolive:-0}" != "0" ]; then
+      warn "$nolive finished gameweek(s) with no event/live capture" \
+           "the explain blocks vanish at season rollover; the hourly sync takes 3 per run and will catch up"
+    else
+      ok "every finished gameweek has its live payload captured"
+    fi
+
+    # One query rather than two, and it always returns a row. The two-step version silently printed
+    # NOTHING when the first query came back empty — a check that disappears is worse than one that
+    # fails, because the section still looked complete.
+    nextproj=$(q "select coalesce((select min(id) from gameweeks where \"deadlineTime\" > now()), 0)
+                       || ':' ||
+                       coalesce((select count(*) from projections where \"gameweekId\" =
+                         (select min(id) from gameweeks where \"deadlineTime\" > now())), 0)")
+    nextgw=${nextproj%%:*}; proj=${nextproj##*:}
+    if [ "${nextgw:-0}" = "0" ]; then
+      warn "no upcoming gameweek in the database" "cd fpl-backend && pnpm sync:fpl"
+    elif [ "${proj:-0}" = "0" ]; then
+      bad "no projection for the next gameweek (GW$nextgw)" "cd fpl-backend && pnpm project"
+    else
+      ok "GW$nextgw has $proj projection rows"
+    fi
+  else
+    warn "skipped the weekly-loop checks" \
+         "needs psql and a DATABASE_URL that libpq accepts — try: psql \"${db:-?}\" -c 'select 1'"
+  fi
+
 section "upstream FPL API"
   gw=$(curl -s -m 6 https://fantasy.premierleague.com/api/bootstrap-static/ 2>/dev/null \
        | jq -r '(.events[]|select(.is_next)|"next \(.name), deadline \(.deadline_time)")' 2>/dev/null)
