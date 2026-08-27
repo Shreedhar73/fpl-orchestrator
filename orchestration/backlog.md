@@ -286,6 +286,24 @@ scored week by week by `pnpm score:gameweek` (B-016), which is how OpenFPL itsel
 committed models are the final union-grid residual; the fit script freezes the grid and the
 selection rule with the reason.
 
+**Increments 3 and 4 shipped 2026-08-27 — the composite (PR #78) and the prospective machinery
+(PR #80) — and the archive holdout is retired.** The composite (per-position blend weights chosen on
+VALIDATE by a bar-shaped minimax rule, one pre-registered final TEST reading) came **one leg
+short**: ordering met at every k (37.5/38.6/41.9 vs 32.7/36.1/38.0), low-return held, Haulers better
+inside its noise — and the Tickers regression, halved to +0.144 ± 0.052, still clears. Along the way
+a leak was caught by its own validation number (a `minutesActual` identity column slipped into the
+training features via a blocklist; val RMSE collapsed to 1.41, the reading voided, and the fit now
+takes its feature list from the manifest and asserts it).
+
+**What exists now, running weekly without anyone remembering anything:** serving is PINNED to the
+incumbent's version (the newest-row hijack was demonstrated live before the fix — the running
+backend actually served the candidate for a few minutes — and the pin's spec is that sabotage made
+permanent), and `CandidateService` rides `pnpm project`, writing v4-composite rows under their own
+version through the same `exportFeatures` the fit trained from, scored every gameweek by
+`pnpm score:gameweek` beside the incumbent. **The 2026-27 season is the referee now.** Roughly 6–8
+scored gameweeks (late October) is the earliest the prospective comparison says anything; the
+decision then is a D-numbered adoption call reading `reports/served-projections.md`.
+
 **Also worth carrying from the first run.** v4's simulated seasons ran behind the incumbent's on a
 compressed top end. If enrichment fixes Tickers/Haulers and the bar is met, the serving blockers are
 next and were recorded in B-035: no explain blocks (D-019), no distributions (B-017), no pPlay — a
