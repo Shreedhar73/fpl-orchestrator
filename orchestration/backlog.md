@@ -304,3 +304,40 @@ sweep in `reports/bench-weight.md` cannot see XI quality at all — the season s
 its lineup from realised availability and never reads the LP's `y`. Any change here must be judged
 on a harness that can observe which eleven the LP actually picked, and no such harness exists yet.
 That gap is the reason this entry exists rather than a one-line constant change.
+
+**Measured against the code 2026-08-27, before any plan — option 1 does not fix the case it was
+written for.** `BENCH_WEIGHT = 0.7` and `COLLISION_LAMBDA = 1.0` are both as the entry states
+(`policy.ts:53`, `policy.ts:113`), and the objective in `ilp.ts` is
+`w·Σ EP·x + (1−w)·Σ EP·y + Σ EP·c − λ(Σz + Σw)`. For a **fixed fifteen** the `x` term is constant, so
+the XI choice is decided by `(1−w)·ΔB − λ·ΔP`, where `ΔB` is horizon EP given up and `ΔP` the change
+in charged pairs. On the measured GW2 swap, `ΔB = −3.30` and `ΔP = −4` (the captain's exposure counts
+twice):
+
+| λ as charged | margin favouring the bench |
+|---|---:|
+| `λ = 1.0` (today) | `0.3(−3.30) + 4` = **+3.01** |
+| `(1−benchWeight)·λ = 0.3` (option 1) | `0.3(−3.30) + 1.2` = **+0.21** |
+
+Option 1 shrinks the margin 14× and still benches. It is not a pure rescale either — the captain
+term `Σ EP·c` carries no `(1−w)` factor, which is the only reason the two rows differ at all. So
+**only options 2 and 3 change the recommendation of record**; option 1 changes how close the call is,
+which is worth knowing but is not the fix.
+
+`policy.ts` corroborates the mechanism from the other side and reaches the opposite verdict about it
+— it documents the same benching, computes the same `(1 − 0.7) × 3.30 = 0.99` against 4 penalty
+points, and calls it "B-011 working, not failing", noting the swap still wins at `benchWeight = 0.1`
+(margin `+1.03`). That is a genuine disagreement about intent, not about arithmetic, and it is the
+thing the plan interview has to settle: B-011's own words say a squad should not *hold* both sides,
+and the code now only stops it *starting* both sides.
+
+**One claim in this entry is overstated and should not be carried forward as written.** `penaltyEp`
+is `λ × (pairs inside the chosen XI + the captain's conflicts)` (`ilp.ts:402`), so it is 0 whenever
+the XI carries no colliding pair — true of the XI, not false by construction, and a formation that
+forced a pair into the eleven would still report it. The defect that stands is narrower and still
+real: `taken: []` and `penaltyEp: 0` are the only vocabulary the payload has, and neither can say
+"held, benched to avoid the charge" — which is precisely what happened on the GW2 solve of record.
+
+**B-024 is downstream of this decision, confirmed.** `transfer-lp.ts:114-118` emits
+`Σ EP·x − hitCost·h − λ·Σ z` — no `y`, no `c`, collisions on `x`. B-024 asks for the collision rows to
+be copied onto `y` "exactly as `buildLp` has them"; if this entry resolves to option 2 they belong on
+`x` where they already are, and B-024's scope shrinks to the XI and captain terms. Settle this first.
