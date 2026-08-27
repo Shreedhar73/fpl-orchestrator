@@ -265,6 +265,14 @@ Understat mirrors for 2023-24..2025-26 into new archive columns or a sibling tab
 re-run `tools/fit-v4/fit.py`; re-measure on B-036's unchanged bar. The bar does not move between
 runs — that is the point of having pre-committed it.
 
+**Increment 1 shipped 2026-08-27 — the I/C/T split (plan 023, backend PR #74) — and the bar still
+holds.** Ordering improved (@11 38.0% vs 32.7%); the Tickers regression narrowed to +0.242 ± 0.059
+and still clears; Haulers a wash. The understat groups are **blocked at the source, probed**: vaastav
+player files stop before the test season, understat.com is a JS shell and its AJAX endpoint 404s. So
+what remains here is model-shaped: a distribution-aware objective (the RMSE fit under-serves the 3-4
+point band a decomposed minutes model prices exactly), or **v4 as a residual on v3** — which is also
+the leading answer to the serving blockers below.
+
 **Also worth carrying from the first run.** v4's simulated seasons ran behind the incumbent's on a
 compressed top end. If enrichment fixes Tickers/Haulers and the bar is met, the serving blockers are
 next and were recorded in B-035: no explain blocks (D-019), no distributions (B-017), no pPlay — a

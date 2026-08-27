@@ -21,11 +21,20 @@ having pre-committed it.
 
 ## Checklist
 
-- [ ] Migration: `archive_player_gameweek` gains nullable `influence`, `creativity`, `threat` —
+- [x] Migration: `archive_player_gameweek` gains nullable `influence`, `creativity`, `threat` —
       `prisma/schema.prisma` + migration
-- [ ] Importer maps the three columns; `pnpm import:archive` re-run; resolve-rate gate unchanged
-- [ ] `HistoryRow` gains the three as `number | null`; archive select maps them; the live path maps
+- [x] Importer maps the three columns; `pnpm import:archive` re-run; resolve-rate gate unchanged
+- [x] `HistoryRow` gains the three as `number | null`; archive select maps them; the live path maps
       null (the live table has no split — measurement only, stated)
-- [ ] Exporter: three new player window fields, missing when null — `feature-export.ts`
-- [ ] Re-export, refit (`tools/fit-v4/fit.py`, same grid, same seed), parity regenerated
-- [ ] Re-measure: `pnpm decision-quality`, B-036's bar re-evaluated, verdict derived not asserted
+- [x] Exporter: three new player window fields, missing when null — `feature-export.ts`
+- [x] Re-export, refit (`tools/fit-v4/fit.py`, same grid, same seed), parity regenerated
+- [x] Re-measure: `pnpm decision-quality`, B-036's bar re-evaluated, verdict derived not asserted
+
+---
+
+**Outcome — shipped 2026-08-27, `fpl-backend` PR #74. The bar still holds, and the increment moved
+the right numbers the right way without clearing it.** Ordering improved again (@11 38.0% vs the
+incumbent's 32.7%, was 37.5%); the Tickers regression narrowed (+0.242 ± 0.059 from +0.267) and
+still clears its noise; Haulers stayed a wash. `modelVersion` unmoved. What is left for B-037 is
+model-shaped, not feature-shaped: the blocked understat groups (evidence in the table above), a
+distribution-aware objective, or v4 as a residual on the incumbent's decomposition.
