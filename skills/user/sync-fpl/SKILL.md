@@ -11,11 +11,11 @@ cannot invoke this on its own.
 
 ## Choose the mode
 
-| Mode | Command | When |
-|---|---|---|
-| Incremental | `pnpm sync:fpl` | Default. `bootstrap-static` + `fixtures`. Seconds. |
-| Live | `pnpm sync:fpl -- --live` | While matches are playing. Adds `event/{gw}/live`. |
-| Full | `pnpm sync:fpl -- --full` | First run, or after a reset. Adds per-player history: ~612 upstream requests, rate-limited, minutes not seconds. |
+| Mode        | Command                   | When                                                                                                             |
+| ----------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Incremental | `pnpm sync:fpl`           | Default. `bootstrap-static` + `fixtures`. Seconds.                                                               |
+| Live        | `pnpm sync:fpl -- --live` | While matches are playing. Adds `event/{gw}/live`.                                                               |
+| Full        | `pnpm sync:fpl -- --full` | First run, or after a reset. Adds per-player history: ~612 upstream requests, rate-limited, minutes not seconds. |
 
 Run from `fpl-backend/`. Confirm with the user before `--full`.
 

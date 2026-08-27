@@ -14,17 +14,17 @@ passing checks too.
 
 ## What it checks
 
-| Area | Check |
-|---|---|
-| Toolchain | node ≥ 20, pnpm, docker or local postgres, jq, curl |
-| Repos | all three present at the paths in `repos.json` |
-| Skills | every skill in `skills/` symlinked into both repos' `.claude/skills/`, no dangling links |
-| Hooks | every hook script exists, is executable, and survives a sample payload |
-| Git | per repo: `origin` present, no AI attribution trailers in the log, work not piling up on the default branch |
-| Ports | every port in `repos.json`, and which process holds one that is taken |
-| Database | reachable, migrations applied, row counts for the core tables |
-| Freshness | most recent `sync_runs` row and its age |
-| Upstream | `bootstrap-static/` reachable, current gameweek, next deadline |
+| Area      | Check                                                                                                       |
+| --------- | ----------------------------------------------------------------------------------------------------------- |
+| Toolchain | node ≥ 20, pnpm, docker or local postgres, jq, curl                                                         |
+| Repos     | all three present at the paths in `repos.json`                                                              |
+| Skills    | every skill in `skills/` symlinked into both repos' `.claude/skills/`, no dangling links                    |
+| Hooks     | every hook script exists, is executable, and survives a sample payload                                      |
+| Git       | per repo: `origin` present, no AI attribution trailers in the log, work not piling up on the default branch |
+| Ports     | every port in `repos.json`, and which process holds one that is taken                                       |
+| Database  | reachable, migrations applied, row counts for the core tables                                               |
+| Freshness | most recent `sync_runs` row and its age                                                                     |
+| Upstream  | `bootstrap-static/` reachable, current gameweek, next deadline                                              |
 
 ## Reading the result
 

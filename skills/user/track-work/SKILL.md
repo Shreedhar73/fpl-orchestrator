@@ -95,7 +95,7 @@ gh api -X POST repos/Shreedhar73/fpl-orchestrator/issues/<parent>/sub_issues \
 ```
 
 **`sub_issue_id` is the REST integer id, not the node id**, and this is the one thing that will waste
-your time here. `gh issue view <n> --json id` returns the *GraphQL* node id
+your time here. `gh issue view <n> --json id` returns the _GraphQL_ node id
 (`I_kwDOUEjoOM8AAAABOTTtNQ`), which the endpoint rejects with:
 
 ```
@@ -105,7 +105,7 @@ your time here. `gh issue view <n> --json id` returns the *GraphQL* node id
 `gh api repos/<owner>/<repo>/issues/<n> --jq .id` returns the integer the endpoint wants. Different
 field, same name, and only one of them works.
 
-Confirm the link rather than trusting the 200 — the response body is the *parent* issue, so it looks
+Confirm the link rather than trusting the 200 — the response body is the _parent_ issue, so it looks
 identical whether or not the child attached:
 
 ```bash

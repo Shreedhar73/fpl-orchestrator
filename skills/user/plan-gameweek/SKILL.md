@@ -36,7 +36,7 @@ optimizer skill decides what "best" means here.
    the vice-captain and why it is that player.
 
 7. **Chips.** Only raise a chip when the fixture calendar actually argues for it — a double gameweek
-   for Bench Boost, a blank for Free Hit. Recommend the *window*; the user spends the chip.
+   for Bench Boost, a blank for Free Hit. Recommend the _window_; the user spends the chip.
 
 ## Output
 

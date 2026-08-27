@@ -47,6 +47,7 @@ sort in the order they were agreed:
 **How we will know it works** — the specific check, run against real data.
 
 ## Tasks
+
 - [ ] Task — files involved
 - [ ] Task — files involved
 ```
@@ -71,7 +72,7 @@ parent issue in `fpl-orchestrator` and a child in each sibling repo, and carries
 archive.
 
 This skill deliberately stops short of that. An issue is a public statement of intent, and this skill
-runs *before* approval exists — opening one from here would announce a plan nobody has agreed to.
+runs _before_ approval exists — opening one from here would announce a plan nobody has agreed to.
 
 If the work has no `B-NNN` entry in [`orchestration/backlog.md`](../../../orchestration/backlog.md)
 yet, write it before the plan, not after. The entry is what makes the work visible to the next
