@@ -1763,3 +1763,123 @@ that fit is not done.
 **Bookmaker odds: recorded as UNANSWERED** (D-028). No provider's terms were read and no ingestion
 code was written. Saying "probed and rejected" would have been the easy sentence and the false one.
 
+---
+
+## B-023 · The ILP maximises all 15 equally — the XI, bench and captain variables the spec calls for were never built
+
+```
+Status   backlog
+Repos    fpl-backend
+Plan     —
+Issue    —
+```
+
+**Why. The code does not implement the program `fpl-optimizer` specifies.** The skill's Selection
+section names three variable families — `x_p` in the 15, `y_p ≤ x_p` in the XI, `c_p ≤ y_p` captain
+— and the objective
+
+```
+Maximise  Σ EP_p × (y_p + c_p)  +  bench_weight × Σ EP_p × (x_p − y_p)      bench_weight ≈ 0.1
+```
+
+`ilp.ts:buildLp` emits **only `x`**, at coefficient `c.ep`, for all fifteen: `Σ EP_p × x_p`. There is
+no `y`, no `c`, and no bench weight. `pickBestXi` picks the XI and the armband afterwards, from a
+fifteen the solver already committed the money to — a second optimisation the first one could not
+see. So the objective optimises a quantity FPL never pays out, and the divergence is from a written
+design, not a newly-noticed idea.
+
+**Measured on the live GW2 recommendation (2026-08-27, model `v3-fitted-2026-08-27`).** Objective
+value 252.57 over gameweeks 2–6. The four bench players — Petrović £4.5m, Nketiah £5.5m, Ballard
+£5.0m, Canvot £5.0m — contribute **57.56 of that 252.57 (22.8%)** against a specified weight of
+~10%, and hold **£20.0m of the £99.6m squad (20% of budget)** while scoring only through auto-subs.
+The captain's double — Palmer's 21.9 again over the horizon — is in the objective **nowhere**.
+
+**What this produces, and it is what was reported.** Both omissions push the same way: away from
+premiums. A bench place valued at par means bench fodder is never fodder, so the money that would
+buy the marginal premium goes into a fourth £5.0m defender; a captain worth nothing at selection
+time means the one slot that pays twice is bought at single price. The GW2 squad holds 5 of the top
+6 by `epNextGw` but skips Haaland (3rd, £15.5m) and the Liverpool mid-price block, and benches four
+players averaging 4.1 xP.
+
+**Not a bug, and out of scope here: 3-per-club.** Three Brighton players in the recommendation is
+the legal maximum. `club_<teamId> <= rules.clubLimit()` is correct and doing its job.
+
+**What to build.** The program the skill already specifies: `y_p` and `c_p` as decision variables
+with `y_p ≤ x_p`, `c_p ≤ y_p`, `Σ y_p = 11`, `Σ c_p = 1`, the formation min/max on `y` (GKP 1/1,
+DEF 3/5, MID 2/5, FWD 1/3), and the objective above. `pickBestXi` then becomes a read-back of the
+solve rather than a second optimisation that can disagree with it — and `arrangeSquad` still owns
+bench *order*, which is `P(plays) × EP` and stays outside the ILP.
+
+**The trap — three of them.**
+
+1. **`bench_weight ≈ 0.1` is the skill's own estimate, not a fitted number.** Shipping it unmeasured
+   trades one arbitrary weight (1.0) for another (0.1). Fit it against realised auto-sub points on
+   the archive, or state on the recommendation that it is a policy constant.
+2. **Solve size.** Three binary families over the pruned pool instead of one, plus the formation
+   rows. Measure `durationMs` before and after; `optimizer_runs` already stores it.
+3. **The evidence bar is realised points, not plausibility.** Require the change to raise realised
+   XI points on the archived gameweeks (B-012 harness) before believing it. That a corrected
+   objective *would* buy Haaland is a hypothesis this entry does not get to assume — what is proven
+   is that the current one is structurally biased against him.
+
+**Owed alongside:** `arrangeSquad` is called by `insights` to arrange a squad a user brought, so
+whatever replaces `pickBestXi` must keep serving that path — the two must not end up with different
+definitions of "best XI", which is the thing the current comment says it exists to prevent.
+
+---
+
+**Outcome — shipped 2026-08-27, backend#40. The structural half is right; the bench weight the entry
+proposed is measurably wrong.**
+
+The program the skill specifies is now the program the code solves: `y` and `c` as decision
+variables with `y ≤ x`, `c ≤ y`, `Σ y = 11`, `Σ c = 1`, the formation min/max on `y`, and the
+objective above. The collision penalty moved from the squad to the XI — B-011's rule is about
+betting both ways on one match **on the pitch**, and two of our players colliding where one is
+benched is not that bet — with a second row family `w` reproducing the captain's doubled exposure
+exactly. `pickBestXi` takes the same bench weight and maximises the identical expression, so it is a
+verification of the solve rather than a competing optimisation, and the service logs a warning if the
+two ever disagree.
+
+**`BENCH_WEIGHT` is 0.7, not ~0.1, and the entry's own trap 1 is why.** `pnpm optimize:bench-sweep`
+walks a full archived season per weight through the same simulator `pnpm decision-quality` uses:
+
+| weight | 0 | 0.1 | 0.2 | 0.35 | 0.5 | **0.7** | 0.85 | 1.0 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| no-transfer | 1457 | 1457 | 1329 | 1299 | 1299 | **1635** | 1635 | 1635 |
+| greedy-1ft | 1881 | 1881 | 1893 | 1867 | 1867 | **1881** | 1881 | 1881 |
+
+Everything at or below 0.5 costs **about 180 points of season**. The proposed 0.1 was not merely
+unmeasured — it is worse than the behaviour it replaces. 0.7 through 1.0 cannot be told apart, and
+the tie breaks on the objective being **well posed**: the XI coefficient is `1 − benchWeight`, so at
+exactly 1.0 it is zero and the starting eleven is determined by nothing but the collision penalty.
+Live at 1.0 it benched Wieffer (17.22) and De Cuyper (16.34) behind Canvot (15.23) and Ballard
+(15.20). **The sweep could not see that** — the simulator re-chooses its lineup from realised
+availability and never reads the LP's XI, so a measurement that does not look at the thing being
+served is not a licence to ship it.
+
+*Why a discounted bench loses points* is the substantive finding: a bench bought as fodder cannot
+cover a blank. An auto-sub fires only for a player who did not play, and if the substitute did not
+play either the manager keeps the zero. The `greedy-1ft` row is flat because transfers repair a weak
+bench over time, so the effect is largest exactly where a manager has fewest moves.
+
+**Trap 3, the evidence bar, was not cleared and that is stated rather than buried.** With this in,
+the model's `greedy-1ft` season is **1881 against 1943** before, and `no-transfer` **1635 against
+1623**. The template arm moved too, 1917 → 1928, on a squad that never touches the LP — which is the
+simulator bug below showing up. Two changes landed together and the greedy arm is down. The
+structural argument stands on its own: the captain's double being absent from the objective entirely
+is not a tuning question. The points argument does not.
+
+**And a real bug in the season simulator, found only because this change exposed it.** The transfer
+policy read the outgoing player's position off that round's market — `outPosition !== undefined &&
+row.position !== outPosition` — and `outPosition` is undefined for a player with no row, i.e. one who
+blanked. **The position lock disengaged exactly when the data was thin.** It survived because every
+squad the simulator had been handed had an expensive bench that always featured; a genuine fodder
+bench blanks constantly. Over 38 rounds the squad drifted to 0 GKP / 7 DEF / 6 MID / 2 FWD and the
+season died with "no legal XI" hundreds of rounds from the cause. Position is now carried on the
+squad and a policy returning a mismatched pair throws.
+
+Three silent failures made loud alongside it: the opening-squad solve checks its `Status` and its
+size, "no legal XI" names the shape that failed, and an empty `Bounds` section is no longer emitted.
+
+Trap 2, solve size: 389–435 ms against roughly 280 ms before, on three binary families instead of one.
+

@@ -1039,3 +1039,55 @@ nothing.
 3. **Then, and only then, the measurement**: does a market-implied λ beat `strength.ts`'s on held-out
    fixtures. D-024 is the reason to expect it might — our own λ is a lagged proxy that took three
    attempts to make informative at all.
+
+---
+
+## D-029 · 2026-08-27 · A bench place is worth 0.7 of a start, measured — and the value the spec proposed is worse than doing nothing
+
+**Context.** B-023 found that `buildLp` emitted one variable family, `x`, and maximised `Σ EP × x` —
+a quantity FPL never pays out. A bench player scores only through an auto-substitution, and the
+captain's double was in the objective nowhere. The entry proposed the skill's estimate, `bench_weight
+≈ 0.1`, and its own first trap warned that shipping it unmeasured would trade one arbitrary weight
+for another.
+
+**Decision, and the measurement that produced it.** The XI and captain variables are in the objective.
+`BENCH_WEIGHT` is **0.7**, chosen from a sweep that walks a full archived season per weight through
+the same simulator `pnpm decision-quality` uses:
+
+| weight | 0 | 0.1 | 0.2 | 0.35 | 0.5 | **0.7** | 0.85 | 1.0 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| no-transfer | 1457 | 1457 | 1329 | 1299 | 1299 | **1635** | 1635 | 1635 |
+| greedy-1ft | 1881 | 1881 | 1893 | 1867 | 1867 | **1881** | 1881 | 1881 |
+
+Every value at or below 0.5 costs about **180 points of season**. The proposed 0.1 is not merely
+unmeasured; it is worse than the behaviour it was meant to replace.
+
+**The tie inside 0.7–1.0 breaks on the objective being well posed, not on preference.** The XI
+coefficient is `1 − benchWeight`. At exactly 1.0 it is **zero**, and the starting eleven stops being
+determined by anything except the collision penalty — live at 1.0 the solver benched a 17.22 defender
+behind a 15.20 one, because within a chosen fifteen it no longer cared who played.
+
+**And the sweep could not have caught that.** The season simulator re-chooses its lineup every round
+from realised availability; it never reads the LP's XI. **A measurement that does not look at the
+thing you are about to serve is not a licence to ship it** — that generalises past this entry, and it
+is why the live solve was run and read at each candidate weight rather than only the report.
+
+**Why a discounted bench loses points**, which is the finding worth carrying: a bench bought as fodder
+cannot cover a blank. An auto-substitution fires only for a player who did not play, and if the
+substitute did not play either the manager keeps the zero. The `greedy-1ft` row is flat because
+transfers repair a weak bench over time — so the effect is real and it is largest exactly where a
+manager has the fewest moves.
+
+**Consequences.**
+
+1. **B-023's evidence bar was not cleared and the change ships anyway, on a stated argument.** The
+   model's `greedy-1ft` season is 1881 against 1943 before. The captain's double being absent from the
+   objective entirely is a correctness defect, not a tuning choice, and correctness is the argument.
+   The points argument is not available and the report says so.
+2. **The season simulator had a bug that only a fodder bench could expose.** The transfer policy read
+   the outgoing player's position off the round's market, and `undefined` — a player who blanked —
+   *disabled* the position lock. It had never fired because every squad the simulator had been given
+   had a bench that always played. Position is now carried on the squad.
+3. **The rule that generalises: a guard written as `x !== undefined && check(x)` disables itself on
+   thin data.** That is the shape, and it reads as defensive. If the check matters, the missing value
+   is an error, not a pass.
