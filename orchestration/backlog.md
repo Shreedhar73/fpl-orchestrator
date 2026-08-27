@@ -168,6 +168,22 @@ someone commits to maintaining the table weekly; an uncurated curated table is w
 `chance_of_playing_next_round: null` means **fully fit**, not unknown — treating null as zero benches
 every healthy player. A suspension is knowable in advance, is not an injury, and does not decay.
 
+**The calendar block fell 2026-08-27 — the historical flags exist after all, probed live.** The
+Wayback Machine holds **near-daily snapshots of `bootstrap-static`** from at least 2023-08 through
+today (CDX queried per month: every month of 2023-24, 2024-25 and 2025-26 has 200s, and Jul–Aug 2024
+sampled at daily density). A snapshot fetched and decompressed (2024-12-06, `id_` raw form,
+gzip — `curl --compressed`) carries the full per-player `status`, `chance_of_playing_next_round`
+and `news`: 693 players, 205 flagged. That is exactly the field D-016 limit 3 said was
+unreconstructable — the "cannot be fitted from the archive at all" paragraph above stands for *our*
+archive, but the input is recoverable externally. Route: for each past deadline take the **last
+snapshot before** it (never the first after — post-deadline `status` reflects the match), join on
+per-season element id to `archive_player_gameweek` realised minutes, and fit availability as an
+input over ~3 seasons × 38 GWs instead of waiting for ten live captures. ~76 fetches per season,
+etiquette-fine. Open cautions: per-deadline gap must be verified (a missing day means a staler
+flag, still bounded well under our own 46.1 h GW2 capture); `status` code semantics spot-checked
+one season, check the others. The live `player_deadline_snapshot` capture (B-016) stays — it is
+the forward referee this fit will be scored against.
+
 ---
 
 ## B-033 · The defensive-concentration charge changes no squad, gives up 71 projected points and returns 9
