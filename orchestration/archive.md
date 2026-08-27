@@ -2796,3 +2796,41 @@ wash and is called one. The v4 sim arms are paired too — `model − v4` held a
 top end. Had neither high-return miss cleared its noise, the verdict would have called the deciding
 leg unresolved at this sample; that branch exists, is tested, and did not fire.
 
+---
+
+## B-038 · The archive import is not atomic per season, and a stale Prisma client proved it — done 2026-08-27
+
+```
+Status   done — fpl-backend#83, PR #84
+Repos    fpl-backend
+Plan     —
+Issue    backend#83
+```
+
+**Why.** Watched happen 2026-08-27, not reasoned about: after the I/C/T migration, `pnpm
+import:archive` ran against a stale generated client, and the import's delete-then-insert design
+meant 2023-24 was **deleted and then nothing was written** — the season was simply gone until the
+client was regenerated and the import re-run. A crash at that moment (or a session that did not
+notice the exit code) leaves the archive short one season, and every consumer of
+`archive_player_gameweek` — the fit, the exporter, every calibration report — would quietly train
+and measure on two seasons believing it had three.
+
+**What to build.** Wrap each season's delete+insert in one transaction so an interrupted import
+leaves the previous state, not a hole. And make the row-count assertion structural: the import
+already knows how many rows it parsed; a post-import count per season that must match is one query.
+
+Recorded 2026-08-27.
+
+---
+
+**Outcome — shipped 2026-08-27, PR #84.** Each season's delete+insert is one transaction (120s
+timeout), and the import asserts written == parsed — a rollback is an error, never a success line.
+Verified with a full live re-import, all three seasons, 100% resolved.
+
+**Shipped the same hour, same motive (the October verdict must not depend on a human remembering a
+command): backend#81 / PR #82** — projections now ride the hourly sync tick whenever the next
+deadline is inside the 36-hour snapshot window. The snapshot always rode the sync (B-016);
+projections never did, and a forgotten `pnpm project` was a gameweek the prospective comparison
+silently lost. Incumbent and candidate rows refresh together, upsert-idempotent, and the final
+pre-deadline write carries the freshest availability — exactly the row `score:gameweek` grades.
+

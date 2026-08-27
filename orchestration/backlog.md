@@ -309,26 +309,3 @@ compressed top end. If enrichment fixes Tickers/Haulers and the bar is met, the 
 next and were recorded in B-035: no explain blocks (D-019), no distributions (B-017), no pPlay — a
 model that cannot ship its reasoning does not ship, however it measures. Candidate answers: GBM per
 component, or GBM as a residual on v3.
-
-## B-038 · The archive import is not atomic per season, and a stale Prisma client proved it
-
-```
-Status   backlog
-Repos    fpl-backend
-Plan     —
-Issue    —
-```
-
-**Why.** Watched happen 2026-08-27, not reasoned about: after the I/C/T migration, `pnpm
-import:archive` ran against a stale generated client, and the import's delete-then-insert design
-meant 2023-24 was **deleted and then nothing was written** — the season was simply gone until the
-client was regenerated and the import re-run. A crash at that moment (or a session that did not
-notice the exit code) leaves the archive short one season, and every consumer of
-`archive_player_gameweek` — the fit, the exporter, every calibration report — would quietly train
-and measure on two seasons believing it had three.
-
-**What to build.** Wrap each season's delete+insert in one transaction so an interrupted import
-leaves the previous state, not a hole. And make the row-count assertion structural: the import
-already knows how many rows it parsed; a post-import count per season that must match is one query.
-
-Recorded 2026-08-27.
