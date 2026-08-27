@@ -76,8 +76,9 @@ matter.
 Variables: `x_p ∈ {0,1}` player in the 15; `y_p ∈ {0,1}` player in the XI (`y_p ≤ x_p`);
 `c_p ∈ {0,1}` captain (`c_p ≤ y_p`).
 
-Maximise `Σ EP_p × (y_p + c_p) + bench_weight × Σ EP_p × (x_p − y_p) − λ × Σ z_ij`, where
-`z_ij ≥ x_i + x_j − 1` prices every conflicting pair the squad HOLDS (below).
+Maximise `Σ EP_p × (y_p + c_p) + bench_weight × Σ EP_p × (x_p − y_p) − λ × (Σ z_ij + Σ w_ij)`, where
+`z_ij ≥ x_i + x_j − 1` prices every conflicting pair the squad HOLDS and `w_ij ≥ c_i + x_j − 1` prices
+the armband sitting on one side of one (below).
 
 **`bench_weight` is 0.7 and was measured, not estimated.** This skill said ~0.1 for a long time and
 that number is wrong: B-023 swept it over a full archived season and every value at or below 0.5 cost
@@ -99,19 +100,26 @@ Subject to:
   worth more than 4 points over the horizon", and only the solver can answer it.
 - **Fixture collisions:** one row per pair of our own players on opposite sides of the same match —
   an attacker (FWD/MID) of ours against a defensive player (DEF/GKP) of ours. `z_ij ≥ x_i + x_j − 1`,
-  charged the policy `λ` in the objective, **unscaled**. It was briefly charged at `bench_weight × λ`
+  charged the policy `λ` in the objective, **unscaled**. Plus `w_ij ≥ c_i + x_j − 1` in both
+  directions: the captain doubles the stake on the correlated outcome, not only the reward, so a
+  captained pair is charged twice. It was briefly charged at `bench_weight × λ`
   on the argument that B-023 had changed what a squad place is worth; that scaling is exact only for a
   pair nobody starts — a *starter's* coefficients sum back to `ep` — and a colliding pair is usually
   two startable players. Neither version is measurable, and the reason to keep them uncoupled is that
   two knobs moving together need a harness that can see both.
 
-**The collision rows go on `x`, and this is the one thing about them worth remembering.** They were
-briefly moved onto `y` and `c` — charge the eleven, not the squad, on the argument that the bet is
-made on the pitch. The solver answered by benching one side and keeping both: it gave up 3.3 horizon
-points in a live eleven while paying £9.6m for two players it would not start, and over an archived
-season it owned a pair in every round and started both sides in eight of them. Charge what you want
-to refuse. If the refusal is "do not own both sides", the row belongs on the ownership variable, and
-nothing else needs a row.
+**Every collision row keys off `x`, including the captain's, and this is the one thing about them
+worth remembering.** They were briefly moved onto `y` and `c` — charge the eleven, not the squad, on
+the argument that the bet is made on the pitch. The solver answered by benching one side and keeping
+both: it gave up 3.3 horizon points in a live eleven while paying £9.6m for two players it would not
+start, and over an archived season it owned a pair in every round and started both sides in eight of
+them.
+
+Then the correction over-corrected: the captain's row was deleted along with the XI's, and the next
+live solve captained a Chelsea midfielder into two Brighton defenders it owned and started, paying
+nothing for the double. Both rows belong, and both read `x` on the other side. **Charge what you want
+to refuse, and key it to the decision you want to change** — if benching answers the charge, the
+charge was on the wrong variable.
 
 **The penalty is a policy choice that its own measurement did not support**, and any code touching it
 has to keep saying so: swept over 103 archived gameweeks it gained +0.59 ± 0.92 realised points per

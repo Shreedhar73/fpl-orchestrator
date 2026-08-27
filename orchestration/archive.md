@@ -2088,3 +2088,68 @@ second one reads as though it meant something. That is a contract change, so bac
 **What this is not.** Not a re-tune. The value B-011 measured is 1.0 and this restores exactly that;
 anyone proposing a different number is making a new argument and owes a new measurement — on the
 replay harness, which can now see the XI, and on ownership, which is where the charge lands.
+
+---
+
+## B-027 · The armband can double a bet the squad is already charged for, and pays nothing extra — done 2026-08-27
+
+```
+Status   done
+Repos    fpl-backend, fpl-frontend
+Plan     docs/plans/019-collision-penalty-on-ownership.md (D1, half reversed — no new plan)
+Issue    orchestrator#20 (parent), backend#48, frontend#15
+Shipped  backend#49, frontend#16
+Outcome  `w_ij ≥ c_i + x_j − 1` in both directions, charged λ. The armband moved off Palmer to Saka on
+         the recommendation of record, for 0.86 horizon EP; the fifteen and the eleven are untouched.
+         The season replay confirms the change is confined to what it was aimed at — identical
+         fifteen, identical eleven in all 38 rounds, the armband moving in 5 (realised 1697 v 1713,
+         which is five captain decisions and supports no verdict either way; the report says so).
+         `armbandEp` and `taken[].captained` carry the attribution to the panel.
+         **The lesson is the one worth keeping, and it cost three entries to learn.** B-023 keyed the
+         charge to `y`, so benching answered it. B-025 saw that and deleted the XI *and* captain rows
+         together — over-correcting, because only the keying was wrong. Charge what you want to
+         refuse, and key it to the decision you want to change: if benching answers the charge, the
+         charge is on the wrong variable. Not "delete the row".
+         Also measured and refused: λ = 3 would stop the squad OWNING the pair at all, at 3.17 horizon
+         EP, on a knob whose own sweep found +0.59 ± 0.92 and no benefit. λ stays 1.0.
+```
+
+**Why.** B-011 always had two exposures in it, and after B-025 the objective prices only one:
+
+| exposure | charged |
+|---|---|
+| owning both sides of a fixture | λ per pair |
+| **doubling one side with the armband** | **nothing** |
+
+The armband charge was the `w` rows. They keyed off `y` — *started* — which is exactly what made them
+dodgeable by benching, and that dodge is why B-025 moved the whole penalty to `x`. The captain term
+went out with them. It should not have: the fix was to re-key `w` from `y` to `x`, not delete it.
+
+**Reported from the live GW2 recommendation, 2026-08-27**, and it is the worst version of the bet:
+Palmer (CHE) captained, Wieffer and De Cuyper (BHA) both starting, CHE v BHA. The squad pays 2.00
+horizon EP for holding the pairs and **nothing at all** for doubling its stake on one side of them.
+Before B-023 this configuration was impossible — `pickBestXi` charged the captain's conflicts twice
+and the armband moved to Saka, which is what `reports/gw2-recommendation-v3.md` records.
+
+**Measured on the live universe before deciding.** Sweeping the constant:
+
+| λ | pairs held | both started | captain | raw horizon EP |
+|---:|---:|---:|---|---:|
+| 0 | 5 | 4 | Palmer | 254.54 |
+| **1 (today)** | **2** | **2** | **Palmer** | **253.68** |
+| 2 | 1 | 1 | Palmer | 251.83 |
+| 3 | 0 | 0 | Saka | 250.51 |
+
+Refusing to *own* the pair costs **3.17 horizon EP** and needs λ = 3 — triple what B-011 measured, on
+a knob whose own 103-gameweek sweep found +0.59 ± 0.92 and no benefit. Moving only the armband costs
+**0.86** (Palmer 22.01 → Saka 21.15).
+
+**Decision, 2026-08-27: price the armband, leave λ at 1.0.** `w_ij ≥ c_i + x_j − 1`, both directions,
+charged λ — the captain's exposure counted against a player we OWN rather than one we start, so
+benching cannot dodge it and the B-025 defect does not come back with it. The squad may still own and
+start both sides at single stake, which is what B-011 was scoped to price rather than forbid. λ = 3
+was considered and refused: 3.17 EP is a large bet on a rule its own measurement does not support.
+
+**The payload has to say which pair the armband is on.** `penaltyEp` becomes the total, an `armbandEp`
+carries what the doubling added, and each pair says whether our captain is one side of it. A charge
+the panel cannot attribute is the same defect B-018 and B-025 both had to fix.
