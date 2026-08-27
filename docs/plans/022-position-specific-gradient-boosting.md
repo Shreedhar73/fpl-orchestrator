@@ -36,34 +36,46 @@ commercial FPL forecaster: position-specific gradient boosting over windowed fea
 
 ## Phase 1 — the exporter (B-034)
 
-- [ ] `RoundContext` consumers gain window aggregates: per player, mean over the 1/3/5/10/38 most
+**Landed 2026-08-27 — `fpl-backend` PR #66, issue #65.** 85,342 rows, 125 features; the 2025-26
+count (29,482) matches the calibration population exactly. Two sabotage shapes recorded red.
+
+- [x] `RoundContext` consumers gain window aggregates: per player, mean over the 1/3/5/10/38 most
       recent **matches** (not rounds; DGW rows are separate fixtures) of the OpenFPL player feature
       group — points, minutes, starts, goals, assists, conceded, saves, bonus, BPS, xG, xA, xGC,
       ICT, defcon — computed inside the fold structure — `src/modules/calibration/feature-export.ts`
-- [ ] Team and opponent rolling aggregates over the same windows: goals for/against, xG for/against
-- [ ] `pnpm export:features` writes one CSV per position to `reports/datasets/` (gitignored) plus a
+- [x] Team and opponent rolling aggregates over the same windows: goals for/against, xG for/against
+- [x] `pnpm export:features` writes one CSV per position to `reports/datasets/` (gitignored) plus a
       committed manifest: rows, columns, span, generation date
-- [ ] Sabotage, recorded: inject a haul between deadline and target row — exported features must not
+- [x] Sabotage, recorded: inject a haul between deadline and target row — exported features must not
       move; shift every window one match toward the future — the export must differ
 
 ## Phase 2 — fit, scorer, parity (B-035)
 
-- [ ] `tools/fit-v4/`: pinned venv, `requirements.txt`, fixed seeds; one tuned XGBoost per position,
+**Landed 2026-08-27 — `fpl-backend` PR #68, issue #67.** Parity caught a real bug on run one: a
+float64 walker disagreed with Python by up to 0.05 — a different LEAF — because XGBoost compares in
+float32. `Math.fround` on features, thresholds and the accumulator; 200 blind rows reproduce to 1e-6.
+
+- [x] `tools/fit-v4/`: pinned venv, `requirements.txt`, fixed seeds; one tuned XGBoost per position,
       early stopping on VALIDATE, modest search grid
-- [ ] Models emitted as JSON with provenance (date, span, versions, seed), committed to
+- [x] Models emitted as JSON with provenance (date, span, versions, seed), committed to
       `src/modules/projections/v4/`
-- [ ] `model-v4.ts`: TS tree walker over the emitted JSON
-- [ ] Parity fixture: Python emits N=200 held-row predictions, committed; TS test reproduces to 1e-6
+- [x] `model-v4.ts`: TS tree walker over the emitted JSON
+- [x] Parity fixture: Python emits N=200 held-row predictions, committed; TS test reproduces to 1e-6
       and fails on model-file drift
-- [ ] Sabotage, recorded: corrupt one tree threshold in a copy of the JSON — parity must fail
+- [x] Sabotage, recorded: corrupt one tree threshold in a copy of the JSON — parity must fail
 
 ## Phase 3 — the measurement (B-036)
 
-- [ ] v4 wired into `runBacktest` as a fourth predictor; `commonRows` extended pairwise
-- [ ] The report gains: v4 ordering columns, a return-category RMSE table (Zeros/Blanks/Tickers/
+**Landed 2026-08-27 — `fpl-backend` PR #70, issue #69. The bar is NOT met, and the report says so.**
+Ordering MET (captured @11 37.5% vs 32.7%, Spearman 0.713 vs 0.664); high-return RMSE NOT MET
+(Tickers worse, Haulers a wash); low-return HELD (Zeros 0.742 vs 0.996). `modelVersion` unmoved.
+Next: the Understat/vaastav feature groups (B-037).
+
+- [x] v4 wired into `runBacktest` as a fourth predictor; `commonRows` extended pairwise
+- [x] The report gains: v4 ordering columns, a return-category RMSE table (Zeros/Blanks/Tickers/
       Haulers), per-position tables with n
-- [ ] Verdict prose derives from B-036's bar (the machinery exists since B-030)
-- [ ] If the bar is missed: report it, name the enrichment step (Understat/vaastav features) as next
+- [x] Verdict prose derives from B-036's bar (the machinery exists since B-030)
+- [x] If the bar is missed: report it, name the enrichment step (Understat/vaastav features) as next
 
 ## Explicitly out of scope
 - Serving v4 (blockers: explain blocks D-019, distributions B-017, pPlay — answers required first)

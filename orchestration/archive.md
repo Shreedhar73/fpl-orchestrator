@@ -2642,3 +2642,148 @@ measurably, and it does not win measurably either. Stating that is the whole poi
 and not resolvable by adding seasons. Resolving it needs arms that overlap more than a five-round
 planner and a one-round greedy do — or a different question.
 
+---
+
+## B-034 · A leak-safe feature matrix, exported from the walk the model already trusts — done 2026-08-27
+
+```
+Status   done
+Repos    fpl-backend
+Plan     docs/plans/022-position-specific-gradient-boosting.md
+Issue    see outcome
+```
+
+**Why.** The v4 candidate (B-035) is a gradient-boosted model, and a GBM eats a feature matrix. The
+temptation is a fresh SQL or Python exporter with its own time cut — and every leak this project has
+paid for came from a second implementation of the time cut, producing no error and nothing
+wrong-looking. So the exporter runs **through `walkRounds`**, which already hands out leak-safe
+features per row, and the new window aggregates are computed inside the same fold structure.
+
+**What to build.** `pnpm export:features` — one row per player per **fixture** (a double gameweek is
+two rows, exactly as the archive keys it), carrying v3's existing feature set plus mean aggregates of
+the OpenFPL feature groups over the **1/3/5/10/38 most recent matches**: player points, minutes,
+starts, goals, assists, conceded, saves, bonus, BPS, xG, xA, xGC, ICT, defcon; team and opponent
+rolling goals for/against and xG for/against; home/away; position; value. Target = `totalPoints` of
+the row. Written to `reports/datasets/` as CSV, gitignored, with a committed manifest naming row
+count, columns and the season/round span.
+
+**The check that must go red.** The `horizonEp` sabotage, applied here: inject a haul between the
+deadline and the target row and the exported features must not move. A second sabotage: shift every
+window by one match toward the future and the export must differ — an exporter whose windows cannot
+be told from their leaked twin proves nothing.
+
+Recorded 2026-08-28, from the OpenFPL recipe (arXiv 2508.09992).
+
+---
+
+## B-035 · v4 — position-specific gradient boosting, fitted in Python, scored in TypeScript — done 2026-08-27
+
+```
+Status   done
+Repos    fpl-backend
+Plan     docs/plans/022-position-specific-gradient-boosting.md
+Issue    see outcome
+```
+
+**Why.** OpenFPL (arXiv 2508.09992) demonstrates that position-specific XGBoost/RF ensembles over
+windowed FPL + Understat features **rival FPL Review**, the paid service that beats every other
+commercial forecaster — and are *best in class on Tickers and Haulers*, the high-return players that
+decide rank. The recipe needs no betting odds and no proprietary minutes feed. Most of its features
+are already in `archive_player_gameweek`. This is the "non-linear, use the data properly" jump: v3 is
+a hand-decomposed rate model, and the whole B-013/B-019/B-020/B-021 arc has been fixing its shapes
+term by term. A GBM learns the shapes.
+
+**What to build.**
+- `tools/fit-v4/` — a pinned Python venv (versions in `requirements.txt`, seeds fixed) reading
+  B-034's export. **One tuned XGBoost per position** (GKP/DEF/MID/FWD), early stopping, modest
+  search. No RF, no K-best ensemble in round one — sklearn RF does not export to TS cleanly, and the
+  ensemble is a second PR if the bar is near-missed.
+- Split discipline **identical to v3's, reused not reimplemented**: TRAIN 2023-24 + 2024-25 rounds
+  < 20, VALIDATE 2024-25 rounds ≥ 20 (hyperparameters only), TEST 2025-26 — never fitted, never
+  tuned on. One tuning peek at 2025-26 makes the v4-vs-v3 comparison unusable.
+- Models emitted as JSON with provenance (date, data span, versions, seed), committed.
+- `model-v4.ts` — a TS scorer walking the emitted trees. **Parity is this phase's
+  checks-that-cannot-fail**: Python emits predictions for N held rows into a committed fixture, the
+  TS scorer must reproduce them within 1e-6, and the test fails on model-file drift. A scorer that
+  mis-parses the JSON produces plausible numbers with no tell.
+
+**Known handicap, stated up front.** The archive carries no per-gameweek availability, so v4 trains
+without OpenFPL's match-status features — the same honest ceiling v3 lives under (B-015). When
+deadline snapshots accumulate, availability joins the feature set; not before.
+
+**Adoption blockers, recorded now and deliberately not solved now.** A total-points GBM has no
+decomposition (the explain blocks, D-019), no distributions (B-017), and no pPlay. None of that
+blocks *measurement* — the harness needs only `predicted`. All of it blocks *serving*. The open
+question for a passing bar: GBM per component, or GBM as a residual on v3. A model that cannot ship
+its reasoning does not ship (skill honesty rules), however it measures.
+
+Recorded 2026-08-28.
+
+---
+
+## B-036 · v4 measured on the bar, and the bar written before the first training run — done 2026-08-27
+
+```
+Status   done
+Repos    fpl-backend
+Plan     docs/plans/022-position-specific-gradient-boosting.md
+Issue    see outcome
+```
+
+**Why.** A bar written after the numbers exist is written to pass. This entry fixes the bar first.
+
+**The bar, fixed 2026-08-28 before any v4 model was trained:**
+1. **Ordering:** v4 beats v3 on points-captured@k at **every** k ∈ {11, 15, 30}, pairwise on
+   `commonRows` (B-012 invariant 3), per round then averaged.
+2. **Return categories (OpenFPL's framing):** v4 improves RMSE on **Tickers (3–4 pts) and Haulers
+   (≥5 pts)** without materially degrading Zeros and Blanks — the high-return categories are where
+   rank is won and where OpenFPL itself beats the commercial state of the art.
+3. **Per-position tables carry n** beside every number (B-021's trap: a parameter fitted on 3,396
+   keeper rows must not be read with the confidence of one fitted on 29,482).
+4. Miss the bar → the report says so, `modelVersion` does not move, and Understat/vaastav enrichment
+   (I/C/T split, xGChain, xGBuildup, key passes, team Deep and PPDA) becomes the named next step.
+
+**What to build.** v4 wired into `runBacktest` as a fourth predictor beside model/form/priorSeason;
+the decision-quality report gains the v4 columns and a return-category RMSE table; the verdict prose
+derives from the bar above (it already knows how to, since B-030).
+
+**Expectation, said once so the mandate does not lean on the verdict.** This register's history is
+that most "better" ideas measured worse (D-023, D-029, the set-piece lift, the collision arc). v4
+losing to v3 is a real, reportable outcome — and ordering metrics *can* resolve it, unlike season
+totals, so either way the answer is a measurement rather than an argument.
+
+Recorded 2026-08-28.
+
+---
+
+---
+
+**Outcome for all three — shipped 2026-08-27, `fpl-backend` PRs #66 (issue #65), #68 (#67), #70 (#69).**
+
+**B-034.** 85,342 rows × 125 features through `walkRounds` — the 2025-26 slice is exactly the
+calibration population (29,482). Two sabotage shapes red: append-before-emit, and the current match
+leaked into its own window.
+
+**B-035.** One tuned XGBoost per position, split discipline reused from v3, TEST never printed by the
+fit. **Parity caught a real bug on its first run**: a float64 tree walker disagreed with Python by up
+to 0.05 — a different leaf, not rounding — because XGBoost compares in float32. The committed walker
+frounds features, thresholds and the accumulator; 200 blind TEST rows reproduce to 1e-6.
+
+**B-036 — the bar was not met, and the number that matters is which leg failed.**
+
+| leg | verdict |
+|---|---|
+| ordering at every k | **MET** — captured @11 37.5% vs 32.7%, @15 39.2/36.1, @30 41.6/38.0; Spearman 0.713 vs 0.664 |
+| Tickers + Haulers RMSE | **NOT MET** — Tickers 1.516 vs 1.421, Haulers 5.766 vs 5.765 |
+| Zeros/Blanks no >5% degradation | **HELD** — Zeros 0.742 vs 0.996, Blanks 1.367 vs 1.440 |
+
+`modelVersion` unmoved. The shape of the miss: v4 dominates the whole ranking and the
+who-will-not-play end — the minutes problem v3 fights one term at a time — and **compresses the
+top**: it orders the field better and sizes a haul no better. Its simulated seasons run behind the
+incumbent (1395 vs 1635 held; 1779 vs 1881 greedy), inside ~190–200-point floors — context, not
+verdict.
+
+**Why this is a strong negative result rather than a failure.** The bar was pre-committed, the miss
+is one leg, and that leg names its own fix: the features OpenFPL has that the archive lacks are
+exactly the haul-sizing ones (shots, xGChain, key passes, team Deep/PPDA). That is B-037.
+
