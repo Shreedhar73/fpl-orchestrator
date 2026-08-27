@@ -2215,3 +2215,73 @@ contribution rises with opponent pressure.
 **The bar.** Split by season, because the point of the exercise is that 2025-26 may not behave like
 2023-24. Report the noise on every number — the collision sweep's own paired difference was +0.59
 +/- 0.92, and this project has been burned by reading a mean over 38 rounds as a result.
+
+---
+
+## B-029 · Retire the collision penalty, and price the concentration that is actually there — done 2026-08-27
+
+```
+Status   done
+Repos    fpl-backend, fpl-frontend
+Plan     docs/plans/020-defence-concentration.md
+Issue    orchestrator#22 (parent), backend#52, frontend#17
+Shipped  backend#53, frontend#18
+Outcome  B-011 is gone from the objective — `z`, `w`, `buildConflictPairs`, `COLLISION_LAMBDA`, the
+         sweep script and the collision rows in `transfer-lp.ts`, all deleted rather than left inert.
+         `conc_i: y_i + y_j − d_i <= 1` charges a pair of our defensive players STARTING for the same
+         club. Live: the GW2 recommendation benches De Cuyper at £4.6m, starts Wieffer, and gives the
+         armband back to Palmer; the payload reads one pair held, nothing charged.
+         **The evidence does not support the new rule any more than it supported the old one, and the
+         report says so.** Season replay: 1682 realised against 1673 with no penalty at all and 1713
+         with the retired rule — one squad, different fifteens, no result in any direction. What is
+         NOT noise is that the rule gives up **71.34 projected points in the eleven** over a season.
+         B-028 measured that the covariance exists and its sign; nothing has measured that a narrower
+         squad scores more, and nothing can from this data — that depends on optimising rank rather
+         than points. So this remains a live question: **the honest options are to keep it as a stated
+         policy, or to run the objective with no concentration term at all.**
+         The design lesson is the durable part, and it cost four entries: **key a charge to the
+         decision you want to change.** B-011's belonged on ownership (the bet was buying both sides);
+         B-023 moved it to the XI and benching dodged it; B-025 moved it back but deleted the captain
+         term with it; B-027 restored that; B-028 then measured the whole thing to be a hedge. The new
+         charge keys to `y` for the opposite reason — a benched player carries no variance, so benching
+         genuinely answers it. That, and "a correlation cannot make a linear objective wrong in
+         expectation", are now in the `fpl-optimizer` skill.
+         **B-024 got wider, not narrower.** The transfer LP has no `y`, so it cannot carry this charge
+         at all: it now optimises raw horizon EP less the hit while the recommendation prices the
+         bench, the armband and the concentration. Its false comment has been replaced by a statement
+         of the divergence.
+```
+
+**Why.** B-028 measured what B-011 assumed, over 101,103 pairs and three seasons, and the rule does not
+survive its own evidence:
+
+- the collision is **real** — correlation −0.195 ± 0.003, and a defensive player takes 1.48 points in
+  matches where the attacker facing him returned against 3.04 where he blanked;
+- and it is a **hedge** — holding both sides cuts the pair's variance 19.5%, because negative
+  covariance reduces portfolio variance. Expectation is linear, so no correlation can make the
+  objective wrong in the mean;
+- while the concentration nobody priced is bigger and points the other way: two defensive players of
+  one club covary **+5.58**, against **−4.15** for both collision terms put together. Given a squad
+  already holding two defenders of a club, the attacker who faces them costs 0.65 points² of variance
+  against 8.96 for an uncorrelated one — **he is the safest attacker available**, and B-011 charged
+  extra for him.
+
+The lambda sweep had already found the rule earned nothing (+0.59 ± 0.92 over 103 gameweeks). B-028
+explains why: it was pricing insurance.
+
+**What ships.** The collision rows leave the objective entirely — `z`, `w`, `buildConflictPairs`, the
+lambda, the sweep script and the payload block. In their place, a charge on **starting two defensive
+players of the same club**, which is the term the measurement says is real.
+
+**Keyed to `y`, and the difference from B-025 is the whole point.** B-011's charge belonged on
+ownership because the bet was *buying* both sides — benching one changed nothing about having paid for
+him. Concentration is not that: a benched player scores nothing and carries no variance, so benching
+genuinely removes the exposure. Charge what you want to refuse, and key it to the decision you want to
+change — here that decision is who takes the field together.
+
+**The honest caveat, stated before anyone reads the number as measured.** The new constant is a POLICY
+choice exactly as B-011's was. B-028 measured that the covariance exists and its sign; it did not
+measure that a lower-variance squad scores more, and it cannot — that depends on whether the objective
+is expected points or expected rank, and this project optimises expected points. The difference from
+B-011 is that this one is at least pointed at a term with the right sign, and `pnpm replay:xi` can now
+see what it does.
