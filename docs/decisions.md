@@ -966,3 +966,76 @@ learns why instead of hitting a silence.
 3. The `pnpm score:gameweek` report and the `doctor.sh` weekly-loop section are the two places a
    missed capture becomes visible. Neither existed before this entry, which is why B-016 could be
    owed for weeks without anything looking wrong.
+
+---
+
+## D-028 · 2026-08-27 · Every projection carries its distribution; the set-piece lift is measured and not used; the odds question is unanswered
+
+Three parts of B-017, and they end in three different places. Recording them together because a
+reader who takes one of them out of context will get the other two wrong.
+
+### 1. The distribution is the object, not a variance attached to a mean
+
+`projections` carried `expectedPoints` and no dispersion, so every consumer — the optimizer, the
+transfer planner, the UI — treated a 6.0 from a nailed premium and a 6.0 from a rotation risk as the
+same number. A hit is a −4 bet on a projected difference, which makes it the most error-amplifying
+thing the product does, and it was being placed on means alone.
+
+**Decision.** FPL points are integers over a small range, so the exact thing is affordable: a PMF per
+component, convolved on an integer grid, giving `sd`, `P(blank)` and `P(haul)` rather than a variance
+approximation.
+
+**The composition order is the load-bearing part.** Every component depends on the same minutes
+outcome, so the distribution is built *inside* each minutes state and mixed by state probability —
+including **"did not play"** as a state. Omitting that state would normalise the distribution over
+"played" and report the spread of a player who is certain to feature, which is the opposite of what
+this is for. Within a state the components convolve as independent; goals and bonus in fact move
+together and a clean sheet excludes a conceded goal, and both make the true spread **wider**, so the
+reported `sd` is a floor and is documented as one.
+
+`sd`, `pBlank` and `pHaul` are **nullable all the way to the DTO and the UI**, where null renders as
+an em dash. A zero standard deviation is a claim of certainty.
+
+**And the check found something.** `ep` and `distribution.mean` are two independent routes to one
+number. Making them agree exposed the bonus term still being evaluated at mean minutes — the one
+non-linear term B-020 had missed. A test that only confirmed what was already believed would not have.
+
+### 2. The set-piece lift is real, large, and not used
+
+The backlog said the archive carries `penalties_order` per season. **It does not** — the per-gameweek
+CSVs have no order columns at all. The join has to come from `players_raw.csv`, which is season-level
+and a season-**END** value: a player who took the job in January reads as the taker all year.
+
+Measured anyway, and the lift is consistent: first-choice takers out-score non-takers by **0.306,
+0.277 and 0.274 goals per 90** across 2023-24, 2024-25 and 2025-26. That is three times the guide's
+"roughly a tenth of a goal per game".
+
+**Decision: measure and stop.** Three reasons, and the third is the one that matters. The season-end
+value biases it upward. The job goes to whoever is already scoring, so most of the lift is selection
+rather than effect. And **the model already reads each player's xG per 90, which includes his
+penalties at about 0.76 xG each** — so a set-piece term added on top would double-count unless it were
+fitted against the residual, and no such fit has been done. `reports/set-piece-prior.md` carries all
+three sentences next to the numbers.
+
+### 3. The bookmaker-odds question is UNANSWERED, and that is the record
+
+The guide calls odds the strongest single prior in existence and makes a site's terms a hard boundary
+(§0.3). The entry asked for a feasibility probe: is there a source whose terms permit this use, what
+does it cost, and does it beat our own λ on held-out fixtures.
+
+**None of those three was answered in this session.** No provider's terms were read, no pricing was
+checked, and no ingestion code exists. Writing "probed and rejected" would have been the easy sentence
+and the false one, and a register that records a probe nobody ran is worse than one that records
+nothing.
+
+**What answering it actually requires**, so the next session starts from here rather than from zero:
+
+1. **A terms decision, not a technical one.** Scraping a bookmaker's site is out by §0.3 whatever the
+   robots file says. The question is whether a licensed odds API's terms permit derived modelling and
+   redistribution of a derived number — that is a licence to read, and a human decision.
+2. **A cost decision.** Historical odds for backtesting are the expensive tier at every provider, and
+   without history the effect cannot be measured on held-out fixtures — which is the only way this
+   project adopts anything.
+3. **Then, and only then, the measurement**: does a market-implied λ beat `strength.ts`'s on held-out
+   fixtures. D-024 is the reason to expect it might — our own λ is a lagged proxy that took three
+   attempts to make informative at all.

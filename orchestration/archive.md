@@ -1683,3 +1683,83 @@ their `disable-model-invocation` frontmatter, and touching one would sweep that 
 permanent a change that breaks this project's own rule. The automated half, which is the half that
 runs without anyone reading a skill, is done.
 
+---
+
+## B-017 · Uncertainty on every projection, and the priors the model does not read
+
+```
+Status   backlog
+Repos    fpl-backend, fpl-frontend
+Plan     —
+Issue    —
+```
+
+**Why.** Guardrail 6 of the guide: *always attach uncertainty to xP — at least a standard deviation —
+and a start probability to every player shown.* The `projections` table has `expectedPoints`,
+`expectedMinutes`, `playProbability` and a `components` blob, and **no dispersion of any kind**
+(verified 2026-08-26). So every downstream consumer treats a 6.0 from a nailed premium and a 6.0 from
+a rotation risk as the same number, and none of the guide's variance-dependent machinery can be built
+on top: captaincy as a variance decision (§3.5), the protect/chase objective modes (§5.3), scenario
+sampling (§4.2), or an honest "what would change my mind" line (§5.4 step 6).
+
+The machinery is half-present already: `distributions.ts` has the Poisson tail, `E[floor(X/d)]` and a
+negative-binomial threshold probability. The model composes those into a mean and then throws the
+distribution away.
+
+**What to build.** A variance per player alongside the mean, composed the same way the mean is — each
+component contributes its own — plus `P(blank)` and `P(haul ≥ 10)`, which are what a human actually
+reads. Schema change (`projections`), DTO change, and a frontend change: this is the one entry here
+that reaches the UI, and B-009 already established the pattern for stating what a number is and where
+it came from (D-019). Depends on **B-013** — a probability nobody has calibrated is not worth showing,
+and shipping an uncalibrated confidence interval is worse than shipping none.
+
+**Two priors the model does not read, both named by the guide as high-value, both cheap.**
+
+- **Set-piece and penalty order.** The guide (§2.3): *"this single table swings xP more than most model
+  features."* We already **capture** `penaltiesOrder`, `directFreekicksOrder` and `cornersOrder` at
+  every deadline — and grep finds them referenced nowhere outside the generated Prisma client
+  (2026-08-26). A first-choice penalty taker is worth roughly a tenth of a goal per game before
+  anything else is known about him. The archive carries the same fields per season, so the effect is
+  measurable on 86,755 rows before a line of it ships.
+- **Bookmaker odds.** The guide (§3.2) calls them *"the strongest single prior in existence"* — the
+  market has already priced injuries, motivation and news we do not have — and the same document makes
+  legality a non-goal boundary (§0.3: nothing that violates a site's terms). So this is a **feasibility
+  probe first, and a build only if it comes back clean**: is there a source whose terms permit this
+  use, what does it cost, and does it beat our own λ on held-out fixtures. Answer the first question
+  before writing any ingestion code. A negative answer is a result and gets recorded like any other.
+
+---
+
+**Outcome — shipped 2026-08-27, backend#38 and frontend#10.**
+
+Not a variance bolted onto a mean: **the whole points distribution**. FPL points are integers over a
+small range, so a PMF per component convolved on an integer grid is the exact object and it is cheap.
+
+**The one correlation that matters is captured exactly.** Every component depends on the same minutes
+outcome, so the distribution is composed inside each minutes state and mixed — with *did not play* as
+a state of its own, without which the spread would be normalised over "played" and describe a player
+certain to feature. Within a state the components convolve as independent, and the residual is named
+rather than hidden: goals and bonus move together, a clean sheet and a conceded goal are mutually
+exclusive, and both make the true spread **wider**. The reported `sd` is a floor and says so.
+
+A double gameweek is a **convolution across fixtures**, not a sum of summaries — adding two standard
+deviations overstates the spread by about 40%, and two `P(blank)`s cannot be added at all.
+
+Live on GW2: Palmer 6.31 ± 4.21 with P(blank) 0.230; Haaland 5.61 with P(blank) **0.309**. Haaland and
+B.Fernandes sit 0.1 apart on the mean and seven points of blank probability apart.
+
+**The check earned its place rather than decorating the PR.** `ep` and `distribution.mean` are two
+independent routes to one number, and making them agree exposed a real gap: the bonus term was still
+evaluated at mean minutes, the one non-linear term B-020 had missed.
+
+**Set-piece prior: measured, and deliberately not built on.** The entry's claim that the archive
+carries these fields per season is **false** — the per-gameweek CSVs have no order columns, and the
+join has to come from `players_raw.csv`, season-level and season-END. First-choice takers out-score
+non-takers by 0.306 / 0.277 / 0.274 goals per 90 across the three seasons: three times the guide's
+rule of thumb, and almost certainly mostly confounding. The model already reads a taker's xG, which
+includes his penalties, so a term on top would double-count unless fitted against the residual — and
+that fit is not done.
+
+**Bookmaker odds: recorded as UNANSWERED** (D-028). No provider's terms were read and no ingestion
+code was written. Saying "probed and rejected" would have been the easy sentence and the false one.
+

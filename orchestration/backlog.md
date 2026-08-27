@@ -156,51 +156,6 @@ every healthy player. A suspension is knowable in advance, is not an injury, and
 
 ---
 
-## B-017 · Uncertainty on every projection, and the priors the model does not read
-
-```
-Status   backlog
-Repos    fpl-backend, fpl-frontend
-Plan     —
-Issue    —
-```
-
-**Why.** Guardrail 6 of the guide: *always attach uncertainty to xP — at least a standard deviation —
-and a start probability to every player shown.* The `projections` table has `expectedPoints`,
-`expectedMinutes`, `playProbability` and a `components` blob, and **no dispersion of any kind**
-(verified 2026-08-26). So every downstream consumer treats a 6.0 from a nailed premium and a 6.0 from
-a rotation risk as the same number, and none of the guide's variance-dependent machinery can be built
-on top: captaincy as a variance decision (§3.5), the protect/chase objective modes (§5.3), scenario
-sampling (§4.2), or an honest "what would change my mind" line (§5.4 step 6).
-
-The machinery is half-present already: `distributions.ts` has the Poisson tail, `E[floor(X/d)]` and a
-negative-binomial threshold probability. The model composes those into a mean and then throws the
-distribution away.
-
-**What to build.** A variance per player alongside the mean, composed the same way the mean is — each
-component contributes its own — plus `P(blank)` and `P(haul ≥ 10)`, which are what a human actually
-reads. Schema change (`projections`), DTO change, and a frontend change: this is the one entry here
-that reaches the UI, and B-009 already established the pattern for stating what a number is and where
-it came from (D-019). Depends on **B-013** — a probability nobody has calibrated is not worth showing,
-and shipping an uncalibrated confidence interval is worse than shipping none.
-
-**Two priors the model does not read, both named by the guide as high-value, both cheap.**
-
-- **Set-piece and penalty order.** The guide (§2.3): *"this single table swings xP more than most model
-  features."* We already **capture** `penaltiesOrder`, `directFreekicksOrder` and `cornersOrder` at
-  every deadline — and grep finds them referenced nowhere outside the generated Prisma client
-  (2026-08-26). A first-choice penalty taker is worth roughly a tenth of a goal per game before
-  anything else is known about him. The archive carries the same fields per season, so the effect is
-  measurable on 86,755 rows before a line of it ships.
-- **Bookmaker odds.** The guide (§3.2) calls them *"the strongest single prior in existence"* — the
-  market has already priced injuries, motivation and news we do not have — and the same document makes
-  legality a non-goal boundary (§0.3: nothing that violates a site's terms). So this is a **feasibility
-  probe first, and a build only if it comes back clean**: is there a source whose terms permit this
-  use, what does it cost, and does it beat our own λ on held-out fixtures. Answer the first question
-  before writing any ingestion code. A negative answer is a result and gets recorded like any other.
-
----
-
 ## B-021 · Goalkeepers, fitted separately
 
 ```
