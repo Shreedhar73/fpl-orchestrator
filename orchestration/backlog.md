@@ -253,10 +253,10 @@ who should wear the armband. Today they need not, and nothing checks it.
 ## B-025 · B-023 made the collision penalty 3.3× stronger, and its own display can no longer go red
 
 ```
-Status   planned
+Status   tracked
 Repos    fpl-backend, fpl-frontend
 Plan     docs/plans/019-collision-penalty-on-ownership.md
-Issue    —
+Issue    orchestrator#18 (parent), backend#43, frontend#11
 ```
 
 > **Resolved to option 2, 2026-08-27.** The penalty is charged on ownership (`x`) and leaves the XI
