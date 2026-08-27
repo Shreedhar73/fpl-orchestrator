@@ -38,3 +38,9 @@ incumbent's 32.7%, was 37.5%); the Tickers regression narrowed (+0.242 ± 0.059 
 still clears its noise; Haulers stayed a wash. `modelVersion` unmoved. What is left for B-037 is
 model-shaped, not feature-shaped: the blocked understat groups (evidence in the table above), a
 distribution-aware objective, or v4 as a residual on the incumbent's decomposition.
+
+---
+
+**Increment 2 — the residual architecture, same day (backend PR #76).** Four TEST readings this
+cycle, counted; complementary misses; search closed. Details in B-037's entry. The next attempt is a
+validation-side composite plus the live-season prospective holdout, not another archive reading.

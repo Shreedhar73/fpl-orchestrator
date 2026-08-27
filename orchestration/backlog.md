@@ -273,6 +273,19 @@ what remains here is model-shaped: a distribution-aware objective (the RMSE fit 
 point band a decomposed minutes model prices exactly), or **v4 as a residual on v3** — which is also
 the leading answer to the serving blockers below.
 
+**Increment 2 shipped 2026-08-27 — the residual architecture (backend PR #76) — and the cycle is
+closed at four TEST readings.** The misses are complementary and that is the finding: the direct fit
+wins ordering (@11 38.0% vs 32.7%) and the who-will-not-play end; the residual fit is the first real
+haul-sizing gain anywhere in this project (Haulers Δse −1.956 ± 0.299, clears) with Tickers fixed to
+a wash — and it pays a Blanks degradation just past the 5% line plus a weaker ordering. No single
+member of the family passes all three legs on this holdout. **What this entry now needs, in order:**
+(1) a validation-side composite of the two architectures, designed with NO further TEST peek — the
+selection has to happen on the 2024-25 validation half or by cross-validation inside TRAIN; (2) the
+genuinely untouched prospective holdout that accumulates on its own — the live 2026-27 season,
+scored week by week by `pnpm score:gameweek` (B-016), which is how OpenFPL itself was validated. The
+committed models are the final union-grid residual; the fit script freezes the grid and the
+selection rule with the reason.
+
 **Also worth carrying from the first run.** v4's simulated seasons ran behind the incumbent's on a
 compressed top end. If enrichment fixes Tickers/Haulers and the bar is met, the serving blockers are
 next and were recorded in B-035: no explain blocks (D-019), no distributions (B-017), no pPlay — a
