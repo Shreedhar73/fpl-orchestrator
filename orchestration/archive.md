@@ -2538,3 +2538,107 @@ defensive concentration, and B-024 is the entry that closes that. It now has a h
 notice: the planner arm, paired against `greedy-1ft` on identical openings, at a 112-point floor.
 Before this, adding the `y`/`c` families would have been tuning by argument.
 
+---
+
+## B-024 · The transfer planner and the recommendation stopped optimising the same thing — done 2026-08-27
+
+```
+Status   done — fpl-backend#62, PR #63
+Repos    fpl-backend
+Plan     —
+Issue    backend#62
+```
+
+**Why.** B-023 moved the squad ILP to the program the skill specifies — `Σ EP(y + c) + benchWeight ×
+Σ EP(x − y)`, with the collision penalty on the **XI** and the captain's exposure doubled.
+`transfer-lp.ts` did not move with it: it still emits `Σ EP × x` over all fifteen, with the collision
+penalty on `x`, and no captain term at all.
+
+So on one screen a user now sees a recommendation that prices the armband and a transfer plan that
+does not, and the two can prefer different players for the same money. That is the failure mode
+B-018's whole design was about — the app contradicting itself where a reader can see both halves.
+
+**There is a false comment sitting in the code, and it should be read as the bug report.**
+`transfers.service.ts` says the plan solves under "the SAME collision guard the recommendation is
+solved under". It passes `universe.collisions`, which is true of the *pairs* and no longer true of the
+*objective*: the recommendation charges them against `y` and doubles the captain's, and the planner
+charges them against `x`. Fix the comment in the same change, or it will outlive the divergence.
+
+**What to build.** `buildTransferLp` gains the same `y` and `c` families with `y ≤ x`, `c ≤ y`,
+`Σ y = 11`, `Σ c = 1`, the formation rows, and `BENCH_WEIGHT` — and the collision rows move to `y`
+with the captain's `w` rows alongside, exactly as `buildLp` has them. The two files then differ only
+where they should: the transfer LP's budget row prices a kept player at his sell value and carries the
+hit variable.
+
+**Two things to be careful of.** The hit `h` and the bench weight interact — a −4 is now traded
+against an objective whose XI term is scaled by `1 − benchWeight`, so a transfer that was worth taking
+may stop being, and that is a real change in advice rather than a refactor. And the LP grows: the
+transfer program already carries the whole market as binaries, so tripling the variable families is a
+size question the squad solve did not face at the same scale. Measure it.
+
+**The bar.** The plan and the recommendation, run on the same squad, agree about who should start and
+who should wear the armband. Today they need not, and nothing checks it.
+
+**Restated 2026-08-27 after B-029 — this supersedes the B-025 amendment that used to sit here, and
+everything above it about collisions.** The collision penalty no longer exists anywhere. B-028
+measured it over 101,103 archived pairs and found it was pricing a hedge (D-030), so B-029 deleted the
+rule, its constant, its sweep script and its rows in `transfer-lp.ts`. Every instruction above about
+moving collision rows onto `y`, or keeping λ at 1.0 here, is about machinery that is gone.
+
+**What is actually left of this entry, and it is still real.** `buildTransferLp` emits
+`Σ EP·x − hitCost·h` and nothing else. The recommendation's objective prices three things the planner
+does not: the discounted bench (`benchWeight`), the captain's double (`c`), and the defensive
+concentration charge (`d`). So the two can still prefer different players for the same money, and a
+user can still see both halves on one screen.
+
+**One thing got harder.** The concentration charge keys off `y`, and this program has no `y` at all —
+it chooses a fifteen and never an eleven. So the planner cannot carry that charge without first
+growing the `y` and `c` families, which is the bulk of the work this entry always described. The
+ordering is now: add `y`/`c` and the formation rows, THEN the concentration rows on `y`, in that
+order, because the second is meaningless without the first.
+
+The false comment in `transfers.service.ts` has been **fixed** (B-029): it used to claim the plan
+solved under "the SAME collision guard the recommendation is solved under", which stopped being true
+at B-023. It now states the divergence instead of denying it, so this entry no longer has a lie in the
+code to point at — only the divergence itself.
+
+**The bar is unchanged.** The plan and the recommendation, run on the same squad, agree about who
+should start and who should wear the armband. Today they need not, and nothing checks it.
+
+---
+
+---
+
+**Outcome — shipped 2026-08-27, `fpl-backend` PR #63.**
+
+`buildTransferLp` gained the `y` and `c` families in the same shape `buildLp` emits them, then the
+concentration rows on `y` — in that order, as the entry insisted, because the charge keys off an
+eleven this program did not have.
+
+**The bar this entry carried since it was written now has a test.**
+`plan-agrees-with-recommendation.spec.ts` freezes the transfer budget so both programs face the
+identical fifteen, then requires the same eleven and the same armband, with and without the charge —
+plus a check that a chargeable pair exists at all, or the agreement is about nothing. Reverting the
+objective fails three of its four cases.
+
+**Measured against what it replaced, not argued.** `buildTransferLp` took the same `SquadObjective`
+switch B-031 gave `buildLp`, so the report walks both planners from an identical opening fifteen:
+
+| Policy | points | transfers | hits |
+|---|---:|---:|---:|
+| planner | 1814 | 48 | 44 |
+| planner (pre-B-024 objective) | 1846 | 47 | 40 |
+
+| comparison | mean Δ | ± s.e. | clears noise | detectable at |
+|---|---:|---:|---|---:|
+| B-024 − the objective it replaced, same opening fifteen | −0.86 | 1.54 | no | **114 pts** |
+
+**32 points against a floor of 114 — adopted on coherence, not on points, and the report says which.**
+The plan's bar was "adopted only if it does not lose on the paired comparison"; it does not lose
+measurably, and it does not win measurably either. Stating that is the whole point of B-030.
+
+**What is left, and it is the honest ceiling of this arc.** The planner is 67 points behind
+`greedy-1ft` from the same opening fifteen, against a 167-point floor. Not resolvable on one season,
+and not resolvable by adding seasons. Resolving it needs arms that overlap more than a five-round
+planner and a one-round greedy do — or a different question.
+

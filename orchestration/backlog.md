@@ -208,69 +208,38 @@ with the confidence of one fitted on 29,482.
 
 ---
 
-## B-024 · The transfer planner and the recommendation stopped optimising the same thing
+## B-033 · The defensive-concentration charge changes no squad, gives up 71 projected points and returns 9
 
 ```
-Status   backlog
+Status   backlog — a maintainer call, not a session call
 Repos    fpl-backend
 Plan     —
 Issue    —
 ```
 
-**Why.** B-023 moved the squad ILP to the program the skill specifies — `Σ EP(y + c) + benchWeight ×
-Σ EP(x − y)`, with the collision penalty on the **XI** and the captain's exposure doubled.
-`transfer-lp.ts` did not move with it: it still emits `Σ EP × x` over all fifteen, with the collision
-penalty on `x`, and no captain term at all.
+**Why.** Two measurements taken 2026-08-27, both at HEAD, both reproducible.
 
-So on one screen a user now sees a recommendation that prices the armband and a transfer plan that
-does not, and the two can prefer different players for the same money. That is the failure mode
-B-018's whole design was about — the app contradicting itself where a reader can see both halves.
+- **B-031's A/B**: the charge at λ=1.0 picks **the same fifteen, player for player**, as no charge at
+  all. It is inert on the squad solve.
+- **`pnpm replay:xi`, two arms at HEAD**: it is *not* inert on the eleven. With λ=1.0 the solver gives
+  up **71.34 projected points** over 38 rounds and starts both sides of a pair in 8 rounds; with λ=0 it
+  gives up nothing and starts them in 37. Realised: **1682 against 1673** — the charge is 9 points
+  ahead over a season, with no standard error attached and a season's noise floor an order of
+  magnitude larger than that.
 
-**There is a false comment sitting in the code, and it should be read as the bug report.**
-`transfers.service.ts` says the plan solves under "the SAME collision guard the recommendation is
-solved under". It passes `universe.collisions`, which is true of the *pairs* and no longer true of the
-*objective*: the recommendation charges them against `y` and doubles the captain's, and the planner
-charges them against `x`. Fix the comment in the same change, or it will outlive the divergence.
+So the rule pays 71 projected points for 9 realised, and 9 is indistinguishable from 0 by every
+measure this repo now has.
 
-**What to build.** `buildTransferLp` gains the same `y` and `c` families with `y ≤ x`, `c ≤ y`,
-`Σ y = 11`, `Σ c = 1`, the formation rows, and `BENCH_WEIGHT` — and the collision rows move to `y`
-with the captain's `w` rows alongside, exactly as `buildLp` has them. The two files then differ only
-where they should: the transfer LP's budget row prices a kept player at his sell value and carries the
-hit variable.
+**Why this is a maintainer call and not a session one.** `fpl-optimizer` is explicit that the charge
+is a **policy choice whose benefit is unmeasured**, and that removing it is a policy argument rather
+than a measurement. That has not changed: what was measured (B-028) is that two of one club's defence
+covary +5.58; what cannot be measured from this data is whether a lower-variance squad scores more,
+because that depends on optimising expected *rank* and this project optimises *points*. The numbers
+above say the rule costs nothing detectable and gains nothing detectable — which is an argument for
+retiring it on simplicity, and an argument for keeping it on variance, and the register should not
+pick one in a session that was measuring something else.
 
-**Two things to be careful of.** The hit `h` and the bench weight interact — a −4 is now traded
-against an objective whose XI term is scaled by `1 − benchWeight`, so a transfer that was worth taking
-may stop being, and that is a real change in advice rather than a refactor. And the LP grows: the
-transfer program already carries the whole market as binaries, so tripling the variable families is a
-size question the squad solve did not face at the same scale. Measure it.
-
-**The bar.** The plan and the recommendation, run on the same squad, agree about who should start and
-who should wear the armband. Today they need not, and nothing checks it.
-
-**Restated 2026-08-27 after B-029 — this supersedes the B-025 amendment that used to sit here, and
-everything above it about collisions.** The collision penalty no longer exists anywhere. B-028
-measured it over 101,103 archived pairs and found it was pricing a hedge (D-030), so B-029 deleted the
-rule, its constant, its sweep script and its rows in `transfer-lp.ts`. Every instruction above about
-moving collision rows onto `y`, or keeping λ at 1.0 here, is about machinery that is gone.
-
-**What is actually left of this entry, and it is still real.** `buildTransferLp` emits
-`Σ EP·x − hitCost·h` and nothing else. The recommendation's objective prices three things the planner
-does not: the discounted bench (`benchWeight`), the captain's double (`c`), and the defensive
-concentration charge (`d`). So the two can still prefer different players for the same money, and a
-user can still see both halves on one screen.
-
-**One thing got harder.** The concentration charge keys off `y`, and this program has no `y` at all —
-it chooses a fifteen and never an eleven. So the planner cannot carry that charge without first
-growing the `y` and `c` families, which is the bulk of the work this entry always described. The
-ordering is now: add `y`/`c` and the formation rows, THEN the concentration rows on `y`, in that
-order, because the second is meaningless without the first.
-
-The false comment in `transfers.service.ts` has been **fixed** (B-029): it used to claim the plan
-solved under "the SAME collision guard the recommendation is solved under", which stopped being true
-at B-023. It now states the divergence instead of denying it, so this entry no longer has a lie in the
-code to point at — only the divergence itself.
-
-**The bar is unchanged.** The plan and the recommendation, run on the same squad, agree about who
-should start and who should wear the armband. Today they need not, and nothing checks it.
-
----
+**Whoever takes it, the honest framing.** The predecessor rule cost six entries — B-011, B-025, B-026,
+B-027, B-028, B-029 — and was retired on evidence. This one is its replacement, and it is now the
+best-measured guard in the project: inert where it was argued to matter (which fifteen you buy), active
+where nobody was looking (which eleven you start), and worth 9 ± a lot.

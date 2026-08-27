@@ -135,12 +135,24 @@ as cautious rather than broken. Wall clock: the whole report runs in about 15 se
 
 ## Phase 4 — B-024, measured rather than argued
 
-- [ ] `buildTransferLp` gains the `y` and `c` families, `y ≤ x`, `c ≤ y`, `Σ y = 11`, `Σ c = 1`, the
+**Landed 2026-08-27 — `fpl-backend` PR #63, issue #62. 374 tests green, sabotage recorded.**
+
+**Adopted on coherence, not on points, and the report says which.** The change costs 32 points of
+season against the objective it replaced, at a paired floor of 114 — so on points it is neither
+better nor worse. What it changes is checkable: the plan and the recommendation now agree about the
+eleven and the armband, and `plan-agrees-with-recommendation.spec.ts` is the first thing that ever
+checked it.
+
+**The measurement is a pairing, not a comparison of two report runs.** `buildTransferLp` took the same
+`SquadObjective` switch `buildLp` has, so both planners walk the season from an identical opening
+fifteen and the difference between them is the objective and nothing else.
+
+- [x] `buildTransferLp` gains the `y` and `c` families, `y ≤ x`, `c ≤ y`, `Σ y = 11`, `Σ c = 1`, the
       formation rows and `BENCH_WEIGHT` — `src/modules/transfers/transfer-lp.ts`
-- [ ] The defensive-concentration rows move onto `y`, which is only meaningful once `y` exists — in that
+- [x] The defensive-concentration rows move onto `y`, which is only meaningful once `y` exists — in that
       order, as B-024 says
-- [ ] Re-run Phase 3's arm. The change is adopted only if it does not lose on the paired comparison
-- [ ] The plan and the recommendation, run on the same squad, agree about the XI and the armband — the
+- [x] Re-run Phase 3's arm. The change is adopted only if it does not lose on the paired comparison
+- [x] The plan and the recommendation, run on the same squad, agree about the XI and the armband — the
       bar B-024 has carried since it was written, and the first time anything checks it
 
 ---
