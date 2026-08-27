@@ -1351,3 +1351,82 @@ cannot pass by both sides computing nothing.
 **Not carried here: the goalkeeper fit.** The entry's rider — keepers share every global parameter
 and only the save term is keeper-specific — is unbuilt, and is now **B-021**.
 
+---
+
+## B-018 · Surface why the optimizer refused a player, and fix the payload it refuses in
+
+```
+Status   backlog
+Repos    fpl-backend, fpl-frontend
+Plan     —
+Issue    —
+```
+
+**Why.** B-010 and B-011 shipped two guards that change the recommendation and are invisible in the
+app. The GW2 run persisted 2026-08-26 excludes 227 players and prices two Palmer collisions, and a
+user reading the squad sees none of it — only that Emersonn is absent and Saka has the armband. The
+architecture contract's own rule is that a model number states where it came from (D-019, B-009); a
+model *refusal* is a stronger claim than a number and currently states nothing.
+
+**A payload defect rides with it, and it is the reason this is not purely frontend.** Plan 009 Phase 2
+specified `collisions: [{ fixture, attacker, defender, lambda, taken }]`. What shipped emits team
+**cuids** instead of a fixture label:
+
+```json
+{ "attacker": "Palmer", "attackerTeamId": "cmt9x1wjf0006lp3t2s0z9qa2",
+  "defender": "De Cuyper", "defenderTeamId": "cmt9x1wje0005lp3t5l8o5g8b" }
+```
+
+`Candidate` carries `teamId` and no team name, so the fix is a short-name lookup in `buildUniverse`
+and a `fixture: "CHE vs BHA"` string. Known and deliberate at merge time (fpl-backend#17), deferred
+here rather than left unowned. **Nothing can render this payload until that lands** — a cuid on
+screen is worse than an omission, because it looks like data.
+
+**What to build.**
+
+1. The payload fix above, in `optimizer.service.ts` — team short names, and the `fixture` label the
+   plan asked for.
+2. A DTO that carries the reasoning to the frontend. Plan 009 deliberately changed no DTO; this entry
+   is where that boundary is crossed, and the shape should be decided against what the panel actually
+   shows rather than by mirroring the JSON.
+3. The panel itself: which players the floor removed and what it cost (4.48 horizon EP on the GW2
+   solve, of which the floor is 3.41), and which collisions the squad kept and what it paid for them.
+
+**Say what the guards are, honestly, because the measurement is split.** The floor is a refusal to bet
+on unmeasured players. The collision penalty is a **policy choice that was measured not to improve
+realised points** — `fpl-backend/reports/guards-009.md`, +0.59 ± 0.92 per gameweek, per-season signs
+that flip, downside worse. The UI must not present the second as if it were the first. `policy.ts`
+already states this where the number is defined; the panel is where a user would otherwise infer the
+opposite.
+
+**Depends on nothing.** Independent of B-012 and B-013 — this shows what the optimizer already did,
+not a new number about the future.
+
+---
+
+**Outcome — shipped 2026-08-27, backend#30 and frontend#6.**
+
+Verified against the live database rather than asserted. `GET /api/insights/advice/recommended` now
+carries 227 excluded, a floor cost of **3.79 horizon EP**, Tzolakis / Mendy / Emersonn named as the
+players an unguarded solve would have taken, and both Palmer collisions labelled **"CHE vs BHA"** —
+the label plan 009 specified. `GET localhost:4000/squad/recommended` returns 200 with the panel
+rendered and every one of those numbers in the output.
+
+**The structural cause of the cuid defect, fixed rather than patched.** The persisted JSON and the
+API payload were assembled separately, so the persisted one could disagree with the plan that
+specified it and nothing would notice until somebody tried to render it. They are now one
+`RecommendationReasoning`, built once, both returned and persisted. The second ILP solve that
+measures the floor's cost became opt-in (`run({ explain })`), so a throwaway solve does not pay for a
+number nobody will read and an advice request does.
+
+**The design decision worth carrying forward.** The two guards are not the same kind of thing, and a
+UI that levelled them would state the opposite of what is known. The floor is a refusal to bet on
+players the model cannot measure; the collision penalty was swept over 103 archived gameweeks and did
+**not** improve realised points. So the two notes carry different tones, and **both sentences come out
+of the payload** rather than being written in the component — a component gets rewritten by someone
+who never opens `reports/guards-009.md`, and the honest sentence should not be theirs to lose.
+
+The check that could not fail, closed: a count test never sees a cuid, so the guard is a **shape**
+test on the emitted strings, with a second arm asserting a real cuid does match the pattern — without
+which it would pass forever by matching nothing.
+
