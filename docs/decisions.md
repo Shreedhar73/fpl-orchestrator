@@ -1149,3 +1149,20 @@ gameweeks). B-028 explains why: it was pricing insurance.
 - The model has **no head-to-head term** (found while checking this). For CHE v BHA it rates Chelsea
   stronger on league-wide rolling form while Brighton have won the last four meetings. Not acted on —
   recorded so nobody assumes it was considered.
+
+## D-031 · 2026-08-27 · Keepers get their own minutes curves, and the incumbent moves to v3-fitted-2026-08-27-gkp
+
+B-021 fitted the goalkeeper minutes curves on keeper rows alone (start n=4,627, sub n=3,514) and the
+save-pressure exponent on keeper validation rows (interior optimum 0.5 — opponent pressure moves
+saves at square-root strength, not linearly as the hand-drawn ratio assumed). Every global parameter
+reproduced the incumbent byte-for-byte, so the change is keeper-scoped by construction.
+
+**Adopted on B-021's own pre-stated bar, measured on held-out 2025-26:** all four GKP component
+terms improved — the appearance term, B-013's largest positional gap (0.258 predicted vs 0.225
+base), closed to 0.229 — with DEF/MID/FWD byte-identical, ordering still ahead of `form` at every k,
+and the simulated `greedy-1ft` season up 1881 → 1926, ahead of the crowd proxy for the first time.
+
+The serving version moves by this entry (the pin reads the constant — backend#79 made a row landing
+unable to do it), and `v3-fitted-2026-08-27`'s rows are kept, per D-020. The candidate's residual
+base moved with it, so the candidate is refit on the new base — a maintenance refit of the frozen
+architecture, not a new selection; no selection decision reads the archive holdout again.
