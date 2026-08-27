@@ -76,9 +76,8 @@ matter.
 Variables: `x_p ∈ {0,1}` player in the 15; `y_p ∈ {0,1}` player in the XI (`y_p ≤ x_p`);
 `c_p ∈ {0,1}` captain (`c_p ≤ y_p`).
 
-Maximise `Σ EP_p × (y_p + c_p) + bench_weight × Σ EP_p × (x_p − y_p) − λ × (Σ z_ij + Σ w_ij)`, where
-`z_ij ≥ x_i + x_j − 1` prices every conflicting pair the squad HOLDS and `w_ij ≥ c_i + x_j − 1` prices
-the armband sitting on one side of one (below).
+Maximise `Σ EP_p × (y_p + c_p) + bench_weight × Σ EP_p × (x_p − y_p) − λ × Σ d_ij`, where
+`d_ij ≥ y_i + y_j − 1` prices every pair of our defensive players STARTING for the same club (below).
 
 **`bench_weight` is 0.7 and was measured, not estimated.** This skill said ~0.1 for a long time and
 that number is wrong: B-023 swept it over a full archived season and every value at or below 0.5 cost
@@ -98,34 +97,36 @@ Subject to:
 - **Transfers:** `Σ transfers_out ≤ free_transfers + hits`, objective penalised by `4 × hits`. The
   hit must be inside the objective, not a post-hoc filter — the question is always "is this player
   worth more than 4 points over the horizon", and only the solver can answer it.
-- **Fixture collisions:** one row per pair of our own players on opposite sides of the same match —
-  an attacker (FWD/MID) of ours against a defensive player (DEF/GKP) of ours. `z_ij ≥ x_i + x_j − 1`,
-  charged the policy `λ` in the objective, **unscaled**. Plus `w_ij ≥ c_i + x_j − 1` in both
-  directions: the captain doubles the stake on the correlated outcome, not only the reward, so a
-  captained pair is charged twice. It was briefly charged at `bench_weight × λ`
-  on the argument that B-023 had changed what a squad place is worth; that scaling is exact only for a
-  pair nobody starts — a *starter's* coefficients sum back to `ep` — and a colliding pair is usually
-  two startable players. Neither version is measurable, and the reason to keep them uncoupled is that
-  two knobs moving together need a harness that can see both.
+- **Defensive concentration:** one row per pair of our own defensive players (DEF or GKP) who START
+  for the same club. `d_ij ≥ y_i + y_j − 1`, charged the policy `λ`. A keeper and his defenders share
+  one clean sheet exactly, which is what makes them concentrated.
 
-**Every collision row keys off `x`, including the captain's, and this is the one thing about them
-worth remembering.** They were briefly moved onto `y` and `c` — charge the eleven, not the squad, on
-the argument that the bet is made on the pitch. The solver answered by benching one side and keeping
-both: it gave up 3.3 horizon points in a live eleven while paying £9.6m for two players it would not
-start, and over an archived season it owned a pair in every round and started both sides in eight of
-them.
+**Key a charge to the decision you want to change, and this rule cost four entries to learn it.** Its
+predecessor charged a squad for owning one of our attackers against one of our defenders in the same
+match. That charge was moved to the XI (dodged by benching), moved back to ownership, scaled by the
+bench weight, unscaled, and given a captain term — and then measured. Over 101,103 archived pairs the
+collision is real (correlation −0.195; a defensive player takes 1.48 points where the attacker facing
+him returned against 3.04 where he blanked) and it is a **hedge**: `Var(A + D) = Var(A) + Var(D) +
+2·Cov(A, D)`, the covariance is negative, and holding both sides cut the pair's variance by a fifth.
+Given a squad already holding two of a club's defence, the attacker who faces them was the SAFEST
+attacker it could add — and the rule charged extra for him.
 
-Then the correction over-corrected: the captain's row was deleted along with the XI's, and the next
-live solve captained a Chelsea midfielder into two Brighton defenders it owned and started, paying
-nothing for the double. Both rows belong, and both read `x` on the other side. **Charge what you want
-to refuse, and key it to the decision you want to change** — if benching answers the charge, the
-charge was on the wrong variable.
+Two things follow that are worth carrying to any future guard:
 
-**The penalty is a policy choice that its own measurement did not support**, and any code touching it
-has to keep saying so: swept over 103 archived gameweeks it gained +0.59 ± 0.92 realised points per
-gameweek, the per-season sign flipped, and the downside it was argued for as insurance got worse. It
-is on because a squad that bets on a clean sheet and against it at once is not one worth defending to
-a user.
+- **A correlation cannot make a linear objective wrong in expectation.** `E[A + B] = E[A] + E[B]`
+  however they covary. Any penalty argued as "the projections are honest marginally and the squad is
+  still wrong" is a statement about VARIANCE, and should say so.
+- **If benching answers a charge, the charge is on the wrong variable** — unless benching genuinely
+  removes the exposure, which is exactly the difference between the retired rule (about *buying* both
+  sides) and this one (about *fielding* a concentrated defence).
+
+**This penalty is a policy choice and its benefit is unmeasured**, and any code touching it has to
+keep saying so. What was measured is that two of one club's defence covary +5.58 — the largest
+correlated term in a squad. What was NOT measured, and cannot be from this data, is that a
+lower-variance squad scores more: that depends on optimising expected rank rather than expected
+points, and this project optimises points. On the season replay the rule gives up 71.34 projected
+points in the eleven over a season. Anyone moving or removing this number is making a policy argument
+and should say so.
 
 Read every constraint value from `rules_config`, never from a constant.
 

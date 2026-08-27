@@ -35,21 +35,25 @@ and the payload reports it; setting the constant to 0 turns that assertion red.
 
 ## Tasks
 
-- [ ] Delete the collision machinery from the objective: `z`/`w` rows, `buildConflictPairs`,
+- [x] Delete the collision machinery from the objective: `z`/`w` rows, `buildConflictPairs`,
       `Collisions`, `pairsWithin`, `COLLISION_LAMBDA`, `penalisedSquadEp`'s charge — `ilp.ts`,
       `policy.ts`
-- [ ] Delete `collision-sweep.ts` and its package script; `reports/guards-009.md` stays as the record
-- [ ] Same-club defensive pairs: build them from the squad, one `d_ij ≥ y_i + y_j − 1` row per pair,
+- [x] Delete `collision-sweep.ts` and its package script; `reports/guards-009.md` stays as the record
+- [x] Same-club defensive pairs: build them from the squad, one `d_ij ≥ y_i + y_j − 1` row per pair,
       charged `DEFENCE_CONCENTRATION_LAMBDA` — `ilp.ts`, `policy.ts`
-- [ ] `pickBestXi` scores the new charge, so the enumeration and the LP still agree — `ilp.ts`
-- [ ] `arrangeSquad` reports the started pairs and what they cost — `optimizer.service.ts`
-- [ ] Payload: `defenceConcentration` replaces `fixtureCollisions`, with the statement rewritten —
+- [x] `pickBestXi` scores the new charge, so the enumeration and the LP still agree — `ilp.ts`
+- [x] `arrangeSquad` reports the started pairs and what they cost — `optimizer.service.ts`
+- [x] Payload: `defenceConcentration` replaces `fixtureCollisions`, with the statement rewritten —
       `optimizer.service.ts`, `advice.dto.ts`
-- [ ] `insights.service.ts` and `guards-report.ts` follow the new vocabulary
-- [ ] Tests: a forced same-club started pair is charged; benching one side removes the charge (and
+- [x] `insights.service.ts` and `guards-report.ts` follow the new vocabulary
+- [x] Tests: a forced same-club started pair is charged; benching one side removes the charge (and
       that is intended here, unlike B-025); the constant at 0 turns both red — `guards.spec.ts`
-- [ ] `pnpm openapi:emit`, `pnpm generate:api`, panel rewrite — `advice.dto.ts`, `types.gen.ts`,
+- [x] `pnpm openapi:emit`, `pnpm generate:api`, panel rewrite — `advice.dto.ts`, `types.gen.ts`,
       `reasoning-panel.tsx`
-- [ ] Re-solve GW2 and run `pnpm replay:xi`; record both — `reports/gw2-recommendation-v3.md`,
-      `reports/xi-replay.md`
-- [ ] Update the `fpl-optimizer` skill's objective spec and its collision paragraph
+- [x] Re-solved GW2 and ran `pnpm replay:xi`; both recorded — `reports/gw2-recommendation-v3.md`,
+      `reports/xi-replay.md`. **The result does not flatter the rule and is reported that way:** GW2
+      benches De Cuyper at £4.6m and returns the armband to Palmer (raw EP 253.68 → 254.54, charged
+      0.00); the season replay gives 1682 against 1673 with no penalty at all and 1713 with the
+      retired rule — one squad, different fifteens, so no result — while giving up **71.34 projected
+      points in the eleven** over the season, which is not noise.
+- [x] Update the `fpl-optimizer` skill's objective spec and its collision paragraph
