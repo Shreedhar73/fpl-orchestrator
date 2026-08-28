@@ -107,6 +107,20 @@ season was not.
       unique per row — `season, round, playerCode` plus `fixture` where a double gameweek makes two
       rows for one player — so the row order out of Postgres is fully determined. Check every other
       `findMany` on this path for the same shape while in the file. — `src/modules/projections/forecast.repository.ts`
+- [ ] **One deterministic sort where `PredictionRow[]` is assembled** — added after task 1. Sort by
+      `(season, round, playerCode, fixture)` once, in the harness that builds the rows, so every
+      downstream consumer sees one order regardless of what Postgres returned. This is the fix; the
+      reader's `ORDER BY` above is the belt, this is the braces, and the two task-1 findings below
+      are why one site was never going to be enough. — `src/modules/calibration/harness.ts`
+- [ ] **The seeded-random squad generator draws in row order** — `randomLegalSquad()` maps its
+      xorshift stream onto rows as they arrive, so the same recorded seed produces a different squad
+      per run (`random #4`: 558 against 1253). Draw against a row list sorted by `playerCode` inside
+      the generator, so the seed means what the report says it means. — `src/modules/calibration/fixed-squads.ts`
+- [ ] **Audit the tie-breaks** — every `sort()` whose comparator can return 0 resolves to input
+      order (stable sort). List them, and give the ones that decide something a `playerCode`
+      tie-breaker rather than relying on the upstream sort holding: XI, armband, the weekly transfer
+      pick, the chip pick, and the five in `ordering.ts`. — `src/modules/calibration/xi-decision.ts`,
+      `src/modules/calibration/season-sim.ts`, `src/modules/calibration/ordering.ts`
 - [ ] **Deterministic sort where candidates are built.** Sort `Candidate[]` by `playerCode` in
       `openingSquad()` before the solve, so the LP string cannot depend on an upstream read order
       again even if a future query loses its ordering. Belt and braces on purpose: the reader fix is
@@ -115,11 +129,13 @@ season was not.
       the product's own recommendation should not be able to differ between two identical solves
       either. Confirm by reading, and record here whether it needed the change or already had it.
       — `src/modules/optimizer/optimizer.service.ts`, `src/modules/optimizer/optimizer.repository.ts`
-- [ ] **The determinism guard.** A test that runs the opening solve twice over the same fixture rows
-      and asserts identical squads, plus a case that shuffles the input rows and asserts the squad is
-      *still* identical — the shuffle is what makes the guard load-bearing rather than decorative.
-      — `src/modules/calibration/__tests__/season-sim.determinism.spec.ts`
-- [ ] **Break it on purpose.** Revert the candidate sort locally, confirm the shuffle case goes red,
+- [ ] **The determinism guard.** A test that walks a season twice over the same fixture rows and
+      asserts identical **season rows** — not the opening fifteen, which task 1 measured as stable
+      while the season was not — plus a case that shuffles the input rows and asserts the walk is
+      *still* identical. The shuffle is what makes the guard load-bearing rather than decorative.
+      Cover the seeded-random squad in the same file: same seed and shuffled rows must give the same
+      squad. — `src/modules/calibration/__tests__/season-sim.determinism.spec.ts`
+- [ ] **Break it on purpose.** Revert the central sort locally, confirm every shuffle case goes red,
       restore. Note the failure output in this file. A guard nobody has seen fail is not evidence.
       — same test file
 - [ ] **Re-run and re-commit the reports** produced by the affected harnesses, so what is committed
@@ -136,3 +152,13 @@ season was not.
 - [ ] **Close the register** — plan ticked, B-039 moved to `archive.md` with the PR number and an
       outcome line, backend#94 and the parent issue closed. — `orchestration/backlog.md`,
       `orchestration/archive.md`
+
+
+## Branch note
+
+`fix/94-decision-quality-determinism` is **stacked on `fix/92-archive-ten-seasons-null-safety`**
+(PR fpl-backend#93), not cut from `main`. Two reasons, both found on 2026-08-28: the two branches
+overlap on `season-sim.ts`, `decision.service.ts` and `forecast.repository.ts`; and the local
+database already carries #92's migration, so `main`'s source does not typecheck against the
+generated Prisma client and `pnpm decision-quality` cannot be run from it at all. **#93 merges
+first.** If it is rebased or amended, this branch rebases onto it before the report re-run.
