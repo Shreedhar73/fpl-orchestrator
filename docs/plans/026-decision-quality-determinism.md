@@ -30,6 +30,49 @@ Task 1 discriminates between them and the fix is shaped by the answer. The plan 
 that is where the evidence points; if the hash comes back identical, task 3 changes and this
 paragraph is corrected in place rather than deleted.
 
+### Task 1 measured, 2026-08-28 — (a) confirmed, and the LP is **not** the mechanism
+
+Two `FPL_LP_HASH=1 pnpm decision-quality` runs, unchanged database, on
+`fix/94-decision-quality-determinism` (stacked on `fix/92`, see the note at the foot of this file):
+
+| hash | run 1 | run 2 | same? |
+|---|---|---|---|
+| candidate key order | `a5c4a0c63e2e6ed9` | `ecb125fffbd5d74f` | **no** |
+| LP string (`model`) | `2ce742dd86fe3681` | `61efafd0b2a0fc6c` | **no** |
+| **opening fifteen chosen** | `f8a4fdcbef40081f` | `f8a4fdcbef40081f` | **yes — identical** |
+
+Every `LPPICK` line matched across the two runs, for every predictor and every arm. So **row order
+is non-deterministic (a is confirmed), but the opening-squad LP is not where it turns into points**
+— HiGHS returned the same fifteen from a differently-ordered LP. #94's suggested fix, deterministic
+tie-breaking in the opening-squad solve, would have shipped and changed nothing.
+
+**Where it actually turns into points.** `PredictionRow[]` order is not merely the order the LP is
+written in — it is read as *data* in three places:
+
+1. **`randomLegalSquad()` (`fixed-squads.ts:116`)** — the seeded xorshift stream is drawn per row in
+   **row order**, so the same seed assigns different weights to different players. Same seed,
+   different squad: `random #4` scored 558 in run 1 and 1253 in run 2. The comment on that generator
+   says the seed exists so a reported number is reproducible; it is not, and this is the largest
+   single divergence in the report.
+2. **Every `sort()` with a tie** — `Array.prototype.sort` is stable, so equal keys resolve to input
+   order. That is the XI (`xi-decision.ts:116`), the armband (`:173`), the weekly transfer pick and
+   the chip pick (`season-sim.ts:469`), and the ordering metrics (`ordering.ts`, five sites). A tie
+   in week 3 changes who is owned in week 4, and the season follows.
+3. **The LP variable order** — real, measured, and inert on this data. Kept in the fix anyway: it is
+   inert by luck, not by construction.
+
+**What moved, run to run, with the opening fifteen held identical:** `greedy-1ft` for `form` went
+**1740 → 1905**, and the prose the report generates flipped sign with it — "a remaining gap of 94"
+became "a remaining gap of −69". The planner arm went 1923 → 1943; the crowd-versus-model gap went
+57 → 63 points. The paired per-round figures moved far less (`model − v4` at −3.35 ± 2.54 against
+−3.19 ± 2.49), which is the third time this instrument has said the paired test is the one to trust.
+
+**Consequence for the fix.** Sorting inside `openingSquad()` alone would not have fixed the report.
+The fix has to make `PredictionRow[]` itself deterministic **once, centrally**, upstream of every
+consumer — which is the reader plus one sort where the rows are assembled — and the guard has to
+assert on a season row, not on the opening fifteen, because the opening fifteen was stable while the
+season was not.
+
 **Out of scope**
 - Auditing archived conclusions that rested on season-total deltas (chip value ≈ +157, corpus size,
   the v4 arms). Named as a follow-up in B-039 if the re-run moves any of them.
@@ -51,11 +94,15 @@ paragraph is corrected in place rather than deleted.
 
 ## Tasks
 
-- [ ] **Discriminate the cause.** Behind an env flag (or a throwaway branch commit, not shipped),
+- [x] **Discriminate the cause.** Behind an env flag (or a throwaway branch commit, not shipped),
       dump a SHA-256 of the LP string and of the candidate key order from `openingSquad()`; run
       `pnpm decision-quality` twice on an unchanged database and compare. Record both hashes and the
       verdict — (a) or (b) — in this file before writing the fix. — `src/modules/calibration/season-sim.ts`,
       `src/modules/optimizer/ilp.ts`
+      — **done 2026-08-28, verdict (a), and it moved the plan**: see the section above. The probe is
+      env-gated (`FPL_LP_HASH=1`) and is removed before the PR. Two tasks were added below as a
+      result — the seeded-random squad generator and the tie-break audit — and the guard's assertion
+      moved from the opening fifteen to the season rows.
 - [ ] **Total ordering in the shared reader.** Extend the archive read's `orderBy` to a key that is
       unique per row — `season, round, playerCode` plus `fixture` where a double gameweek makes two
       rows for one player — so the row order out of Postgres is fully determined. Check every other
