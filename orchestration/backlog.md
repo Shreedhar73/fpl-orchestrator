@@ -308,7 +308,7 @@ component, or GBM as a residual on v3.
 ## B-040 · Ten seasons of archive arrived and the model is still fitted on two
 
 ```
-Status   in progress — tasks 1-3 and 6 built (backend #100, #102), D-034 recorded; task 4 next
+Status   in progress — tasks 1-6 built (backend #100, #103), D-034 recorded; 7-9 remain
 Repos    fpl-backend, fpl-orchestrator
 Plan     docs/plans/027-ten-season-refit-and-rolling-origin.md
 Issue    orchestrator#25 (parent), backend#100 (referee)
@@ -377,3 +377,14 @@ not get better.** Same fold, fitted twice, paired per round: ten seasons against
 constraint on this model was never the number of rows, and imputation ships default OFF with the
 machinery kept — task 4 may still find a window under which the old seasons pay, and that is now the
 next task rather than a formality.
+
+**Tasks 4 and 5 landed with the same session and they close the entry's premise.** With the window
+and the decay chosen per fold on the season before it, eight of nine folds pick one or two seasons
+and no fold with a real choice picks a decay. On 2025-26 the ladder runs 1 season 38.2%, two 39.7%,
+three 38.5%, all nine 38.7%, all nine with a one-season half-life 38.0% — the peak is exactly the
+two-season corpus `TRAIN_SEASONS` already holds. So the widened refit task refits nothing, and
+`fit.ts`'s note that nine seasons at half-life 1 scored 1959 is superseded: that number came off the
+test season, and on validation that configuration is the worst of the eight. **The ten seasons bought
+a referee and an answer, not a better model.** What remains is 7 (v4 on the widened export, where a
+gradient-boosted model may still be data-hungry enough to differ), 8 (the availability hybrid B-015
+left stranded) and 9 (the verdict).

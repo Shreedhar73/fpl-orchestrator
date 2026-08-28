@@ -68,7 +68,7 @@ No external document drop exists; the search for one is what produced that answe
       2023-24 on). Records 2022-23 round 7 as a postponed round with no rows.
       Files: `prisma/schema.prisma` (comment only), `src/modules/archive/archive.service.ts`,
       `src/scripts/archive-coverage.ts`, `reports/archive-coverage.md`.
-- [ ] **4 · Window length and recency decay as fitted hyperparameters, per component.** Each component
+- [x] **4 · Window length and recency decay as fitted hyperparameters, per component.** Each component
       (minutes/start curves, per-90 rates, team strength, fixture, availability) gets its own train
       window and exponential recency weight, selected under task 1's nested rule — inside evaluation
       fold *s*, on season *s−1* and never on *s*.
@@ -77,7 +77,7 @@ No external document drop exists; the search for one is what produced that answe
       Files: `src/modules/calibration/fit.ts`, `src/modules/calibration/calibration.service.ts`
       (`TRAIN_SEASONS` becomes per-component and derived, not a two-element constant),
       `reports/window-selection.md`.
-- [ ] **5 · Refit v3 on the widened windows.** The rate half of the model can now see up to ten seasons;
+- [x] **5 · Refit v3 on the widened windows.** The rate half of the model can now see up to ten seasons;
       the minutes half still sees three, and the report must say which coefficients actually moved and
       which are unchanged within noise. Adoption is not decided here — the fitted candidate is emitted
       under its own version and measured in task 8.
@@ -216,3 +216,40 @@ statement about a starved, unweighted fit, not about imputed labels.
 **Deviation from the plan as written:** no schema column and no migration. The probabilities are
 computed on the read path (`CalibrationRepository.history`), which cannot go stale against the code
 that defines them and needs no backfill.
+
+## Tasks 4 and 5, as built — 2026-08-28, backend #102/#103
+
+**The window is now chosen, per fold, on the season before it — and it chooses what the incumbent
+already trains on.** Eight candidates (1, 2, 3 and all seasons × no decay, half-life 1, half-life
+0.5), fitted inside each fold, scored on that fold's validation season, winner refitted and the fold
+scored once:
+
+| eval season | chosen | validate captured | spread across candidates |
+|---|---|---:|---:|
+| 2017-18 | 1 season, no decay | 21.8% | 0.00pp |
+| 2018-19 | all seasons, half-life 0.5 | 18.6% | 0.45pp |
+| 2019-20 | 2 seasons, no decay | 23.8% | 0.93pp |
+| 2020-21 | 1 season, no decay | 26.2% | 0.91pp |
+| 2021-22 | 2 seasons, no decay | 21.9% | 0.65pp |
+| 2022-23 | 2 seasons, no decay | 18.5% | 1.85pp |
+| 2023-24 | 1 season, no decay | 19.1% | 0.00pp |
+| **2024-25** | **2 seasons, no decay** | 41.4% | 2.41pp |
+| **2025-26** | **2 seasons, no decay** | 39.7% | 2.03pp |
+
+Eight of nine folds choose one or two seasons; the ninth had only two to choose from. **No fold with
+a real choice picks a decay.** On 2025-26 the full ladder is 1 season 38.2%, **2 seasons 39.7%**, 3
+seasons 38.5%, all nine 38.7%, all nine with a one-season half-life 38.0%, all nine at half-life 0.5
+37.7% — monotone away from the winner in both directions, and the two-season peak is the corpus
+`TRAIN_SEASONS` has held all along.
+
+**So task 5 refits nothing.** "Refit v3 on the widened windows" was written expecting the widened
+window to win; measured under nested selection, it loses. `TRAIN_SEASONS = ['2023-24','2024-25']`
+stands, now for a reason rather than by inheritance, and `fit.ts`'s own note — nine seasons at a
+one-season half-life scoring 1959 against 1926 — is superseded: that number was read off the test
+season, which is exactly why it was never adopted, and on validation the same configuration is the
+**worst** of the eight.
+
+**What this costs to believe.** The candidate spread is 2.0–2.4pp on the modern folds and under 1pp
+on most of the old ones, so the ladder is real but shallow; and the selection is made on a
+half-season of validation rounds. The claim this supports is "more seasons do not pay", not "two is
+provably optimal".
