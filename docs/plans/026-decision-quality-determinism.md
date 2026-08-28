@@ -200,9 +200,10 @@ The checks as written before the work:
       — **done** in `decision.service.ts`: the totals column is no longer bolded and is headed
       "points (reference)", a paragraph above it says what it is and is not, and the paired section
       is now "### The verdict — paired by round". `sim-verdict.ts` needed no change.
-- [ ] **Record the decision** — a D-numbered entry: what the instrument's non-determinism was, what
+- [x] **Record the decision** — a D-numbered entry: what the instrument's non-determinism was, what
       it cost (three claims in lab 025 were wrong because of it), and the rule that the paired test
       is the verdict from here. — `docs/decisions.md`
+      — **done, D-033.**
 - [ ] **Close the register** — plan ticked, B-039 moved to `archive.md` with the PR number and an
       outcome line, backend#94 and the parent issue closed. — `orchestration/backlog.md`,
       `orchestration/archive.md`
@@ -216,3 +217,10 @@ overlap on `season-sim.ts`, `decision.service.ts` and `forecast.repository.ts`; 
 database already carries #92's migration, so `main`'s source does not typecheck against the
 generated Prisma client and `pnpm decision-quality` cannot be run from it at all. **#93 merges
 first.** If it is rebased or amended, this branch rebases onto it before the report re-run.
+
+**`Closes #94` in backend#95 will not fire as things stand.** GitHub processes a closing keyword only
+when the PR merges into the **default** branch, and #95's base is `fix/92`. So the order is: #93
+merges to `main` → `gh pr edit 95 -R Shreedhar73/fpl-backend --base main` → rebase → **re-run the
+two-run byte-identical check**, because #93 changing under this branch is exactly the case the
+ordering note above was written for → merge. If #95 is ever merged into `fix/92` instead, **#94 must
+be closed by hand** — nothing will do it automatically.
