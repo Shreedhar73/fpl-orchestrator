@@ -302,3 +302,58 @@ compressed top end. If enrichment fixes Tickers/Haulers and the bar is met, the 
 next and were recorded in B-035: no explain blocks (D-019), no distributions (B-017), no pPlay — a
 model that cannot ship its reasoning does not ship, however it measures. Candidate answers: GBM per
 component, or GBM as a residual on v3.
+
+---
+
+## B-040 · Ten seasons of archive arrived and the model is still fitted on two
+
+```
+Status   planned
+Repos    fpl-backend, fpl-orchestrator
+Plan     docs/plans/027-ten-season-refit-and-rolling-origin.md
+Issue    —
+```
+
+**Why.** Backend #93 extended the archive from three seasons to ten. Nothing downstream moved. Every
+fitted number this project serves still comes from `TRAIN_SEASONS = ['2023-24', '2024-25']`
+(`calibration.service.ts:77`) and the v4 export is still 85,342 rows of three seasons
+(`reports/datasets/manifest.json`, 2026-08-27). The table now holds **253,568 rows** — measured
+2026-08-28, `archive_player_gameweek`, ten seasons 2016-17..2025-26, all ten re-scored under their
+own season's table and refused unless official `total_points` reproduced exactly.
+
+**What the extra rows actually buy, per column — measured, not assumed.** The archive is not
+rectangular and treating it as such is the trap the schema comments already name:
+
+| input | seasons with the column | rows |
+|---|---|---|
+| minutes, goals, assists, conceded, clean sheets, saves, bonus, BPS, ICT | all 10 | 253,568 |
+| `expectedGoals` / `expectedAssists` | 2022-23 onward | 113,260 |
+| `starts` | **2023-24 onward** | 86,755 |
+| `defensiveContribution` and components | 2025-26 only | ~29,747 |
+
+So the rate half of the model can see 3x what it was fitted on, and **the minutes half cannot see one
+extra row** — `starts` is NULL through 2022-23, which is where every start-derived feature
+(`laggedStartRate`, `sixtyGivenStart`, and through `v3ep` most of v4) is anchored. The schema comment
+at `ArchivePlayerGameweek.starts` says "NULL before 2022-23" and the data says NULL *through* it;
+that comment is wrong by one season and is corrected in this plan.
+
+**Two facts about the shape of the ten seasons that a pooled fit would get wrong.** 2022-23 is 37
+rounds, not a bug: round 7 was postponed in full (September 2022) and no row exists for it, so a
+harness that indexes rounds must drop rather than zero it. And 2020-21 was played in empty stadiums —
+any home-advantage term pooled over it is fitted on a regime that no longer exists. Five substitutes
+became permanent in 2022-23, which moves the minutes curves specifically.
+
+**The referee has to be rebuilt before any of this is measured, and that is the first task.** The
+single-season holdout is spent by this repository's own written rule: `tools/fit-v4/fit.py` records
+"the next TEST reading is the last", and B-037 retired the archive holdout after four readings. A
+refit scored against 2025-26 again is a reading the register already forbids. Ten seasons make a
+better referee possible than the one that was burned — rolling-origin, train on everything before
+season *s* and evaluate on *s*, seven evaluation seasons instead of one, per-round paired per D-033
+with a standard error across seasons rather than a single number with none.
+
+**This also unblocks the one entry stranded by its own verdict.** B-015 names its next step exactly —
+the multiplicative-chance availability hybrid, "would need a register decision" — and that decision
+is what this plan carries, measured on the new referee rather than on the spent one.
+
+**Serving does not move in this plan.** The pin stays on the incumbent, candidates ride the existing
+weekly machinery, and adoption is a D-number read off the reports, taken separately.
