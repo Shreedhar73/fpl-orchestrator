@@ -302,3 +302,53 @@ compressed top end. If enrichment fixes Tickers/Haulers and the bar is met, the 
 next and were recorded in B-035: no explain blocks (D-019), no distributions (B-017), no pPlay — a
 model that cannot ship its reasoning does not ship, however it measures. Candidate answers: GBM per
 component, or GBM as a residual on v3.
+
+## B-039 · `decision-quality` is not reproducible — the instrument the accuracy arguments are read off swings 40-80 points per run
+
+```
+Status   backlog
+Repos    fpl-backend
+Plan     —
+Issue    backend#94
+```
+
+**Why.** Two consecutive `pnpm decision-quality` runs on 2026-08-28, **no code change, no data
+change, shipped constants**, disagree by more than the differences the report is used to argue
+about:
+
+| arm | run 1 | run 2 | delta |
+|---|---|---|---|
+| greedy-1ft, model | 1791 | 1828 | +37 |
+| greedy-1ft, v4 | 1928 | 1976 | +48 |
+| no-transfer, v4 | 1697 | 1778 | +81 |
+| greedy-1ft + chips, model | 1802 | 1839 | +37 |
+
+Squad value differs between the runs as well — **£95.7m against £96.4m** — so the opening fifteen
+itself is not the same fifteen, and the whole season path follows from it.
+
+**Why it matters.** `reports/decision-quality.md` is the file this project's accuracy claims are
+read out of, and the claims it carries turn on differences of 30-90 points: chip value, corpus size,
+candidate adoption. At this swing none of those are reproducible, and a committed report cannot be
+compared against a fresh run. It is also part of why the shipped `FITTED_PARAMS` appeared not to
+reproduce when re-fitted — some of that is real (the availability join entered the walk after they
+were fitted), and some of it is the season numbers moving on their own.
+
+**What is still trustworthy, and should carry the load until this is fixed.** The **paired
+per-round tests are stable** across both runs: `model − v4` came out **−3.70 ± 3.15** and
+**−4.00 ± 2.41**. Lab 025's post-mortem says the same thing — the paired instrument is what should
+have been used throughout, and the season totals should never have been read as a difference.
+
+**The cause is a hypothesis, not a finding.** #94 proposes tie-breaking in the opening-squad LP.
+HiGHS given a byte-identical LP string is deterministic, so the live candidates are (a) the LP
+string is not identical between runs — candidate order arriving from Prisma without a total
+`ORDER BY`, resolution order, or float EP summed in a different order — or (b) the string *is*
+identical and equal-optima selection varies. The discriminating check is cheap and belongs first:
+hash the LP string and the candidate array order across two identical runs. Different hash means
+the fix is upstream ordering; same hash means a deterministic tie-break inside the solve.
+
+**The fix has to ship its own guard, and the guard has to be able to go red.** Two runs of the same
+config must produce byte-identical season rows, and that assertion must be broken on purpose —
+shuffle the candidate order — before it is believed. `fpl-testing-contract` governs it.
+
+Filed from lab 025's post-mortem (plan `docs/plans/025-fpl-lab-backtested-manager.md`), where the
+instrument failed while it was being used to measure something else.
