@@ -312,3 +312,47 @@ compressed top end. If enrichment fixes Tickers/Haulers and the bar is met, the 
 next and were recorded in B-035: no explain blocks (D-019), no distributions (B-017), no pPlay — a
 model that cannot ship its reasoning does not ship, however it measures. Candidate answers: GBM per
 component, or GBM as a residual on v3.
+
+---
+
+## B-041 · The model's own shape, where it is wrong for structural reasons
+
+```
+Status   planned
+Repos    fpl-backend, fpl-orchestrator
+Plan     docs/plans/028-model-shape-not-more-data.md
+Issue    —
+```
+
+**Why.** B-040 measured six data-side levers and none of them moved the model (D-035): the constraint
+was never the number of rows. What has never been measured is the model's own **shape** — and three
+places in it are wrong for reasons that have nothing to do with how much history is available.
+Measured 2026-08-28, before any of this is built:
+
+| where | what is there now | what the data says |
+|---|---|---|
+| player rates | `xg90`, `xa90`, `bps90`, `saves90` are a flat mean over the whole career, shrunk toward a positional constant at a hand-set 270 minutes | team strength has had a fitted recency half-life since B-014, and the sub-appearance rate has been season-first since B-019. The rate features never got either. |
+| minutes given a start | two league constants, 82.8 minutes and P(60+) = 0.934 | over 591 players with 10+ starts: mean minutes p05 **69.1**, p95 **90.0**, sd 6.4; P(60+ \| start) runs **0.75 to 1.00** |
+| bonus | a clipped linear function of the player's OWN bps | bonus is the top three BPS **in a match** — 3+2+1 = 6 points, always. The current term hands out **8.15–8.72** per fixture, and between **3.7 and 16.6** depending on the match |
+
+**The bonus number is the one to read twice.** It is not a calibration error that a constant could
+absorb: the term over-pays in exactly the high-BPS matches, which are the matches full of the premium
+players a recommendation is made of. Two teammates who both play well are both paid full bonus, when
+in reality they take it from each other.
+
+**This is NOT D-035 re-litigated.** That decision measured a recency decay on the TRAINING CORPUS —
+how much an old season counts when fitting global parameters. This entry is about a decay on the
+PLAYER FEATURE at prediction time: how much a player's football from two years ago should count
+toward what he is now. Different lever, never measured. The asymmetry is already sitting in
+`features.ts`, where the minutes features are recency-aware and the rate features are not.
+
+**What makes this answerable now and was not before.** The rolling-origin referee (D-034) with
+per-fold selection, and the component reliability machinery (B-013) for terms too small to move
+points-captured@11 on their own. Every arm ships behind a flag that is off by default, with an
+equivalence spec asserting the off path is the fit that shipped — the pattern B-040 established.
+
+**Out of scope, and recorded so it is not re-derived.** The set-piece prior (`reports/set-piece-prior.md`
+measured a 0.306 goals-per-90 penalty lift and did not use it): penalties a player has taken are
+already inside his historical xG, so the prior is partly priced in already, and the part that is not —
+duty CHANGES — needs a per-deadline duty history that only the Wayback snapshots carry. That is a
+data task, and the ask here is explicitly the model rather than the data.
