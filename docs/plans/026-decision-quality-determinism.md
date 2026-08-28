@@ -204,9 +204,12 @@ The checks as written before the work:
       it cost (three claims in lab 025 were wrong because of it), and the rule that the paired test
       is the verdict from here. — `docs/decisions.md`
       — **done, D-033.**
-- [ ] **Close the register** — plan ticked, B-039 moved to `archive.md` with the PR number and an
+- [x] **Close the register** — plan ticked, B-039 moved to `archive.md` with the PR number and an
       outcome line, backend#94 and the parent issue closed. — `orchestration/backlog.md`,
       `orchestration/archive.md`
+      — **done 2026-08-28.** #93 merged first, #95 retargeted to `main`, rebased, the two-run
+      byte-identical check re-run afterwards (reports unchanged by the rebase), merged as `4e64c09`;
+      `Closes #94` fired on the default-branch merge. B-039 moved to `archive.md` with its outcome.
 
 
 ## Branch note
@@ -218,7 +221,12 @@ database already carries #92's migration, so `main`'s source does not typecheck 
 generated Prisma client and `pnpm decision-quality` cannot be run from it at all. **#93 merges
 first.** If it is rebased or amended, this branch rebases onto it before the report re-run.
 
-**`Closes #94` in backend#95 will not fire as things stand.** GitHub processes a closing keyword only
+**Carried out as written, 2026-08-28.** #93 merged to `main`; #95 rebased onto it with
+`git rebase --onto origin/main fix/92-… fix/94-…`, retargeted with `gh pr edit 95 --base main`, the
+two-run check re-run (byte-identical, and the committed reports unchanged by the rebase), then
+squashed to `main`. #94 closed automatically on the merge.
+
+**Why the retarget was necessary — `Closes #94` would not have fired otherwise.** GitHub processes a closing keyword only
 when the PR merges into the **default** branch, and #95's base is `fix/92`. So the order is: #93
 merges to `main` → `gh pr edit 95 -R Shreedhar73/fpl-backend --base main` → rebase → **re-run the
 two-run byte-identical check**, because #93 changing under this branch is exactly the case the
