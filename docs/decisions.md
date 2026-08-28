@@ -1330,7 +1330,7 @@ is that each of those is now a measurement rather than an inheritance.
 | lever | reading |
 |---|---|
 | ten seasons instead of three (imputed start labels) | **−0.6% ± 0.1%** across two comparable folds; −0.6% ± 0.6% under a one-season half-life, signs disagreeing |
-| recency decay | chosen by **no fold that had a real choice**; on 2025-26 the nine-season half-life-1 fit is the worst of eight candidates |
+| recency decay | in the joint arm, chosen by **no fold that had a real choice**; on 2025-26 the nine-season half-life-1 fit is the worst of eight candidates (the rates-pinned arm below does pick one, on one fold) |
 | training window, chosen per fold on the season before it | **two seasons**, on both modern folds — exactly the corpus already in use |
 | the same selection with minutes pinned to recorded labels | the rate half reaches further (three seasons; nine at half-life 0.5) and scores +3.1% / +2.7% against `form` where the fixed arm scored +2.9% / +4.0% — better on one fold, worse on the other |
 | the availability hybrid D-032 argued for | **−0.1% ± 0.4%**, signs disagreeing |

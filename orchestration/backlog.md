@@ -196,7 +196,17 @@ every k (10.0/12.3/14.7 vs 8.6/10.9/13.6), RMSE noise. Incumbent stands per the 
 incumbent by `pnpm score:gameweek` — the 2026-27 season referees prospectively. **What would need a
 register decision:** the multiplicative-chance hybrid (refit base curves + chance % kept
 multiplicative in the uncertain band), selected on VALIDATE, with a pre-registered SECOND test
-reading. What remains genuinely calendar-bound is only the richer feature set (squad depth, rest
+reading.
+
+**That decision was taken 2026-08-28 — the hybrid is a wash and the hand rule stands (D-035,
+backend #105).** B-040's task 8 built exactly what this paragraph asked for: base curves fitted on
+the rows carrying no doubt at all, FPL's chance percentage kept multiplicative — expressed by not
+emitting the availability block, so the model's existing multiplicative path runs and there is no
+second code path to keep in step. Measured on the rolling-origin referee (D-034), same fold, same
+window, same labels, paired per round: **+0.2% ± 0.3% on 2024-25, −0.5% ± 0.8% on 2025-26, −0.1% ±
+0.4% across** — a wash with the signs disagreeing. `reports/rolling-origin-avail-unflagged-base.md`.
+**Nothing here is open any more except the richer feature set** (squad depth, rest days, European
+midweeks), which remains genuinely calendar-bound. What remains genuinely calendar-bound is only the richer feature set (squad depth, rest
 days, European midweeks) — unchanged from the paragraph above.
 
 ---
