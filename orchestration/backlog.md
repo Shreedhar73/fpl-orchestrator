@@ -306,7 +306,7 @@ component, or GBM as a residual on v3.
 ## B-039 · `decision-quality` is not reproducible — the instrument the accuracy arguments are read off swings 40-80 points per run
 
 ```
-Status   planned
+Status   in progress — backend#95 open, based on #93; merges after it
 Repos    fpl-backend
 Plan     docs/plans/026-decision-quality-determinism.md
 Issue    orchestrator#24 (parent), backend#94
@@ -352,3 +352,13 @@ shuffle the candidate order — before it is believed. `fpl-testing-contract` go
 
 Filed from lab 025's post-mortem (plan `docs/plans/025-fpl-lab-backtested-manager.md`), where the
 instrument failed while it was being used to measure something else.
+
+**Measured and fixed 2026-08-28 — and #94's diagnosis was wrong.** A probe hashed the LP string and
+the chosen fifteen across two runs: the candidate order and the LP string differed, and **the
+opening fifteen was identical in every arm**. The LP is not the mechanism. Row order is read as
+data — the seeded xorshift in `randomLegalSquad` draws per row in row order (`random #4`: 558
+against 1253 on the same seed), and every stable `sort()` resolves its ties to it. With the opening
+fifteen held identical, `greedy-1ft` for `form` moved **1740 → 1905**. Fixed by one canonical order
+where the rows are assembled plus named tie-breaks; the same latent bug was found and fixed on the
+**served** path (`loadPlayers()` had no `ORDER BY` at all). Two runs now produce a byte-identical
+report. See D-033 and backend#95.
