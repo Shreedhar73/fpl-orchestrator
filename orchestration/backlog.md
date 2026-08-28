@@ -306,10 +306,10 @@ component, or GBM as a residual on v3.
 ## B-039 · `decision-quality` is not reproducible — the instrument the accuracy arguments are read off swings 40-80 points per run
 
 ```
-Status   backlog
+Status   planned
 Repos    fpl-backend
-Plan     —
-Issue    backend#94
+Plan     docs/plans/026-decision-quality-determinism.md
+Issue    orchestrator#24 (parent), backend#94
 ```
 
 **Why.** Two consecutive `pnpm decision-quality` runs on 2026-08-28, **no code change, no data
