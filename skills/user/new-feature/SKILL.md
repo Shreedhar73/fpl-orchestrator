@@ -1,7 +1,7 @@
 ---
 name: new-feature
 description: "Plan before building: interview, then write a living checklist plan file for any change touching more than one file."
-<!-- disable-model-invocation: true -->
+disable-model-invocation: true
 ---
 
 # Plan a feature

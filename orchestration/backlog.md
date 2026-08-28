@@ -308,10 +308,10 @@ component, or GBM as a residual on v3.
 ## B-040 · Ten seasons of archive arrived and the model is still fitted on two
 
 ```
-Status   planned
+Status   in progress — tasks 1-3 built (backend #100), D-034 recorded; task 6 is next and is load-bearing
 Repos    fpl-backend, fpl-orchestrator
 Plan     docs/plans/027-ten-season-refit-and-rolling-origin.md
-Issue    —
+Issue    orchestrator#25 (parent), backend#100 (referee)
 ```
 
 **Why.** Backend #93 extended the archive from three seasons to ten. Nothing downstream moved. Every
@@ -357,3 +357,13 @@ is what this plan carries, measured on the new referee rather than on the spent 
 
 **Serving does not move in this plan.** The pin stays on the incumbent, candidates ride the existing
 weekly machinery, and adoption is a D-number read off the reports, taken separately.
+
+**Tasks 1-3 landed 2026-08-28 (backend #100, D-034), and the first reading is the plan's own
+prediction confirmed.** The referee runs over all ten seasons and produces **2 usable folds, not 7**:
+2017-18 through 2023-24 are refused by name because no season in their training corpus carries a start
+label, and a fold that ran anyway would emit a full set of plausible numbers from unfitted minutes
+curves. Model against `form`, captured@11 paired per round: +2.9% ± 1.7% on 2024-25, +4.0% ± 2.2% on
+2025-26, +3.4% ± 0.6% across the two — which the report itself labels a direction rather than a
+decision, because an error estimated from two numbers is barely estimated. **Task 6 (start labels
+before 2023-24) is therefore load-bearing for everything after it**, not the optional-looking item it
+reads as in the plan's numbering.

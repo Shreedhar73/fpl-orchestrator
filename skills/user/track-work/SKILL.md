@@ -1,7 +1,7 @@
 ---
 name: track-work
 description: "Drive one piece of work from a backlog entry through plan, GitHub issues, branches, PRs and the archive — the issue-first loop this project runs on."
-<!-- disable-model-invocation: true -->
+disable-model-invocation: true
 ---
 
 # Track a piece of work

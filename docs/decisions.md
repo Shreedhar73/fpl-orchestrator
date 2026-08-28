@@ -1250,3 +1250,65 @@ The harness is where it was measured; the product is where it would have mattere
 and is wrong. A probe hashed the LP string and the chosen fifteen across two runs: the string
 differed and **the fifteen was identical in every arm**. HiGHS is deterministic given a byte-identical
 LP; it is not the mechanism, and that fix would have shipped and changed nothing.
+
+---
+
+## D-034 · 2026-08-28 · The referee is rolling-origin, and it is pre-committed before any candidate reads it
+
+**Context.** The archive went from three seasons to ten (backend #93, 253,568 rows) and B-040 exists
+to spend them. But the instrument they would be measured on is spent: `tools/fit-v4/fit.py` records
+"the next TEST reading is the last", and B-037 retired the archive holdout after four architectures
+had been selected against 2025-26. Any refit read off that season again is a reading the register
+forbids, and a referee chosen after a candidate's numbers are known is not a referee. So this decision
+is taken **before** the first candidate is fitted, and it fixes what will judge them.
+
+**Decision.** The verdict instrument for B-040 and everything downstream of it is the rolling-origin
+referee in `fpl-backend/src/modules/calibration/rolling-origin.ts`, run by `pnpm referee:rolling`,
+reported to `reports/rolling-origin.md`. Six things are fixed here and are not a session's to change:
+
+1. **One fold per evaluation season: fit on every season strictly before it, score it once.** Every
+   arm is refitted per fold, **the incumbent included** — scoring the served parameters (fitted on
+   2023-24 + 2024-25) against the 2024-25 fold would hand the incumbent its own training season. An
+   arm is therefore a *transform of a fold's fit*, never a set of parameters carried between folds.
+2. **Fold coverage is per component, and it is currently 2, not 7.** The archive is not rectangular:
+   `starts` exists from **2023-24** (86,755 rows), expected goals from 2022-23, the
+   defensive-contribution category in 2025-26 alone. A fold whose training seasons carry no start
+   label cannot fit the minutes model — and `fitLogisticK` returns its fallback curve on an empty
+   sample without complaining, so such a fold would emit a complete, plausible set of numbers from a
+   model that was never fitted. Those folds are **refused by name in the report**. Measured on the
+   first run: 2 of 9 planned folds ran (2024-25, 2025-26); seven were refused. Plan 027 task 6 is
+   what could raise that number, and until it lands the referee is 2-fold for anything the minutes
+   model touches.
+3. **Nested selection.** Inside fold *s*, shape parameters are chosen on *s−1* and nothing else, and
+   *s* is scored once. A training window or a decay chosen by re-reading the folds it is then scored
+   on is selection on test wearing a different word.
+4. **The primary quantity is points captured @11 over the whole field, paired per round** (D-020 for
+   the metric, D-033 for the pairing). The report carries the k it actually paired on, because
+   `--k` changes what was measured and a header that says @11 regardless is prose that cannot be
+   wrong.
+5. **`MIN_FOLDS_FOR_A_SPREAD = 4`.** The across-fold standard error is the number a single holdout
+   could never produce — and at two folds it is estimated from two numbers, so the report says in
+   words that a clearance is *a direction, not a decision*. The first run reads +3.4% ± 0.6% for the
+   model against `form` across two folds; that is a direction.
+6. **2025-26 is a tainted fold for the v4 family.** Four TEST readings on that season selected those
+   architectures. Any candidate whose architecture selection touched it is reported per fold and its
+   headline mean given twice, with and without that fold. This binds the task-7 session, which will
+   otherwise rediscover it.
+
+**Two archive facts the referee had to be taught, both found by its own assertion on first contact
+with the database.** 2022-23 has 37 rounds — round 7 was postponed in full in September 2022 and
+never replayed under that number. 2019-20 runs rounds **1–29 then 39–47**: the season was suspended
+in March 2020 and FPL renumbered the restart. The first version of `assertShape` expected 1..38 and
+called nine real rounds a hole in the import. Both are now recorded in `archive/coverage.ts`, checked
+in both directions (a missing expected round AND a round label the season should not have), and the
+check sits on `CalibrationRepository.history()` — the read path — because the fault it exists for is
+a column that stops arriving long after the import that emptied it reported success.
+
+**Corrected while doing this.** The schema comment on `ArchivePlayerGameweek.starts` said "NULL
+before 2022-23". Measured: 2022-23 has **zero** non-null start rows and 2023-24 has 29,725. One
+season, and it is the season that decides whether the 2024-25 fold can be fitted at all.
+
+**What this does not decide.** Nothing about the model. No serving change, no adoption, no window
+length — those are plan 027 tasks 4–9, and they are read off this instrument rather than arguing with
+it. If the referee itself is wrong, the way to change it is another D-number, not a session's
+adjustment to a threshold that a candidate happens to fail.
