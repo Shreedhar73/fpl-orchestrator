@@ -308,7 +308,7 @@ component, or GBM as a residual on v3.
 ## B-040 · Ten seasons of archive arrived and the model is still fitted on two
 
 ```
-Status   in progress — tasks 1-3 built (backend #100), D-034 recorded; task 6 is next and is load-bearing
+Status   in progress — tasks 1-3 and 6 built (backend #100, #102), D-034 recorded; task 4 next
 Repos    fpl-backend, fpl-orchestrator
 Plan     docs/plans/027-ten-season-refit-and-rolling-origin.md
 Issue    orchestrator#25 (parent), backend#100 (referee)
@@ -367,3 +367,13 @@ curves. Model against `form`, captured@11 paired per round: +2.9% ± 1.7% on 202
 decision, because an error estimated from two numbers is barely estimated. **Task 6 (start labels
 before 2023-24) is therefore load-bearing for everything after it**, not the optional-looking item it
 reads as in the plan's numbering.
+
+**Task 6 landed 2026-08-28 (backend #102) and it answers the entry's own premise with a number.** The
+start labels ARE recoverable from minutes — 96.6% leave-one-season-out, and the check that does not
+depend on the era passes in every blind season (21.96 to 22.03 imputed starters per fixture, against
+a constraint of exactly 22). With them the referee runs 9 folds instead of 2. **And the model does
+not get better.** Same fold, fitted twice, paired per round: ten seasons against three costs
+−0.7% and −0.6% captured@11 unweighted, and −1.2% / +0.0% under a one-season half-life. So the
+constraint on this model was never the number of rows, and imputation ships default OFF with the
+machinery kept — task 4 may still find a window under which the old seasons pay, and that is now the
+next task rather than a formality.
