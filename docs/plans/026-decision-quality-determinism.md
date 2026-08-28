@@ -80,7 +80,18 @@ season was not.
 - Any adoption or serving change. The incumbent stays pinned.
 - Frontend anything.
 
-**How we will know it works** — three checks, all against real data:
+**How we will know it works** — three checks, all against real data. **All three read, 2026-08-28:**
+
+1. **Met.** Two `pnpm decision-quality` runs → byte-identical report.
+2. **Met.** Three sabotages, tabulated under the "break it on purpose" task; the third took two
+   fixture corrections before it could go red, which is recorded rather than quietly fixed.
+3. **Met, at the edge, and not attributed.** Paired `greedy-1ft model − v4` reads **−6.03 ± 2.64**,
+   inside both pre-fix bands (−3.70 ± 3.15 → [−6.85, −0.55]; −4.00 ± 2.41 → [−6.41, −1.59]). It sits
+   near the lower edge of both. This branch is stacked on #92 (the ten-season archive and its
+   null-safety), so any drift has **two** candidate causes — the determinism fix and the archive
+   change — and this reading does not separate them. Stated rather than resolved.
+
+The checks as written before the work:
 1. `pnpm decision-quality` twice in a row on an unchanged database produces **byte-identical**
    season rows and report body (excluding the generated-at timestamp). Verified by hand once, and by
    the guard from then on.
@@ -103,49 +114,92 @@ season was not.
       env-gated (`FPL_LP_HASH=1`) and is removed before the PR. Two tasks were added below as a
       result — the seeded-random squad generator and the tie-break audit — and the guard's assertion
       moved from the opening fifteen to the season rows.
-- [ ] **Total ordering in the shared reader.** Extend the archive read's `orderBy` to a key that is
+- [x] **Total ordering in the shared reader.** Extend the archive read's `orderBy` to a key that is
       unique per row — `season, round, playerCode` plus `fixture` where a double gameweek makes two
       rows for one player — so the row order out of Postgres is fully determined. Check every other
       `findMany` on this path for the same shape while in the file. — `src/modules/projections/forecast.repository.ts`
-- [ ] **One deterministic sort where `PredictionRow[]` is assembled** — added after task 1. Sort by
+      — **done**: `season, round, playerCode, fixture`.
+- [x] **One deterministic sort where `PredictionRow[]` is assembled** — added after task 1. Sort by
       `(season, round, playerCode, fixture)` once, in the harness that builds the rows, so every
       downstream consumer sees one order regardless of what Postgres returned. This is the fix; the
       reader's `ORDER BY` above is the belt, this is the braces, and the two task-1 findings below
       are why one site was never going to be enough. — `src/modules/calibration/harness.ts`
-- [ ] **The seeded-random squad generator draws in row order** — `randomLegalSquad()` maps its
+      — **done**: `sortRows()`, applied at the return of `runBacktest`, keyed
+      `(season, round, playerCode, opponentTeamCode, wasHome)`. `PredictionRow` carries no fixture
+      id and does not need one — a player does not face the same opponent twice in a gameweek.
+- [x] **The seeded-random squad generator draws in row order** — `randomLegalSquad()` maps its
       xorshift stream onto rows as they arrive, so the same recorded seed produces a different squad
       per run (`random #4`: 558 against 1253). Draw against a row list sorted by `playerCode` inside
       the generator, so the seed means what the report says it means. — `src/modules/calibration/fixed-squads.ts`
-- [ ] **Audit the tie-breaks** — every `sort()` whose comparator can return 0 resolves to input
+      — **done**, sorted inside the generator rather than trusting the caller: the seed's promise is
+      that function's to keep. **The `random #N` arms in the re-committed report therefore differ
+      from every prior run by construction** — the seed now maps onto a different player each draw.
+      That is a re-mapping, not instability surviving the fix.
+- [x] **Audit the tie-breaks** — every `sort()` whose comparator can return 0 resolves to input
       order (stable sort). List them, and give the ones that decide something a `playerCode`
       tie-breaker rather than relying on the upstream sort holding: XI, armband, the weekly transfer
       pick, the chip pick, and the five in `ordering.ts`. — `src/modules/calibration/xi-decision.ts`,
       `src/modules/calibration/season-sim.ts`, `src/modules/calibration/ordering.ts`
-- [ ] **Deterministic sort where candidates are built.** Sort `Candidate[]` by `playerCode` in
+      — **done, and one site was missed by the plan and caught by the guard**: `benchOrder()`
+      (`squad-scoring.ts`) had no tie-break, and bench order is auto-substitution priority — two
+      equally-rated bench players in the other order is a different number of points the week a
+      starter blanks. Its identity accessor is a **required** parameter, not an optional one, so a
+      caller that forgets it fails to compile rather than silently getting input order back. The
+      chip tie-break gives BB the exact tie (`'BB' < 'TC'`); which one wins is arbitrary, that it is
+      always the same one is not.
+- [x] **Deterministic sort where candidates are built.** Sort `Candidate[]` by `playerCode` in
       `openingSquad()` before the solve, so the LP string cannot depend on an upstream read order
       again even if a future query loses its ordering. Belt and braces on purpose: the reader fix is
       the cause, this is the one that survives a refactor. — `src/modules/calibration/season-sim.ts`
-- [ ] **Same sort on the served optimiser path**, if it builds candidates from an unordered read —
+- [x] **Same sort on the served optimiser path**, if it builds candidates from an unordered read —
       the product's own recommendation should not be able to differ between two identical solves
       either. Confirm by reading, and record here whether it needed the change or already had it.
       — `src/modules/optimizer/optimizer.service.ts`, `src/modules/optimizer/optimizer.repository.ts`
-- [ ] **The determinism guard.** A test that walks a season twice over the same fixture rows and
+      — **done, and it needed the change**: `loadPlayers()` had **no `ORDER BY` at all**, so the
+      served candidate list order was whatever Postgres returned and the product's own
+      recommendation could differ between two identical solves. Now `orderBy: { id: 'asc' }`, plus
+      the bench sort tie-broken on the LP key.
+- [x] **The determinism guard.** A test that walks a season twice over the same fixture rows and
       asserts identical **season rows** — not the opening fifteen, which task 1 measured as stable
       while the season was not — plus a case that shuffles the input rows and asserts the walk is
       *still* identical. The shuffle is what makes the guard load-bearing rather than decorative.
       Cover the seeded-random squad in the same file: same seed and shuffled rows must give the same
       squad. — `src/modules/calibration/__tests__/season-sim.determinism.spec.ts`
-- [ ] **Break it on purpose.** Revert the central sort locally, confirm every shuffle case goes red,
+      — **done**, 8 cases. It caught the `benchOrder` site the plan had missed on its first run.
+- [x] **Break it on purpose.** Revert the central sort locally, confirm every shuffle case goes red,
       restore. Note the failure output in this file. A guard nobody has seen fail is not evidence.
       — same test file
-- [ ] **Re-run and re-commit the reports** produced by the affected harnesses, so what is committed
+      — **done, three sabotages, and the third one is the finding:**
+
+      | sabotage | result |
+      |---|---|
+      | `sortRows` returns its input unsorted | 3 season cases red (`- Expected - 39 / + Received + 39`) |
+      | named tie-breaks removed, `sortRows` kept | the direct tie-break case red; season cases green, which is the design — it is what shows the second layer is checked independently rather than through the first |
+      | weekly transfer tie-break removed | green twice before it was red |
+
+      That third row is worth more than the fix. The case passed first because the three-per-club
+      cap left exactly **one** legal move, so there was no tie to break — the fixture gave every
+      player their own club after that. It passed again because the two hand-picked shuffle seeds
+      both happened to order the two rival keepers the same way. It now sweeps **forty** seeds and
+      asserts there is more than one rival before asserting stability. A tie-break test with too few
+      draws is a coin that came up heads.
+- [x] **Re-run and re-commit the reports** produced by the affected harnesses, so what is committed
       is what a fresh run reproduces: `pnpm decision-quality`, and whichever of `replay:xi`,
       `objective-ab`, `bench-sweep` write a committed report. Note in each report which numbers moved
       from the pre-fix commit. — `reports/`
-- [ ] **Move the verdict off the season total.** In the report writer, make the paired per-round test
+      — **done, with a deviation.** `decision-quality` (fitted and unfitted) regenerated and
+      byte-identical across two runs. `replay:xi` **appends a labelled arm** rather than
+      regenerating a file, so re-running it would add an arm, not refresh one; regenerating its
+      history would erase the record of what was measured at the time rather than correct it.
+      `xi-replay.md`, `objective-ab.md` and `bench-weight.md` therefore carry a banner saying their
+      arms predate B-039 and their season totals are not reproducible.
+- [x] **Move the verdict off the season total.** In the report writer, make the paired per-round test
       the headline, and label the season total a reference figure with a one-line note that it is a
       single sample of a path and must not be read as a difference between arms. — `src/modules/calibration/decision.service.ts`,
       `src/modules/calibration/sim-verdict.ts`
+      — **done** in `decision.service.ts`: the totals column is no longer bolded and is headed
+      "points (reference)", a paragraph above it says what it is and is not, and the paired section
+      is now "### The verdict — paired by round". `sim-verdict.ts` needed no change.
 - [ ] **Record the decision** — a D-numbered entry: what the instrument's non-determinism was, what
       it cost (three claims in lab 025 were wrong because of it), and the rule that the paired test
       is the verdict from here. — `docs/decisions.md`

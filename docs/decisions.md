@@ -1202,3 +1202,51 @@ Standing consequences:
   `PlayerDeadlineSnapshot` remains the hours-accurate prospective capture and the only source for
   2026-27.
 
+
+## D-033 · 2026-08-28 · The verdict is the paired per-round test; a season total is a reference figure
+
+**Context.** `reports/decision-quality.md` is the file this project's accuracy claims are read out
+of, and its season totals were treated as results — chip value, corpus size, the v4 arms, the
+crowd-versus-model gap were all argued from differences of 30–90 points between them.
+
+**What was measured (B-039, backend#95).** Two `pnpm decision-quality` runs at HEAD, no code change
+and no data change, disagreed by 37–81 points per arm; with the opening fifteen held **identical**
+across both runs, `greedy-1ft` for `form` moved **1740 → 1905**, and the prose the report generates
+flipped sign with it. `PredictionRow[]` was arriving from a read whose `ORDER BY` was not total, and
+that order was being consumed as data in three ways: the seeded xorshift in `randomLegalSquad` drew
+one value per row in row order (`random #4`: 558 against 1253 on the same recorded seed), every
+`sort()` with a comparator that can return 0 resolved its ties to input order, and `buildLp` emitted
+its variables in array order.
+
+**What was decided.**
+
+1. **The simulator is a function of (data, params, config).** One canonical row order applied where
+   the rows are assembled (`sortRows`), a total `ORDER BY` in the reader that feeds it, and a named
+   tie-break at every site that decides something. Two runs must produce a byte-identical report,
+   and a guard that has been seen go red says so.
+2. **The paired per-round table is the verdict.** Season totals remain in the report, labelled a
+   reference figure, with the reason printed beside them: each is one sample of one path, a single
+   choice made differently in round 3 changes who is owned for the rest of the season, and the total
+   moves by more than the effects the report is used to argue about. This is what lab 025's own
+   post-mortem concluded and it is now enforced by the report writer rather than remembered.
+3. **Reports whose arms predate the fix are not regenerated.** `xi-replay.md`, `objective-ab.md` and
+   `bench-weight.md` carry a banner stating their season totals are not reproducible. Those arms are
+   the record of what was measured at the time; rewriting them would erase that rather than correct
+   it.
+
+**What this cost, stated so it is not re-paid.** Three claims in lab 025 were wrong because of this
+and were corrected on the page rather than dropped. The instrument failed while it was being used to
+measure something else, and the failure was invisible because a report that reads plausibly on its
+own is indistinguishable from a reproducible one. **A number that has never been produced twice is
+not a measurement**, and that is now a rule this project applies to any harness, not only to this
+one.
+
+**Also fixed, and it is the part nobody was looking for.** `optimizer.repository.ts:loadPlayers()`
+had **no `ORDER BY` at all**, so the same latent non-determinism sat on the **served** path: the
+product's own recommendation could differ between two identical solves wherever two candidates tie.
+The harness is where it was measured; the product is where it would have mattered.
+
+**Superseded.** #94's diagnosis — deterministic tie-breaking in the opening-squad LP — was tested
+and is wrong. A probe hashed the LP string and the chosen fifteen across two runs: the string
+differed and **the fifteen was identical in every arm**. HiGHS is deterministic given a byte-identical
+LP; it is not the mechanism, and that fix would have shipped and changed nothing.
