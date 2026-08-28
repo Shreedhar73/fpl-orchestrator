@@ -96,7 +96,7 @@ No external document drop exists; the search for one is what produced that answe
       is therefore the real backstop, not the validation accuracy.
       Files: `prisma/schema.prisma` (+ migration), `src/modules/archive/archive.service.ts`,
       `src/scripts/impute-starts.ts`, `reports/start-imputation.md`.
-- [ ] **7 · Widen the v4 export and re-open its grid.** Two feature sets, because the archive is not
+- [x] **7 · Widen the v4 export and re-open its grid.** Two feature sets, because the archive is not
       rectangular: **A** — every feature, over the seasons where the *target* is defined; **B** — the
       xG-free subset over all ten seasons. 2022-23 carries xG but no `starts`, so without task 6 it has
       no `v3ep` and the residual target `totalPoints − v3ep` is undefined there — a NaN feature XGBoost
@@ -105,13 +105,13 @@ No external document drop exists; the search for one is what produced that answe
       with the data multiplied it is re-opened, and selection stays on validation folds only.
       Files: `src/scripts/export-features.ts`, `src/modules/calibration/feature-export.ts`,
       `tools/fit-v4/fit.py`, `reports/datasets/manifest.json`.
-- [ ] **8 · The availability hybrid B-015 left stranded.** Refit the base curves, keep FPL's chance
+- [x] **8 · The availability hybrid B-015 left stranded.** Refit the base curves, keep FPL's chance
       percentage **multiplicative** in the uncertain band — D-032's finding was that a linear-in-logit
       term cannot express a multiplicative rescale. Selected on validation folds, one reading on the
       rolling-origin referee, pre-registered before it runs.
       Files: `src/modules/projections/forecast.service.ts` (`availabilityMultiplier`),
       `src/modules/calibration/fit.ts`, `reports/availability-fit.md`.
-- [ ] **9 · One verdict, one decision, no serving change.** A single report reading every candidate off
+- [x] **9 · One verdict, one decision, no serving change.** A single report reading every candidate off
       the same referee with the same paired test, then a D-number that either adopts or declines, with
       the number it turned on. Serving stays pinned to the incumbent; whatever wins rides the existing
       weekly candidate machinery and is confirmed prospectively by `pnpm score:gameweek`.
@@ -253,3 +253,72 @@ season, which is exactly why it was never adopted, and on validation the same co
 on most of the old ones, so the ladder is real but shallow; and the selection is made on a
 half-season of validation rounds. The claim this supports is "more seasons do not pay", not "two is
 provably optimal".
+
+### Task 4's tick carries a deviation, and a second reading that qualifies it
+
+**What was built is a JOINT window, not a per-component one.** The task text asks for a window per
+component; `--select-window` chooses one window and one decay for the whole fit. The per-component
+question was then asked the one way the data allows without more machinery: run the same selection
+**without** imputation, so the minutes half is pinned to recorded labels whatever the window is and
+the candidates vary only what the RATE half sees.
+
+| eval season | chosen (rates vary, minutes pinned) | validate captured | spread |
+|---|---|---:|---:|
+| 2024-25 | 3 seasons, no decay | 42.3% | 2.27pp |
+| 2025-26 | all nine, half-life 0.5 | 39.9% | 1.64pp |
+
+The rate half does reach further back than the joint arm did — three seasons, and nine under a
+half-season half-life — which is the direction the per-component split predicted. **It does not turn
+into a better model.** Scored on the folds: +3.1% / +2.7% against `form`, against the fixed-window
+arm's +2.9% / +4.0%; better on one fold, worse on the other. And the 2025-26 ladder is nearly flat —
+2 seasons 39.7%, three 39.2%, all nine 39.2%, all nine at half-life 0.5 39.9% — four candidates
+inside 0.7pp, which is under half the spread that separated the winner from the worst.
+
+So the honest statement is narrower than "more seasons never help": **the rate half prefers a wider
+corpus, the minutes half does not, and the difference is not worth a point of captured@11 on either
+fold.** A genuine per-component implementation — separate windows fitted per term — is recorded as
+unbuilt rather than claimed.
+
+## Tasks 7 and 8, as built — 2026-08-28
+
+### 8 · The availability hybrid is a wash
+
+D-032's reading said the joint fit lost the uncertain band because FPL's chance percentage is
+near-calibrated *multiplicatively*, and a linear-in-logit term cannot express a rescale. The hybrid
+that argues for: fit the base curves on the rows nobody had a doubt about, and keep applying the
+percentage as a multiplier. Built as `availabilityMode: 'unflagged-base'` — expressed by NOT emitting
+the availability block, so the model's existing multiplicative path runs and there is no second code
+path to keep in step.
+
+Same fold, same window, same labels, only the availability regime differing, paired per round:
+
+| fold | Δ captured@11 | 1 se |
+|---|---:|---:|
+| 2024-25 | +0.2% | 0.3% |
+| 2025-26 | −0.5% | 0.8% |
+| across | **−0.1%** | 0.4% |
+
+A wash, and the signs disagree. The incumbent's hand rule stands — now against a named alternative
+rather than against a remembered one.
+
+### 7 · The gradient-boosted model is the one thing that does improve, and by too little to matter
+
+The exporter can now reach all ten seasons (`pnpm export:features --all-seasons`), which needed the
+imputed labels: `laggedStartRate` is what the whole minutes model turns on, and without it the older
+rows export a start history computed from no recorded starts at all. 85,342 rows became **250,882**.
+
+Validation only — the archive holdout is spent (D-034), so no TEST row was read, no model emitted,
+nothing under `src/modules/projections/v4` touched. Residual target, `fit.py`'s grid trimmed to the
+region that won there, selected on VALIDATE (2024-25 from round 20):
+
+| position | three seasons | ten seasons | relative |
+|---|---:|---:|---:|
+| GKP | 1.6073 | **1.5887** | −1.16% |
+| DEF | 1.7928 | 1.7886 | −0.23% |
+| MID | 1.9145 | 1.9106 | −0.20% |
+| FWD | 2.0413 | 2.0449 | +0.18% |
+
+**The asymmetry is the finding**: the decomposed model got worse on ten seasons and chose two whenever
+it had a real choice; the gradient-boosted one gets better on three of four positions. And it is far
+too small to act on — RMSE is not the metric this project decides on (D-020), no standard error is
+attached, and forwards, where a haul decides a gameweek, got worse. Recorded, not adopted.

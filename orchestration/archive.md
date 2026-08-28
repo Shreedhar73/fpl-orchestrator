@@ -3003,3 +3003,127 @@ and the instrument failed while it was being used to measure something else. A r
 plausibly on its own is indistinguishable from a reproducible one. **A number that has never been
 produced twice is not a measurement** — the rule now applies to any harness in this repo, not only
 to `decision-quality`.
+
+---
+
+## B-040 · Ten seasons of archive arrived and the model is still fitted on two
+
+```
+Status   done
+Repos    fpl-backend, fpl-orchestrator
+Plan     docs/plans/027-ten-season-refit-and-rolling-origin.md
+Issue    orchestrator#25 (parent), backend#100, #102, #104 (PRs #101, #103, #105)
+```
+
+**Why.** Backend #93 extended the archive from three seasons to ten. Nothing downstream moved. Every
+fitted number this project serves still comes from `TRAIN_SEASONS = ['2023-24', '2024-25']`
+(`calibration.service.ts:77`) and the v4 export is still 85,342 rows of three seasons
+(`reports/datasets/manifest.json`, 2026-08-27). The table now holds **253,568 rows** — measured
+2026-08-28, `archive_player_gameweek`, ten seasons 2016-17..2025-26, all ten re-scored under their
+own season's table and refused unless official `total_points` reproduced exactly.
+
+**What the extra rows actually buy, per column — measured, not assumed.** The archive is not
+rectangular and treating it as such is the trap the schema comments already name:
+
+| input | seasons with the column | rows |
+|---|---|---|
+| minutes, goals, assists, conceded, clean sheets, saves, bonus, BPS, ICT | all 10 | 253,568 |
+| `expectedGoals` / `expectedAssists` | 2022-23 onward | 113,260 |
+| `starts` | **2023-24 onward** | 86,755 |
+| `defensiveContribution` and components | 2025-26 only | ~29,747 |
+
+So the rate half of the model can see 3x what it was fitted on, and **the minutes half cannot see one
+extra row** — `starts` is NULL through 2022-23, which is where every start-derived feature
+(`laggedStartRate`, `sixtyGivenStart`, and through `v3ep` most of v4) is anchored. The schema comment
+at `ArchivePlayerGameweek.starts` says "NULL before 2022-23" and the data says NULL *through* it;
+that comment is wrong by one season and is corrected in this plan.
+
+**Two facts about the shape of the ten seasons that a pooled fit would get wrong.** 2022-23 is 37
+rounds, not a bug: round 7 was postponed in full (September 2022) and no row exists for it, so a
+harness that indexes rounds must drop rather than zero it. And 2020-21 was played in empty stadiums —
+any home-advantage term pooled over it is fitted on a regime that no longer exists. Five substitutes
+became permanent in 2022-23, which moves the minutes curves specifically.
+
+**The referee has to be rebuilt before any of this is measured, and that is the first task.** The
+single-season holdout is spent by this repository's own written rule: `tools/fit-v4/fit.py` records
+"the next TEST reading is the last", and B-037 retired the archive holdout after four readings. A
+refit scored against 2025-26 again is a reading the register already forbids. Ten seasons make a
+better referee possible than the one that was burned — rolling-origin, train on everything before
+season *s* and evaluate on *s*, seven evaluation seasons instead of one, per-round paired per D-033
+with a standard error across seasons rather than a single number with none.
+
+**This also unblocks the one entry stranded by its own verdict.** B-015 names its next step exactly —
+the multiplicative-chance availability hybrid, "would need a register decision" — and that decision
+is what this plan carries, measured on the new referee rather than on the spent one.
+
+**Serving does not move in this plan.** The pin stays on the incumbent, candidates ride the existing
+weekly machinery, and adoption is a D-number read off the reports, taken separately.
+
+**Tasks 1-3 landed 2026-08-28 (backend #100, D-034), and the first reading is the plan's own
+prediction confirmed.** The referee runs over all ten seasons and produces **2 usable folds, not 7**:
+2017-18 through 2023-24 are refused by name because no season in their training corpus carries a start
+label, and a fold that ran anyway would emit a full set of plausible numbers from unfitted minutes
+curves. Model against `form`, captured@11 paired per round: +2.9% ± 1.7% on 2024-25, +4.0% ± 2.2% on
+2025-26, +3.4% ± 0.6% across the two — which the report itself labels a direction rather than a
+decision, because an error estimated from two numbers is barely estimated. **Task 6 (start labels
+before 2023-24) is therefore load-bearing for everything after it**, not the optional-looking item it
+reads as in the plan's numbering.
+
+**Task 6 landed 2026-08-28 (backend #102) and it answers the entry's own premise with a number.** The
+start labels ARE recoverable from minutes — 96.6% leave-one-season-out, and the check that does not
+depend on the era passes in every blind season (21.96 to 22.03 imputed starters per fixture, against
+a constraint of exactly 22). With them the referee runs 9 folds instead of 2. **And the model does
+not get better.** Same fold, fitted twice, paired per round: ten seasons against three costs
+−0.7% and −0.6% captured@11 unweighted, and −1.2% / +0.0% under a one-season half-life. So the
+constraint on this model was never the number of rows, and imputation ships default OFF with the
+machinery kept — task 4 may still find a window under which the old seasons pay, and that is now the
+next task rather than a formality.
+
+**Tasks 4 and 5 landed with the same session and they close the entry's premise.** With the window
+and the decay chosen per fold on the season before it, eight of nine folds pick one or two seasons
+and no fold with a real choice picks a decay. On 2025-26 the ladder runs 1 season 38.2%, two 39.7%,
+three 38.5%, all nine 38.7%, all nine with a one-season half-life 38.0% — the peak is exactly the
+two-season corpus `TRAIN_SEASONS` already holds. So the widened refit task refits nothing, and
+`fit.ts`'s note that nine seasons at half-life 1 scored 1959 is superseded: that number came off the
+test season, and on validation that configuration is the worst of the eight. **The ten seasons bought
+a referee and an answer, not a better model.** What remains is 7 (v4 on the widened export, where a
+gradient-boosted model may still be data-hungry enough to differ), 8 (the availability hybrid B-015
+left stranded) and 9 (the verdict).
+
+**Done 2026-08-28 — backend #101, #103, #105; D-034 (the referee) and D-035 (the verdict).**
+
+**What shipped.** The rolling-origin referee (`pnpm referee:rolling`) — one fold per evaluation
+season, fit on everything before it, scored once, paired per round, with a standard error across
+folds that a single holdout cannot produce. Per-fold selection of the training window and the decay.
+Imputed start labels for the seven seasons the archive never labelled. The archive's shape asserted
+on the read path. An availability arm, an imputation arm, a v4 validation comparison, and one report
+per arm naming the regime that produced it.
+
+**What it found, and this is the outcome.** *The constraint on this model was never the number of
+rows.* Every lever, on the same referee:
+
+| lever | reading |
+|---|---|
+| ten seasons instead of three | **−0.6% ± 0.1%** captured@11; −0.6% ± 0.6% under a one-season half-life, signs disagreeing |
+| recency decay | chosen by no fold that had a real choice |
+| window chosen per fold on the season before it | **two seasons** on both modern folds — the corpus already in use |
+| the availability hybrid D-032 argued for | **−0.1% ± 0.4%**, a wash |
+| v4 on ten seasons (validation RMSE) | −1.16% GKP, −0.23% DEF, −0.20% MID, **+0.18% FWD** |
+
+**The one asymmetry worth carrying forward.** The decomposed model gets worse on more seasons; the
+gradient-boosted one gets slightly better on three of four positions. That is the shape the
+literature predicts and the effect is inside what a half-season of validation can resolve — a
+hypothesis for the prospective record, not an adoption.
+
+**Two archive facts found by assertion rather than by reading**, both now recorded and checked in
+both directions: 2022-23 has 37 rounds (round 7 postponed in full, September 2022), and 2019-20 runs
+rounds 1–29 then **39–47** because FPL renumbered the COVID restart. And one correction: `starts` was
+documented NULL before 2022-23 and is NULL *through* it — the one season that decides whether the
+2024-25 fold can be fitted at all.
+
+**Left unbuilt, deliberately and recorded as such.** A genuine per-component window (one window per
+term, rather than one for the whole fit); the per-component question was answered only indirectly, by
+pinning minutes to recorded labels and letting the window vary what the rate half sees.
+
+**Serving did not move.** The pin stays on the incumbent; imputation defaults off with a spec
+asserting the flag-off fit is identical to the one that shipped.

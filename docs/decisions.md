@@ -1312,3 +1312,56 @@ season, and it is the season that decides whether the 2024-25 fold can be fitted
 length — those are plan 027 tasks 4–9, and they are read off this instrument rather than arguing with
 it. If the referee itself is wrong, the way to change it is another D-number, not a session's
 adjustment to a threshold that a candidate happens to fail.
+
+---
+
+## D-035 · 2026-08-28 · Ten seasons bought a referee and an answer, not a better model
+
+**Context.** B-040 existed because the archive went from three seasons to ten (253,568 rows) while
+every served coefficient was still fitted on two. Plan 027 spent them, under the referee D-034
+pre-committed before any candidate ran. This decision records what they bought.
+
+**Decision. The served model does not change.** `TRAIN_SEASONS = ['2023-24','2024-25']` stands, the
+availability hand rule stands, v4 stays a candidate, and the serving pin does not move. What changed
+is that each of those is now a measurement rather than an inheritance.
+
+**Every lever, measured on the same referee, paired per round on points captured @11:**
+
+| lever | reading |
+|---|---|
+| ten seasons instead of three (imputed start labels) | **−0.6% ± 0.1%** across two comparable folds; −0.6% ± 0.6% under a one-season half-life, signs disagreeing |
+| recency decay | chosen by **no fold that had a real choice**; on 2025-26 the nine-season half-life-1 fit is the worst of eight candidates |
+| training window, chosen per fold on the season before it | **two seasons**, on both modern folds — exactly the corpus already in use |
+| the same selection with minutes pinned to recorded labels | the rate half reaches further (three seasons; nine at half-life 0.5) and scores +3.1% / +2.7% against `form` where the fixed arm scored +2.9% / +4.0% — better on one fold, worse on the other |
+| the availability hybrid D-032 argued for | **−0.1% ± 0.4%**, signs disagreeing |
+| the gradient-boosted candidate on ten seasons | validation RMSE −1.16% (GKP), −0.23% (DEF), −0.20% (MID), **+0.18% (FWD)** |
+
+**So the constraint on this model was never the number of rows.** That is the decision's content, and
+it is worth more than another half-percent would have been: every future "we should train on more
+history" now has a number in front of it, and the answer is on file with the referee that produced
+it.
+
+**One asymmetry survives and is recorded rather than acted on.** The decomposed model gets worse on
+more seasons; the gradient-boosted one gets slightly better on three of four positions. That is the
+shape the literature predicts, and the effect is inside what a half-season of validation rounds can
+resolve — so it is a hypothesis for the prospective record, not an adoption.
+
+**What was built and stays.**
+
+- The rolling-origin referee (D-034), now with per-fold selection of the training window and decay,
+  an imputation arm, an availability arm, and one report per arm naming the regime that produced it.
+- **Imputed start labels.** `starts` exists only from 2023-24; minutes exist in all ten seasons and
+  infer it at 96.6% leave-one-season-out, with the era-independent check passing in every blind
+  season (21.96–22.03 imputed starters per fixture against a constraint of exactly 22). Default OFF —
+  a flag on `fitParams`, with a spec asserting the flag-off fit is identical to the one that shipped.
+- **The archive shape, asserted on the read path.** Which column exists in which season, checked in
+  both directions. It found two facts on first contact: 2022-23 has 37 rounds (round 7 postponed in
+  full), and 2019-20 runs 1–29 then 39–47 because FPL renumbered the COVID restart.
+
+**Corrected on the way.** The schema said `starts` was NULL before 2022-23; it is NULL *through* it,
+and that one season decides whether the 2024-25 fold can be fitted at all.
+
+**What plan 027 asked for and did not get.** Task 4 asked for a window per COMPONENT; what shipped
+selects one window for the whole fit, and the per-component question was answered only indirectly, by
+pinning minutes to recorded labels and letting the window vary what the rate half sees. A genuine
+per-component implementation is unbuilt and recorded as unbuilt.
