@@ -1433,3 +1433,15 @@ adjacent to the live season, and there is no season-before-this-one to select on
 serving pin is asserted against the new version, and a spec keeps `bonus.tau` undefined so nobody can
 flip a field and serve the incumbent's bonus term under a candidate's name. First reading in roughly
 six to eight scored gameweeks.
+
+**Amended again (backend #110): a player's own start behaviour counts after three starts, not ten.**
+Ten was chosen to protect the mean minute count from one early substitution — the wrong thing to
+protect, because at ten a player with nine starts is still counted more than half league-average, and
+in August that is nearly everybody. The term did the least work in the weeks a squad is picked from
+the least evidence. Three is the pseudo-count the rate features already use (`RATE_SHRINK_MINUTES` is
+270 minutes, three matches), so both halves of the model now trust a player's own record at the same
+speed. Re-measured on the referee: 2024-25 +0.4% → +0.3%, 2025-26 +1.1% → +1.7%, across folds
+**+0.7% ± 0.3% → +1.0% ± 0.7%** — the mean improves, the between-fold spread widens, and the 2se
+clearance the earlier number carried is gone. Both readings sit inside each other's noise; what
+changed for certain is when in a season the term does its work. No rows had been written under
+`v3-shape-2026-08-29`, so its version string still describes exactly one model.

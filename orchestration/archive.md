@@ -3204,6 +3204,12 @@ archive fixture carries every named player, not the twenty-two who played.
 **Serving unchanged.** All three changes default off with equivalence specs; adopting `bonus.tau`
 would additionally require wiring the fixture pre-pass into `forecast.service` and the `v3ep` export.
 
+**Corrected on request (backend #110):** a player's own start behaviour counts after **three** starts
+rather than ten, matching the pseudo-count the rate features already use. Across folds +0.7% ± 0.3%
+becomes +1.0% ± 0.7% — a better mean, a wider spread, both inside each other's noise — and the term
+now does its work in the early-season weeks where the evidence is thinnest, which is where it was
+wanted.
+
 **And the candidate runs (backend #108).** `v3-shape-2026-08-29` — 19-round rate half-life at shrink
 270 plus per-player starter minutes, without the rank bonus — rides `pnpm project` weekly and is
 scored beside the incumbent. Without it D-036's "the live season settles it" would have been a
