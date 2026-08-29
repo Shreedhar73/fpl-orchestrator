@@ -3203,3 +3203,8 @@ archive fixture carries every named player, not the twenty-two who played.
 
 **Serving unchanged.** All three changes default off with equivalence specs; adopting `bonus.tau`
 would additionally require wiring the fixture pre-pass into `forecast.service` and the `v3ep` export.
+
+**And the candidate runs (backend #108).** `v3-shape-2026-08-29` — 19-round rate half-life at shrink
+270 plus per-player starter minutes, without the rank bonus — rides `pnpm project` weekly and is
+scored beside the incumbent. Without it D-036's "the live season settles it" would have been a
+sentence with nothing behind it. First reading in roughly six to eight scored gameweeks.

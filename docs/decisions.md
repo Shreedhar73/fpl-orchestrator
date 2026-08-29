@@ -1422,3 +1422,14 @@ named player, not the twenty-two who played.
 **Serving is unchanged, and the reason that is safe is recorded rather than assumed:** adopting
 `bonus.tau` requires wiring the fixture pre-pass into `forecast.service` and the `v3ep` export as
 well, or a candidate version string would serve the incumbent's bonus term.
+
+**Amended the same day (backend #108): the candidate now actually runs.** "The live season settles
+it" is a check that cannot fail unless something live is running the change, and nothing was.
+`SHAPE_CANDIDATE_PARAMS` — a 19-round rate half-life at shrink 270, plus per-player starter minutes,
+and NOT the rank bonus — rides `pnpm project` weekly under `v3-shape-2026-08-29` and is scored beside
+the incumbent by `pnpm score:gameweek`. The half-life is pre-committed here rather than left to a
+later session: the folds disagreed (2024-25 chose the flat mean at shrink 540), 2025-26 is the fold
+adjacent to the live season, and there is no season-before-this-one to select on at serve time. The
+serving pin is asserted against the new version, and a spec keeps `bonus.tau` undefined so nobody can
+flip a field and serve the incumbent's bonus term under a candidate's name. First reading in roughly
+six to eight scored gameweeks.
