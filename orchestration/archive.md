@@ -3127,3 +3127,79 @@ pinning minutes to recorded labels and letting the window vary what the rate hal
 
 **Serving did not move.** The pin stays on the incumbent; imputation defaults off with a spec
 asserting the flag-off fit is identical to the one that shipped.
+
+---
+
+## B-041 · The model's own shape, where it is wrong for structural reasons
+
+```
+Status   done — backend #107, D-036; moving to archive.md
+Repos    fpl-backend, fpl-orchestrator
+Plan     docs/plans/028-model-shape-not-more-data.md
+Issue    backend#106 (PR #107)
+```
+
+**Why.** B-040 measured six data-side levers and none of them moved the model (D-035): the constraint
+was never the number of rows. What has never been measured is the model's own **shape** — and three
+places in it are wrong for reasons that have nothing to do with how much history is available.
+Measured 2026-08-28, before any of this is built:
+
+| where | what is there now | what the data says |
+|---|---|---|
+| player rates | `xg90`, `xa90`, `bps90`, `saves90` are a flat mean over the whole career, shrunk toward a positional constant at a hand-set 270 minutes | team strength has had a fitted recency half-life since B-014, and the sub-appearance rate has been season-first since B-019. The rate features never got either. |
+| minutes given a start | two league constants, 82.8 minutes and P(60+) = 0.934 | over 591 players with 10+ starts: mean minutes p05 **69.1**, p95 **90.0**, sd 6.4; P(60+ \| start) runs **0.75 to 1.00** |
+| bonus | a clipped linear function of the player's OWN bps | bonus is the top three BPS **in a match** — 3+2+1 = 6 points, always. The current term hands out **8.15–8.72** per fixture, and between **3.7 and 16.6** depending on the match |
+
+**The bonus number is the one to read twice.** It is not a calibration error that a constant could
+absorb: the term over-pays in exactly the high-BPS matches, which are the matches full of the premium
+players a recommendation is made of. Two teammates who both play well are both paid full bonus, when
+in reality they take it from each other.
+
+**This is NOT D-035 re-litigated.** That decision measured a recency decay on the TRAINING CORPUS —
+how much an old season counts when fitting global parameters. This entry is about a decay on the
+PLAYER FEATURE at prediction time: how much a player's football from two years ago should count
+toward what he is now. Different lever, never measured. The asymmetry is already sitting in
+`features.ts`, where the minutes features are recency-aware and the rate features are not.
+
+**What makes this answerable now and was not before.** The rolling-origin referee (D-034) with
+per-fold selection, and the component reliability machinery (B-013) for terms too small to move
+points-captured@11 on their own. Every arm ships behind a flag that is off by default, with an
+equivalence spec asserting the off path is the fit that shipped — the pattern B-040 established.
+
+**Out of scope, and recorded so it is not re-derived.** The set-piece prior (`reports/set-piece-prior.md`
+measured a 0.306 goals-per-90 penalty lift and did not use it): penalties a player has taken are
+already inside his historical xG, so the prior is partly priced in already, and the part that is not —
+duty CHANGES — needs a per-deadline duty history that only the Wayback snapshots carry. That is a
+data task, and the ask here is explicitly the model rather than the data.
+
+**Done 2026-08-29 — backend #107, D-036.**
+
+**Two of three shape changes pay; the one that was most obviously broken does not.** Paired per round
+on the referee, same fold, same fit, scored twice:
+
+| change | across two folds |
+|---|---|
+| player-rate half-life and shrinkage, chosen per fold | **+0.9% ± 0.4%** |
+| per-player starter minutes and P(60+) | **+0.7% ± 0.3%**, clears |
+| both, against the incumbent | **+1.0% ± 0.7%** |
+| bonus as a rank inside the fixture | **−0.19% ± 0.19%** |
+
+With the first two on, the model reaches +5.8% against `form` on 2025-26 against the incumbent's
++4.0%. Two folds — a direction, not a decision.
+
+**The finding to carry: a term being WRONG is not the same as a term MATTERING.** The bonus term
+hands out 8.15–8.72 points per fixture where the rules award 6, up to 16.56 in one match, concentrated
+in exactly the games full of premium players. Replacing it with a rank model that is right by
+construction cost 0.19% and made `P(bonus ≥ 1)` slightly worse. That is the second time in two plans
+that fixing an obvious defect changed nothing — ten seasons of data was the first — and the pattern
+is that this project's remaining gains are not where the errors are largest but where the decisions
+are closest.
+
+**Two guards fired on real defects**, neither visible in any report: `distribution.mean === ep` caught
+the pmf pricing its states with the league constant while the mean used the player's own, and again
+when unconditional rank probabilities were mixed over states already carrying P(play). The harness's
+six-per-fixture assertion caught the rank pre-pass issuing 5.691 points over 1,140 fixtures — an
+archive fixture carries every named player, not the twenty-two who played.
+
+**Serving unchanged.** All three changes default off with equivalence specs; adopting `bonus.tau`
+would additionally require wiring the fixture pre-pass into `forecast.service` and the `v3ep` export.
