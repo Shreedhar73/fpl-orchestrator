@@ -45,7 +45,7 @@ passed. Recorded here so the plan is arguing from numbers rather than from intui
 
 ## Tasks
 
-- [ ] **1 · Recency-weighted player rates, with the shrinkage fitted rather than set by hand.**
+- [x] **1 · Recency-weighted player rates, with the shrinkage fitted rather than set by hand.**
       `xg90`, `xa90`, `bps90`, `saves90` and `defcon90` become exponentially weighted by match age,
       and `RATE_SHRINK_MINUTES` (270, hand-set, never fitted) becomes a parameter beside it. Both
       travel in `FittedParams` exactly as `strength.decayHalfLife` already does, so `walkRounds(rows,
@@ -56,18 +56,18 @@ passed. Recorded here so the plan is arguing from numbers rather than from intui
       reproduce today's numbers exactly.
       Files: `src/modules/projections/features.ts`, `src/modules/projections/fitted.ts`,
       `src/modules/calibration/rolling-origin.ts` (candidate grid), `test/rate-recency.spec.ts`.
-- [ ] **2 · Select the half-life and the shrinkage per fold, on the season before it.** The same
+- [x] **2 · Select the half-life and the shrinkage per fold, on the season before it.** The same
       nested rule as D-034: inside fold *s*, chosen on *s−1*, scored once on *s*. The grid is small on
       purpose — a wide grid on a half-season of validation rounds finds a winner whether or not one
       exists (D-023). Report the spread across candidates so a flat grid is visible as one.
       Files: `src/modules/calibration/rolling-origin.service.ts`, `reports/rolling-origin-*.md`.
-- [ ] **3 · Minutes given a start, per player.** `minutesGivenStart` and `sixtyGivenStart` become
+- [x] **3 · Minutes given a start, per player.** `minutesGivenStart` and `sixtyGivenStart` become
       per-player quantities shrunk toward the fitted constants, on the same walk that already
       accumulates minutes among starts. The gate above says the spread is real; what the referee has
       to say is whether pricing it is worth anything.
       Files: `src/modules/projections/features.ts`, `src/modules/projections/model-v2.ts`,
       `src/modules/calibration/fit.ts`, `reports/calibration-components.md`.
-- [ ] **4 · Bonus as a rank inside the fixture, not a function of one player's BPS.** Each player's
+- [x] **4 · Bonus as a rank inside the fixture, not a function of one player's BPS.** Each player's
       BPS gets a distribution; bonus becomes `3·P(rank 1) + 2·P(rank 2) + 1·P(rank 3)` against the
       other players in the same match. By construction the fixture's bonus sums to 6, which is the
       thing the current term misses by a third. **This is the expensive one and it is last and
@@ -75,7 +75,7 @@ passed. Recorded here so the plan is arguing from numbers rather than from intui
       harness, the serving path, the `bonusAtLeastOne` derivation and the pmf path.
       Files: `src/modules/projections/model-v2.ts`, `src/modules/projections/distributions.ts`,
       `src/modules/projections/projections.service.ts`, `src/modules/calibration/harness.ts`.
-- [ ] **5 · One verdict, one decision, no serving change.** Every arm read off the same referee with
+- [x] **5 · One verdict, one decision, no serving change.** Every arm read off the same referee with
       the same paired test, plus component reliability for the terms too small to move captured@11 on
       their own. Then a D-number that adopts or declines with the number it turned on.
       Files: `docs/decisions.md`, `orchestration/backlog.md`, `orchestration/archive.md`.
@@ -102,3 +102,56 @@ passed. Recorded here so the plan is arguing from numbers rather than from intui
   took are already inside his historical xG, and the part that is not — duty *changes* — needs a
   per-deadline duty history that only the Wayback snapshots carry. Data-shaped, and out of scope.
 - Re-open the training-corpus window or the season decay. D-035 settled those on the same referee.
+
+## As built — 2026-08-29, backend #107, recorded as D-036
+
+**Two of the three changes pay, and the structurally-wrongest one does not.** Every reading is the
+paired per-round difference on the referee, same fold, same fit, scored twice:
+
+| change | 2024-25 | 2025-26 | across folds |
+|---|---:|---:|---:|
+| rate half-life + shrinkage, chosen per fold | +0.4% ± 0.3% | +1.3% ± 1.4% | **+0.9% ± 0.4%** |
+| per-player starter minutes | +0.4% ± 0.7% | +1.1% ± 1.1% | **+0.7% ± 0.3%**, clears 2se |
+| both, against the incumbent | +0.3% ± 0.7% | +1.7% ± 1.7% | **+1.0% ± 0.7%** |
+| bonus as a rank | — | — | **−0.19% ± 0.19%** |
+
+Signs agree across folds on all three positives, and the model reaches **+5.8%** against `form` on
+2025-26 with the first two on, against the incumbent's +4.0%. Two folds: a direction, not a decision.
+
+**Task 1–2, and what the arm actually is.** The selection PROCEDURE beats the flat career mean, which
+is not the same claim as "recency beats flat": 2024-25 chose the flat mean with heavier shrinkage
+(540), 2025-26 chose a 19-round half-life. Short half-lives lose on both folds — at three rounds,
+39.2% against 42.1% on 2024-25. So the finding is that how much of a player's past to count is worth
+choosing, and that the answer is "most of it, but not at the hand-set shrinkage".
+
+**Task 3 is the cleanest result in the plan.** It clears twice the between-fold error, and it
+improves the term it targets on that term's own reliability curve — `P(60+)` Brier 0.0943 → 0.0933,
+skill 0.515 → 0.519. It is also the change with the plainest mechanism: a forward who is habitually
+taken off at 69 minutes and a centre-back who plays 90 were the same player to the model.
+
+**Task 4 fails, and the failure is the interesting part.** The accounting error is real and large —
+the incumbent hands out 8.15–8.72 bonus points where a fixture has 6, and up to 16.56 in one match.
+Fixing it exactly (Plackett–Luce, six by construction) does not improve the ordering: the folds
+disagree about the temperature, 2024-25 picks the incumbent outright, the paired reading is
+−0.19% ± 0.19%, and `P(bonus ≥ 1)` moves the wrong way on reliability (0.045 predicted against a
+0.041 base, where the incumbent's identity matched exactly). **A term being wrong is not the same as
+a term mattering**: bonus is capped at three points and the incumbent's error, though large in
+aggregate, is largely a level the ordering is invariant to. One caveat named rather than buried: a
+single global τ, and BPS scales differ by position.
+
+### Two guards fired, and both were catching real bugs
+
+`distribution.mean === ep` went red twice — the pmf priced its minutes states with the league
+constant while the analytic mean used the player's own, and the rank probabilities are unconditional
+while the pmf is mixed over states, double-counting `P(play)`. Neither would have been visible in any
+report.
+
+The harness's six-points-per-fixture assertion caught the one that would have looked like a slightly
+worse model: at a candidate cap of 40 the rank pre-pass issued **5.691** points per fixture over
+1,140 real fixtures, because an archive fixture carries every named player and not the twenty-two who
+played. Each award is now renormalised across the candidates — a stated assumption (a player outside
+the top 25 by weight never takes bonus, and his share goes to those who might), not a silent one.
+
+**Serving is unchanged and the reason it is safe is written down**: adopting `bonus.tau` would also
+require wiring the fixture pre-pass into `forecast.service` and the `v3ep` export, or a candidate
+version string would serve the incumbent's bonus term.

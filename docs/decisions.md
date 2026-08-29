@@ -1365,3 +1365,60 @@ and that one season decides whether the 2024-25 fold can be fitted at all.
 selects one window for the whole fit, and the per-component question was answered only indirectly, by
 pinning minutes to recorded labels and letting the window vary what the rate half sees. A genuine
 per-component implementation is unbuilt and recorded as unbuilt.
+
+---
+
+## D-036 · 2026-08-29 · The model's shape pays where its data did not, and the term that is most wrong matters least
+
+**Context.** D-035 measured six data-side levers and found the constraint was never the number of
+rows. B-041 asked the other question: is the model's own shape wrong anywhere, for reasons
+independent of how much history exists? Three places were, and each was gated on a measurement before
+anything was built.
+
+**Decision. Two shape changes are adopted as candidates and one is recorded as a failure; the served
+model does not move yet.** All three ship behind flags that default off, with equivalence specs
+asserting the off path is the model that shipped. Adoption is the prospective record's call.
+
+| change | across two folds, paired per round |
+|---|---|
+| player-rate half-life and shrinkage, chosen per fold on the season before it | **+0.9% ± 0.4%** captured@11 |
+| per-player `E[minutes \| started]` and `P(60+ \| started)` | **+0.7% ± 0.3%**, clears twice the between-fold error |
+| both together against the incumbent | **+1.0% ± 0.7%** |
+| bonus as a rank inside the fixture | **−0.19% ± 0.19%** |
+
+With the first two on, the model reaches **+5.8%** against `form` on the 2025-26 fold, against the
+incumbent's +4.0%. **Two folds is a direction, not a decision** (D-034), and the live season scored by
+`pnpm score:gameweek` is what settles it.
+
+**What was wrong, and why it was invisible.** Team strength has had a fitted recency half-life since
+B-014 and the substitute-appearance rate has been season-first since B-019 — while `xg90`, `xa90`,
+`bps90` and `saves90` counted a player's football from three seasons ago exactly as heavily as last
+week's, shrunk at a hand-written 270 minutes nobody had fitted. And two league constants, 82.8 minutes
+and P(60+) = 0.934, stood for every starter in the league, when over 591 players with ten or more
+starts the mean runs 69.1 to 90.0 and P(60+) runs 0.75 to 1.00.
+
+**The finding worth carrying: a term being WRONG is not the same as a term MATTERING.** The bonus term
+is the most obviously broken thing in the model — it hands out 8.15 to 8.72 bonus points per fixture
+where the rules award exactly 6, and up to 16.56 in a single match, concentrated in the high-BPS games
+full of premium players. Replacing it with the rank model that is right by construction cost 0.19% and
+made `P(bonus ≥ 1)` slightly worse. Bonus is capped at three points, and the incumbent's error is
+largely a level the ordering is invariant to. **This is the second time in two plans that fixing an
+obvious defect changed nothing** — the first was ten seasons of data — and the pattern is worth
+naming: this project's remaining gains are not where the errors are largest, they are where the
+DECISIONS are closest.
+
+**Not claimed.** The rate arm is the selection PROCEDURE beating the flat mean, not recency beating
+flat: one fold chose the flat career mean with heavier shrinkage and the other a 19-round half-life,
+and short half-lives lose on both. And the bonus reading used one global temperature; BPS scales
+differ by position, which is the first thing to try before calling the rank model dead.
+
+**Two guards fired and both were catching real defects**, neither of which would have appeared in any
+report: `distribution.mean === ep` caught the pmf pricing its minutes states with the league constant
+while the mean used the player's own, and again when the unconditional rank probabilities were mixed
+over minutes states that already carried `P(play)`. The harness's six-per-fixture assertion caught the
+rank pre-pass issuing 5.691 points per fixture over 1,140 fixtures — an archive fixture carries every
+named player, not the twenty-two who played.
+
+**Serving is unchanged, and the reason that is safe is recorded rather than assumed:** adopting
+`bonus.tau` requires wiring the fixture pre-pass into `forecast.service` and the `v3ep` export as
+well, or a candidate version string would serve the incumbent's bonus term.

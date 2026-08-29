@@ -318,10 +318,10 @@ component, or GBM as a residual on v3.
 ## B-041 · The model's own shape, where it is wrong for structural reasons
 
 ```
-Status   planned
+Status   done — backend #107, D-036; moving to archive.md
 Repos    fpl-backend, fpl-orchestrator
 Plan     docs/plans/028-model-shape-not-more-data.md
-Issue    —
+Issue    backend#106 (PR #107)
 ```
 
 **Why.** B-040 measured six data-side levers and none of them moved the model (D-035): the constraint
