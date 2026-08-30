@@ -70,10 +70,14 @@ to the next session and to the next machine.
 ```bash
 pnpm sync:fpl                    # incremental: bootstrap-static + fixtures
 pnpm sync:fpl -- --full          # + per-player history backfill (slow, rate-limited)
-pnpm sync:fpl -- --live          # + event/{gw}/live, for while matches are playing
 pnpm prisma studio               # browse the database
 pnpm prisma migrate dev --name x # new migration
 ```
+
+There is **no `--live` mode** — it rejects with a sentence pointing at D-027. The `event/{gw}/live`
+`explain` blocks it was owed for ride the ordinary sync into `gameweek_live_snapshot`, and nothing in
+this product shows an in-play score, so there is nothing to poll for. `--full` is how a finished
+gameweek is re-read.
 
 Syncs are idempotent — re-running one is always safe and is usually the right first response to data
 that looks wrong. Check `sync_runs` for what the last one actually did before assuming anything.

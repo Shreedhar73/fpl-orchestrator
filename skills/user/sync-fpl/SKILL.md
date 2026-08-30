@@ -14,10 +14,13 @@ cannot invoke this on its own.
 | Mode        | Command                   | When                                                                                                             |
 | ----------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | Incremental | `pnpm sync:fpl`           | Default. `bootstrap-static` + `fixtures`. Seconds.                                                               |
-| Live        | `pnpm sync:fpl -- --live` | While matches are playing. Adds `event/{gw}/live`.                                                               |
 | Full        | `pnpm sync:fpl -- --full` | First run, or after a reset. Adds per-player history: ~612 upstream requests, rate-limited, minutes not seconds. |
 
 Run from `fpl-backend/`. Confirm with the user before `--full`.
+
+There is **no `--live` mode** — it rejects, pointing at D-027. The `event/{gw}/live` `explain`
+blocks ride the ordinary sync into `gameweek_live_snapshot`, and nothing here shows an in-play
+score, so there is nothing to poll for while matches are playing.
 
 ## Steps
 
