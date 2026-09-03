@@ -9,7 +9,7 @@ mobile-first shell (bottom navigation, sticky builder summary), remembered team 
 choice that does not depend on the operating system.
 
 **Backlog** — B-044. **Repos** — fpl-backend, fpl-frontend, fpl-orchestrator.
-**Issues** — filled in by track-work.
+**Issues** — orchestrator#27 (parent), backend#116, frontend#19. **Branches** — `feat/116-redesign-player-sheet` (backend), `feat/19-redesign-player-sheet` (frontend).
 **Contract change** — yes, three pieces, backend first:
 1. `GET /api/players/{playerId}` → `PlayerDetailDto` (new).
 2. `AdvicePlayerDto` gains `status`, `news`, `chanceOfPlayingNextRound` (additive).

@@ -284,10 +284,10 @@ component, or GBM as a residual on v3.
 ## B-044 · The redesign: one shell, a tappable squad, and a player sheet with the projection behind every shirt
 
 ```
-Status   planned
+Status   in progress
 Repos    fpl-backend, fpl-frontend, fpl-orchestrator
 Plan     docs/plans/030-redesign-and-player-sheet.md
-Issue    —
+Issue    orchestrator#27 (parent), backend#116, frontend#19
 ```
 
 **Why.** The user asked (2026-09-03) for the whole web app redesigned around ease of use, with new
