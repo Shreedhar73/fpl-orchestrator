@@ -278,3 +278,36 @@ model that cannot ship its reasoning does not ship, however it measures. Candida
 component, or GBM as a residual on v3.
 
 ---
+
+---
+
+## B-044 · The redesign: one shell, a tappable squad, and a player sheet with the projection behind every shirt
+
+```
+Status   planned
+Repos    fpl-backend, fpl-frontend, fpl-orchestrator
+Plan     docs/plans/030-redesign-and-player-sheet.md
+Issue    —
+```
+
+**Why.** The user asked (2026-09-03) for the whole web app redesigned around ease of use, with new
+features where they earn their place, and named the one thing missing: tapping a player in the
+squad shows nothing. Plan 008 gave the app a token layer and three coherent routes; what it did not
+give it is a way *into* a player — the roster table is the only place the terms behind a projection
+appear, and it is below the fold on the densest screen. Two contract gaps plan 008 recorded still
+stand and block the obvious UI: no per-player endpoint (so no fixtures, no recent form, no horizon
+projections for one player), and `status`/`news` absent from the advice DTO (so no injury flag on
+the pitch).
+
+**Already established, 2026-09-03 — do not re-derive.**
+- `GET /api/players` still picks its model version by newest `createdAt`
+  (`PlayersRepository.latestModelVersion`), the hijack the optimizer pinned away in B-037. The
+  builder was serving `v3-shape-2026-08-29` while every advice view served `v5-fitted-2026-09-02`.
+  Fix it by importing `MODEL_VERSION`, as `optimizer.repository.ts` does.
+- The data a player sheet needs already exists: `projections` for the 5-gameweek horizon under the
+  served version (651 rows per gameweek, GW3–7), `fixtures` with `homeDifficulty`/`awayDifficulty`,
+  `player_gameweek_stats` per finished gameweek (610 + 626 rows), `player_ownership_history`
+  (73,822 rows) and `player_price_history` (769). No sync change, no schema change.
+- The frontend's JS budget is 30 KB of feature JS per route above the 172.9 KB floor; the builder
+  was 9.0 KB. A sheet, its trigger and a theme toggle must fit inside it. No charting library.
+- The four position hues are validated and do not change. The primary action stays ink.
