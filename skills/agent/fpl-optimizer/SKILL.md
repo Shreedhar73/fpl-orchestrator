@@ -59,7 +59,10 @@ against it — an unmeasured "better" model is a preference, not an improvement.
 > signal-free estimate fits to zero whatever the true fixture effect is. The fixture effect is real;
 > that construction of it is not. Estimate strength from **team goals and match results** (Dixon-Coles
 > or a rolling bivariate Poisson, home/away split) before concluding the opponent does not matter.
-> Open as B-014.
+> Open as B-014. **Measured again 2026-09-02 (D-037):** a season-start prior carrying last season's
+> final ratios as the shrinkage target read **−0.6% to −0.9%** captured@11 across both folds, and
+> `confidenceMatches` chosen by ordering rather than RMSE disagreed between folds (16, 96). The
+> fixture term stays muted on the evidence, not on a preference.
 
 **Horizon.** Transfers are decisions about the future, so project N gameweeks (default 5) and
 discount: `Σ EP(gw+i) × decay^i`, `decay ≈ 0.84`. Optimising for the next gameweek alone is how you
@@ -179,6 +182,13 @@ random-number generator.
   so a model that predicts near-zero for everyone wins MAE while being useless to an optimiser. Fit
   and judge on RMSE, which is minimised by the conditional mean — the thing the model claims to
   estimate.
+- **`ep_next` IS available for past seasons, and the model beats it — measured 2026-09-02 (B-043,
+  D-037).** The Wayback captures plan 024 cached carry `ep_next` at every deadline of 2023-24 through
+  2025-26; `archive_deadline_market` holds them and `HistoryRow.deadlineEpNext` joins them. On the
+  rolling-origin referee the model is **+0.5% / +1.9% captured@11** ahead of FPL's own projection on
+  the two folds, and blending `ep_next` into the model (level-matched, weight chosen per fold) is
+  **−0.3% ± 0.3%** — it adds nothing the model does not already read. Use it as the baseline it now
+  can be; do not re-derive the blend without a new reason.
 - **`ep_next` is a baseline, never a target, and never the truth.** A disagreement with it is a
   disagreement with FPL's own model, not a measured error. Sizing a defect against it is how this
   project spent a cycle chasing an over-projection that turned out, against realised points, to be an

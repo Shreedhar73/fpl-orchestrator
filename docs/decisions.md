@@ -1445,3 +1445,86 @@ speed. Re-measured on the referee: 2024-25 +0.4% → +0.3%, 2025-26 +1.1% → +1
 clearance the earlier number carried is gone. Both readings sit inside each other's noise; what
 changed for certain is when in a season the term does its work. No rows had been written under
 `v3-shape-2026-08-29`, so its version string still describes exactly one model.
+
+---
+
+## D-037 · 2026-09-02 · The market signal was there all along, the model already beats it, and the served model moves to v5
+
+**Context.** The register believed the archive carried no `ep_next` (D-016), so FPL's own projection
+had never been a baseline for a past season, let alone an input. The Wayback cache plan 024 built for
+availability — 115 `bootstrap-static` captures, one per deadline for 2023-24 through 2025-26 — carries
+`ep_next`, `ep_this`, `form`, `now_cost`, `selected_by_percent` and FPL's team `strength_*` fields on
+every one. B-043 ingested them (`archive_deadline_market`, 86,312 rows, every round of three seasons)
+and measured four things on the referee D-034 pre-committed, paired per round on points captured
+@11, each behind a flag whose absence reproduces the incumbent byte for byte. The user's standing
+instruction for this session was to improve the served model; that is what makes the adoption below a
+decision rather than a candidate.
+
+**What was measured, and the verdict on each.**
+
+| arm | 2024-25 | 2025-26 | across folds | taken |
+|---|---:|---:|---:|---|
+| model vs `ep_next` (FPL's own projection, level the model has never been read against) | **+0.5% ± 1.9%** | **+1.9% ± 3.0%** | +1.2% ± 0.7% | — a baseline, and the model is ahead of it on both folds |
+| `(1 − w) × model + w × level-matched ep_next`, w chosen per fold on the season before | chose 0 | chose 0.25: −0.6% ± 2.7% | −0.3% ± 0.3% | **no** |
+| season-start strength prior — last season's ratios as the shrinkage target, fixed 0.25 / 0.5 | −0.2% / −0.6% | −1.1% / −1.2% | −0.6% ± 0.7% / −0.9% ± 0.9% | **no** |
+| B-042 — season start rate shrunk toward the career rate, pseudo-count chosen per fold | chose 0 | chose 16: −0.8% ± 1.0% | one fold | **no** |
+| `strength.confidenceMatches` chosen by ordering rather than by RMSE | chose 16 | chose 96 | folds disagree | **no** |
+
+Three things follow, and they are the content of this decision.
+
+1. **This model beats FPL's own on ordering, on both folds.** Small, inside the two-fold noise, and
+   the first time the question has had an archived answer. `ep_next` as a blend input adds nothing
+   the model does not already carry — which is the expected shape if what `ep_next` knows beyond the
+   model is mostly availability, and the model reads the same flags.
+2. **Every "obvious" structural fix measured negative.** A prior that says the champions are the
+   champions in August, a start rate that does not step on one match, a strength term the RMSE fit
+   keeps shrinking out — each is right as an argument and wrong as a number on this referee. This is
+   the third plan running in which the model's largest visible defects were not where its decisions
+   were closest (D-036 named the pattern). The grids were written before any fold was read
+   (`rolling-origin.ts`), and each arm has an equivalence spec.
+3. **The served model moves to v5, and the move is a refit plus an already-measured shape, not any
+   of the above.** `FITTED_PARAMS` is now fitted on 2024-25 + 2025-26 — the two-season window D-035
+   chose on both folds; the served fit had stopped at 2024-25 and its defensive-contribution term
+   rested on twelve rounds — with the plan 028 shape on (rate half-life 19 at shrink 270, per-player
+   `E[minutes | started]` and `P(60+ | started)`: +1.0% ± 0.7% against the incumbent, D-036). Its
+   base minutes curves are fitted excluding the rows a rule already decides, which is the regime the
+   hand availability rule serves under; the incumbent's were not, and counted a suspended player as
+   a non-start before zeroing him again. `v5-fitted-2026-09-02` serves; `v3-fitted-2026-08-27-gkp`
+   keeps writing rows weekly as a candidate under its own name, so `pnpm score:gameweek` referees
+   the adoption on the live season from GW3. Two folds is a direction; the pin moved on the user's
+   instruction plus that direction, and the live record can move it back.
+
+**Recorded rather than acted on.** `strength.decayHalfLife` 0 and `confidenceMatches` 96 both sit at
+a grid edge under RMSE, as they did at 6 and 64 on the previous corpus — the fixture term is still
+being shrunk out of a per-player error the minutes noise dominates. Choosing that knob by ordering on
+the season before the fold gave 16 on one fold and 96 on the other, so nothing here can say the RMSE
+choice is wrong. The market fields are ingested and joined (`HistoryRow.deadlineEpNext`), so the next
+session that wants `ep_next` as a *feature of the minutes model* rather than a blend of the total,
+or the FPL `strength_*` ratings as a prior, starts from data rather than from a belief that there is
+none. `selected_by_percent` is stored for the template squad and reaches no feature — the guide's
+rule that ownership is not a quality signal stands.
+
+**Unmeasured, and named.** The serve-time blend code exists (`applyServedBlend`) and is inert without
+a `crowd` block; if a later reading turns it on, FPL publishes `ep_next` for the next round only, so
+the blend applies to that round and the horizon tail stays pure model — the level match is what keeps
+the horizon sum from tilting, and the referee scores single rounds and cannot see this.
+
+**Live reading at the time of writing.** GW2, the first scored gameweek of 2026-27: v3 RMSE 2.192
+against `ep_next` 2.365 and `form` 2.955 over 611 players. One week, reported as one week.
+
+**Two selection changes landed in the same PR, both found on the live GW3 solve rather than on a
+report, and both are decisions about the ELEVEN rather than the model.**
+
+- **The eleven, the armband and the bench order are priced on the next gameweek.** `Candidate` now
+  carries `epNext`; `pickBestXi` and `arrangeSquad` read it and fall back to the horizon when it is
+  absent. The fifteen is still bought on the horizon. The served armband had gone to Mbeumo (19.96
+  over five gameweeks) over Saka (5.54 against 5.28 this week) — a captain doubles one fixture, and
+  `decision-quality` has always chosen its XI per round on that round's projection, so the product
+  now does what the harness measured. The concentration charge is scaled into the week's units
+  inside the enumeration so its relative bite is what B-033 measured; the LP's own drift check
+  compares the LP against an enumeration of the LP's expression, not against the served eleven.
+- **`DEFENCE_CONCENTRATION_LAMBDA` is 0.** B-033's numbers: inert on the fifteen, 71.34 projected
+  points a season given up on the eleven for 9 realised, with no standard error that could tell 9
+  from 0. The maintainer's instruction for this session was expected points; on GW3 the charge was
+  benching Wieffer (4.35) for Ballard (3.75). Every row, pair and report stays; reversal is one
+  constant.

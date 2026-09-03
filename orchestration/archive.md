@@ -3214,3 +3214,91 @@ wanted.
 270 plus per-player starter minutes, without the rank bonus — rides `pnpm project` weekly and is
 scored beside the incumbent. Without it D-036's "the live season settles it" would have been a
 sentence with nothing behind it. First reading in roughly six to eight scored gameweeks.
+
+## B-043 · The market signal the model never saw: `ep_next` at every archived deadline, a strength prior at season start, a shrunk start rate — done 2026-09-02
+
+```
+Status   done — backend #114, D-037
+Repos    fpl-backend, fpl-orchestrator
+Plan     docs/plans/029-market-signal-and-season-start-prior.md
+Issue    orchestrator#26 (parent), backend#114
+```
+
+**Why.** The Wayback cache built for plan 024 holds one full `bootstrap-static` capture per
+deadline for three seasons, and every capture carries `ep_next`, `form`, `now_cost`,
+`selected_by_percent` and FPL's team `strength_*` fields. The register believed none of it existed
+for past seasons (D-016), so `ep_next` had never been a baseline on an archived season and never an
+input. Two structural gaps sat beside it: every club opens a season at the league average and stays
+~88% there at `confidenceMatches` 64, and the season start rate is a step on one match (B-042).
+
+**What shipped.** `archive_deadline_market` (86,312 rows, ingested from the disk cache, joined into
+`HistoryRow.deadlineEpNext` only where the capture's `is_next` event is the round it is keyed to);
+`epNext` and `blend` as harness predictors; `FittedParams.crowd`, `strength.priorSeasonWeight`,
+`minutes.startRateShrink` — each absent-is-incumbent with an equivalence spec; four referee arms with
+per-fold selection on the season before; `applyServedBlend` in the forecast service, inert without a
+`crowd` block; `CalibrationService.fitOn` and `pnpm fit:model -- --train a,b`; and the adoption —
+`v5-fitted-2026-09-02` served, `v3-fitted-2026-08-27-gkp` kept riding weekly as a candidate.
+
+**What came of it.** The model beats FPL's own `ep_next` on ordering on both folds (+1.2% ± 0.7%
+captured@11). The blend, the strength prior and the shrunk start rate all measured negative and were
+declined; the ordering-chosen strength confidence disagreed between folds. The served model moved
+anyway — on a refit to the two most recent seasons in the served availability regime plus the plan
+028 shape, which is the one change in the set that had a positive reading. D-037 carries the table.
+
+## B-042 · The start rate does not adapt when a role changes, and the sub rate already does
+
+```
+Status   done — measured and declined, D-037 (plan 029 task 5, backend #114); moved to archive.md
+Repos    fpl-backend
+Plan     docs/plans/029-market-signal-and-season-start-prior.md
+Issue    orchestrator#26, backend#114
+```
+
+> **Outcome 2026-09-02.** Built exactly as this entry asked — `minutes.startRateShrink`, a
+> pseudo-count of career matches blended into the season record, shaped like `laggedSubRate`, chosen
+> per fold on the season before, each candidate a refit because the start curve is a regression on
+> the feature. The referee said no: the 2024-25 fold chose the step (0) on its validation season, the
+> 2025-26 fold chose 16 and scored **−0.8% ± 1.0%** captured@11 against the step on the rounds it
+> could score. The mechanism this entry identified is real and asymmetric, and pricing it is not
+> worth anything the referee can see. The flag stays in the code, off, with its equivalence spec.
+> What the entry got wrong is worth carrying: the incumbent's start rate is already season-first —
+> it is a STEP on one match, not a career number — so Cherki at GW2 was rated a substitute because
+> he came off the bench in GW1, not because of anything from 2025-26.
+
+**Why.** Found from a real recommendation rather than from a report. GW2, City against Palace: the
+model priced **Cherki at 1.22 EP on 15.3 expected minutes and pPlay 0.74** — a substitute. He started
+and scored twice. The projection was not unlucky about his finishing; it was wrong about whether he
+would be on the pitch.
+
+**The term is `laggedStartRate`, and it is the one minutes feature that never got recency.** B-019
+made the substitute-appearance rate **season first, career behind**, with its reason written down:
+"a role changes between seasons, and last year's super-sub may be this year's starter". The start
+rate did not get the same treatment — it is a career-shaped number fed into a curve that regresses
+it hard toward the middle (`startSlope` 0.485, `reports/calibration-fitted.md`). A player who has
+just broken into an XI therefore stays a substitute in the model for as long as his history says he
+was one.
+
+**B-041 does not fix this and it is worth saying so plainly.** That work gave the per-90 RATES a
+recency half-life and gave starters their own minute counts. Both operate downstream of the question
+this entry is about. Measured on the live candidate: Cherki at GW3 is **1.37 under the shape
+candidate against 1.41 under the incumbent** — 15.1 expected minutes against 15.3. The change that
+was supposed to be about recency moves him by four hundredths of a point, because his problem is not
+how his per-90 rates are weighted, it is that the model does not think he plays.
+
+**What to build.** A season-first start rate, shrunk toward the career one, exactly as B-019 shaped
+the sub rate — and measured the same way, on the referee (D-034) with the paired per-round test.
+There is a second candidate beside it: the fitted `startSlope` is a single global regression toward
+the mean, and a player with a short, RECENT and consistent start record is a different case from one
+with a long ambivalent history. The sample size is already carried on the feature.
+
+**The honest counter-argument, recorded so it is not skipped.** One gameweek is one observation, and
+a model that chases a single start would be worse, not better. This entry exists because the
+mechanism is identifiable and asymmetric — the sub rate adapts and the start rate does not — not
+because Cherki scored two goals. If the referee says a season-first start rate is a wash, that is the
+answer and it goes in the archive with the number.
+
+**Also seen in the same recommendation, and NOT a defect.** Haaland was skipped, and the projection
+had him as the best player in the fixture (5.50 against Foden's 4.65) and the best over GW3–7
+(29.37). The optimizer dropped him on points per million — 1.89 against Foden's 3.61 — because the
+objective maximises points under a budget. What it does not do is price the risk of not owning the
+most-owned premium, which is a rank question rather than a points question and is B-033's territory.
