@@ -43,7 +43,7 @@ Why      What makes this worth building, and anything already established about 
 Status   out of scope
 Repos    fpl-backend, fpl-frontend
 Plan     docs/plans/002-fpl-authentication.md (record of exploration; not built)
-Issue    —
+Issue    orchestrator#29 (parent), backend#120, frontend#24
 ```
 
 > **Retired out-of-scope 2026-08-26 — see [D-013](../docs/decisions.md).** The product was redefined
@@ -217,7 +217,7 @@ days, European midweeks) — unchanged from the paragraph above.
 Status   backlog
 Repos    fpl-backend
 Plan     —
-Issue    —
+Issue    orchestrator#29 (parent), backend#120, frontend#24
 ```
 
 **Why.** B-036's verdict: v4 beat the incumbent on ordering at every k and on the who-will-not-play
@@ -284,10 +284,10 @@ component, or GBM as a residual on v3.
 ## B-046 · The board: the app redesigned from the ground up as a weekly decision
 
 ```
-Status   planned
+Status   in progress
 Repos    fpl-backend, fpl-frontend, fpl-orchestrator
 Plan     docs/plans/032-the-board.md
-Issue    —
+Issue    orchestrator#29 (parent), backend#120, frontend#24
 ```
 
 **Why.** B-044 shipped 2026-09-03 and the user's next sentence was "revamp the current UI and UX

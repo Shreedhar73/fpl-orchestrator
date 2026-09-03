@@ -10,6 +10,7 @@ app has never had. The builder is pitch-first and its result is the same board. 
 becomes a right rail on desktop that can hold two players side by side.
 
 **Backlog** — B-046. **Repos** — fpl-backend, fpl-frontend, fpl-orchestrator.
+**Issues** — orchestrator#29 (parent), backend#120, frontend#24. **Branches** — `feat/120-the-board` (backend), `feat/24-the-board` (frontend).
 **Design** — the approved canvas: https://claude.ai/code/artifact/57aeeaee-40ec-4220-ba6f-0aac048eaf84
 **Contract change** — yes, three pieces, backend first, then `pnpm openapi:emit` (backend) and
 `pnpm generate:api` (frontend):
