@@ -7,8 +7,8 @@ and the bank the fifteen leaves — and gets the same panel an imported squad ge
 sell values are market prices by construction and the payload says so.
 
 **Backlog** — B-045. **Repos** — fpl-backend, fpl-frontend, fpl-orchestrator.
-**Issues** — filled in when opened. **Branches** — `feat/<backend-issue>-plan-transfers-built`,
-`feat/<frontend-issue>-plan-transfers-built`.
+**Issues** — orchestrator#28 (parent), backend#118, frontend#22. **PRs** — backend#119, frontend#23, both
+squash-merged 2026-09-03. **Branches** — `feat/118-plan-transfers-built`, `feat/22-plan-transfers-built`.
 **Contract change** — yes, backend first:
 1. `POST /api/insights/transfers` → `TransferPlanDto` (new route, existing response shape).
 2. `TransferPlanDto.managerId` becomes nullable; `freeTransfersSource: 'reconstructed' | 'stated'`
@@ -49,49 +49,64 @@ backend; `/squad/build` feature JS re-measured against the 172.9 KB floor and un
 
 ### fpl-backend
 
-- [ ] **1 · Request DTO** — `modules/insights/dto/transfer-plan-request.dto.ts`: `playerIds`
+- [x] **1 · Request DTO** — `modules/insights/dto/transfer-plan-request.dto.ts`: `playerIds`
       (1–30 strings), `freeTransfers` (optional int 1–5, default 1), `bank` (optional int ≥ 0,
       tenths).
-- [ ] **2 · Response DTO** — `modules/insights/dto/transfer-plan.dto.ts`: `managerId` nullable,
+- [x] **2 · Response DTO** — `modules/insights/dto/transfer-plan.dto.ts`: `managerId` nullable,
       `freeTransfersSource` enum, `sellValueSource` gains `market-price`;
-      `SquadDifferenceDto` description in `advice.dto.ts` updated.
-- [ ] **3 · Service** — `modules/transfers/transfers.service.ts`: the solve-and-describe half of
+      `SquadDifferenceDto` description in `advice.dto.ts` updated. **Deviation:** `freeTransfersReconstructed`
+      is `true` for a stated count and its description now says why ("not a lower bound"), rather than a
+      third state — the frontend reads it only for "(at least)".
+- [x] **3 · Service** — `modules/transfers/transfers.service.ts`: the solve-and-describe half of
       `plan()` extracted into one private method both entry points call; `planBuilt(playerIds,
       { freeTransfers, bank })` validates via `SquadService.validateSquad` (refuses with
       `SQUAD_ILLEGAL`), builds the fifteen via `asSquadDto`, prices every pick at market with
       source `market-price`, chips unspent, caveats naming the two stated inputs.
       `squad/entry-state.ts` `PurchasePriceSource` gains `'market-price'`.
-- [ ] **4 · Controller** — `insights.controller.ts`: `POST /insights/transfers` declared
+- [x] **4 · Controller** — `insights.controller.ts`: `POST /insights/transfers` declared
       **before** `GET transfers/:managerId` is irrelevant (different verbs) but kept adjacent; 200,
       `ApiEnvelopeError` for `SQUAD_ILLEGAL` and `UNKNOWN_PLAYER`.
-- [ ] **5 · Tests** — `modules/transfers/__tests__/transfers.service.built.spec.ts`: with fakes
+- [x] **5 · Tests** — `modules/transfers/__tests__/transfers.service.built.spec.ts`: with fakes
       for the optimizer, squads and repository: every out is priced at market with the new source;
       bank defaults to budget − Σ cost; a stated `freeTransfers` of 2 makes a two-move plan cost no
       hit where 1 costs one; an illegal fifteen throws before any solve. Each assertion broken on
       purpose once (see fpl-testing-contract).
-- [ ] **6 · Emit** — `pnpm openapi:emit`; `pnpm typecheck && pnpm lint && pnpm test`.
-- [ ] **7 · Evidence** — curl the route with a legal fifteen and an illegal one; record both.
+- [x] **6 · Emit** — `pnpm openapi:emit`; `pnpm typecheck && pnpm lint && pnpm test`.
+- [x] **7 · Evidence** — curl the route with a legal fifteen and an illegal one; record both. Recommended
+      fifteen with B.Fernandes swapped for Slater: bank 79, Slater → B.Fernandes at market 45, +8.64, 0
+      hits; the unmodified recommended fifteen holds. Manager 1's fifteen refused at £100.1m; 14 ids
+      refused; `freeTransfers: 7` refused by the validator. Manager 5's GW2 transfer took the
+      `transfer-log` branch (D-026's owed check).
 
 ### fpl-frontend
 
-- [ ] **8 · Types** — `pnpm generate:api`; `planBuiltTransfers(playerIds, opts)` in
+- [x] **8 · Types** — `pnpm generate:api`; `planBuiltTransfers(playerIds, opts)` in
       `features/squad/api/players.api.ts`.
-- [ ] **9 · Comparison card** — `advice-panel.tsx`: the stub replaced by a `planSlot?: ReactNode`
+- [x] **9 · Comparison card** — `advice-panel.tsx`: the stub replaced by a `planSlot?: ReactNode`
       prop rendered in its place; header comment corrected. `AdvicePanel` gains `transfers?:
       ReactNode` rendered before the comparison and passes `planSlot` through.
-- [ ] **10 · Imported view** — `squad-view.tsx`: `planSlot` is a link to `#transfers` when the plan
+- [x] **10 · Imported view** — `squad-view.tsx`: `planSlot` is a link to `#transfers` when the plan
       loaded, and a one-line note when it did not.
-- [ ] **11 · Builder** — `squad-builder.tsx` (or a sibling client component): free-transfers
+- [x] **11 · Builder** — `squad-builder.tsx` (or a sibling client component): free-transfers
       select (1–5), a **Plan transfers** button in the slot, the fetched plan rendered as
       `<TransferPanel>` above the comparison under `id="transfers"`; errors through `messageFor`.
-- [ ] **12 · Panel** — `transfer-panel.tsx`: the free-transfers aside reads its source; the
+      **Deviation:** the bank is never sent from the frontend — the backend's default (what the fifteen
+      leaves of the budget) is the only honest value a builder has, and the DTO keeps the field for API
+      callers.
+- [x] **12 · Panel** — `transfer-panel.tsx`: the free-transfers aside reads its source; the
       `market-price` source renders as "priced at today's market — this fifteen was never bought".
-- [ ] **13 · Checks** — `pnpm typecheck && pnpm lint`; production build; `/squad/build` feature JS
-      measured against the 172.9 KB floor; the flow driven in a browser on a legal fifteen.
+- [x] **13 · Checks** — `pnpm typecheck && pnpm lint`; production build; `/squad/build` feature JS
+      measured against the 172.9 KB floor; the flow driven in a browser on a legal fifteen. Gzipped JS
+      the HTML references, production build: `/` 7.7 KB · `/squad/<id>` 14.5 KB · `/squad/build` 24.2 KB
+      — every route ~4.3 KB above plan 030's figures including `/`, which this change does not touch, so
+      the two measurements differ by method; on plan 030's scale `/squad/build` ≈ 19.9 KB. Driven on a
+      production server at :4100 (the backend restarted with `CORS_ORIGIN` widened for the session): a
+      £99.4m fifteen, 2 free stated → 4 moves, 2 hits, +32.5, "2 free (as stated)", market-price wording
+      on every move. Also fixed on review: no slot on `/squad/recommended`, which fetches no plan.
 
 ### fpl-orchestrator
 
-- [ ] **14 · Contract skill** — `skills/agent/fpl-architecture-contract/SKILL.md` route table gains
+- [x] **14 · Contract skill** — `skills/agent/fpl-architecture-contract/SKILL.md` route table gains
       the POST.
-- [ ] **15 · Register closed** — PRs merged backend then frontend, children closed, parent closed,
+- [x] **15 · Register closed** — PRs merged backend then frontend, children closed, parent closed,
       this file ticked, B-045 moved to the archive with PR numbers and an outcome.

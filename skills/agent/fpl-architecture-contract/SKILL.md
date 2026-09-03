@@ -72,6 +72,7 @@ The HTTP surface, all through the envelope, all documented at `/api-docs-json`:
 | `GET` | `/api/players` | `players` |
 | `GET` | `/api/players/{playerId}` | `players` — one player whole, for the sheet; `projections` empty, never zeros |
 | `GET` | `/api/insights/transfers/{managerId}` | `insights` — the transfer plan, a separate solve |
+| `POST` | `/api/insights/transfers` | `insights` — the same plan for a hand-built 15: stated free transfers, market-price sell values (B-045) |
 
 **Declare static routes before parameter routes.** `/api/squad/recommended` and
 `/api/squad/{managerId}` collide — Nest matches in declaration order, and the wrong order fails

@@ -110,6 +110,61 @@ bottom up, or land them as one PR from the start.
 
 ---
 
+
+## B-045 · Plan transfers from the comparison — the stub the planner left behind on both squad views — done 2026-09-03
+
+```
+Status   done — Shipped backend#119, frontend#23; orchestrator#28 closed
+Repos    fpl-backend, fpl-frontend, fpl-orchestrator
+Plan     docs/plans/031-plan-transfers-from-the-comparison.md
+Issue    orchestrator#28 (parent), backend#118, frontend#22
+```
+
+**Why.** The user pointed at it (2026-09-03): under "Against the best legal 15" the comparison card
+still ends in a disabled **Plan transfers** button captioned *"Not built yet. The two lists above are
+a set difference, not a transfer plan: they ignore sell value, the free transfer you have, and the −4
+a second one costs."* That caption was true on 2026-08-26, when B-006 shipped the comparison and
+B-008 was parked behind the accuracy bar (D-021). B-008 shipped on 2026-08-27 and the same page
+renders the real plan two sections above the stub, so `/squad/<id>` now says "not built" under a
+thing it has built. On `/squad/build` the caption is still literally true: a hand-built fifteen has
+no route to a plan at all, because the only transfer endpoint takes a manager id and reconstructs
+sell values from that manager's public record.
+
+**Already established, 2026-09-03 — do not re-derive.**
+- The planner is live and healthy for GW3: manager 1 gets 2 free transfers, 2 moves, 0 hits,
+  +8.9 horizon EP under `v5-fitted-2026-09-02`; on the 2025-26 walk it is +156 over `greedy-1ft`
+  from the same opening fifteen, clearing the 141-point floor (`reports/decision-quality.md`).
+- The transfer-log path D-026 said it still owed a live check has now had one: manager 5 transferred
+  Palestra → Frimpong in GW2 (`element_in_cost` 55) and the plan sells Frimpong at 55 with
+  `sellValueSource: transfer-log`; free transfers reconstruct to 1 after the GW2 spend, `complete`.
+- A hand-built squad has no purchase history, so its sell values are its market prices **by
+  construction** — not "unknown". `TransferOutDto.sellValueSource` needs a value that says so;
+  labelling it `unknown` would make the panel warn about a number that is exact.
+- Its free-transfer count cannot be reconstructed either; it is whatever the user says it is. The
+  payload must carry that as a source, not as `freeTransfersReconstructed: true`.
+
+**What to build.** `POST /api/insights/transfers` for a hand-built fifteen (player ids, free transfers
+1–5, an optional bank that defaults to what the fifteen leaves of the budget), solved by the same
+`TransfersService` path the manager route uses. On the frontend the stub goes: the imported-squad view
+links the comparison to the plan it already renders, and the builder's result view gains the control
+that fetches one and renders the same `TransferPanel`. No change to the planner's objective or to
+what is served at `/squad/<id>` — the GW3 deadline is 2026-09-04T17:30Z and the served plan is not
+touched.
+
+**Outcome.** `POST /api/insights/transfers` plans from a hand-built fifteen through the same private
+solve as the manager route: free transfers stated (1–5), bank defaulting to what the fifteen leaves,
+sell values at market under a new `market-price` source, `freeTransfersSource` in the payload. The
+stub is gone from every view: `/squad/<id>` links the comparison to the plan it renders, `/squad/build`
+has a free-transfers select and a **Plan transfers** button that renders the same panel. Driven live:
+a £99.4m fifteen with 2 stated free transfers → 4 moves, 2 hits, +32.5 over GW3–7. The served
+`GET /insights/transfers/{managerId}` and the planner's objective are untouched (GW3 deadline
+2026-09-04T17:30Z). **Two things noticed, not fixed:** `MoveRow` paints every `gainEp` in the good
+colour whatever its sign — a funding sale (Haaland → Wissa, −3.2) reads as a gain; and the builder's
+client tree hydrates lazily and slowly behind its 600-row list, so a script driving it must wait for
+hydration or its clicks land on nothing.
+
+---
+
 ## B-012 · The bar the model is judged on — rank, decisions, and a simulated season — done 2026-08-26
 
 ```
