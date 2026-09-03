@@ -70,6 +70,8 @@ The HTTP surface, all through the envelope, all documented at `/api-docs-json`:
 | `GET` | `/api/insights/advice/recommended` | `insights` |
 | `GET` | `/api/insights/advice/{managerId}` | `insights` |
 | `GET` | `/api/players` | `players` |
+| `GET` | `/api/players/{playerId}` | `players` — one player whole, for the sheet; `projections` empty, never zeros |
+| `GET` | `/api/insights/transfers/{managerId}` | `insights` — the transfer plan, a separate solve |
 
 **Declare static routes before parameter routes.** `/api/squad/recommended` and
 `/api/squad/{managerId}` collide — Nest matches in declaration order, and the wrong order fails
@@ -111,10 +113,9 @@ Server Component (app/**/page.tsx)      ← default. Fetches on the server, rend
 Client Component ('use client')          ← state and handlers only
     │  calls
     ▼
-TanStack Query hook (src/features/<f>/hooks/use-*.ts)
-    │  wraps
-    ▼
 API function (src/features/<f>/api/*.api.ts)   ← typed, unwraps `.data`, no React
+    (a TanStack Query hook may sit between the two once one is needed; none is installed as of
+     2026-09-03 — the builder and the player sheet call the api functions directly)
     │  calls
     ▼
 apiClient (src/lib/api/client.ts)        ← base URL, envelope unwrap, error normalization

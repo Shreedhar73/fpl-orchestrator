@@ -84,31 +84,31 @@ the 172.9 KB floor and under 30 KB.
 
 ### Frontend — shell and system
 
-- [ ] **8 · Tokens and theme** — `globals.css`: the dark scheme defined twice, once under
+- [x] **8 · Tokens and theme** — `globals.css`: the dark scheme defined twice, once under
       `prefers-color-scheme: dark` guarded by `:root:not([data-theme="light"])` and once under
       `:root[data-theme="dark"]`; softened radii and shadows, a canvas glow, a `--sheet` layer;
       position hues untouched. `layout.tsx` gains an inline pre-paint script that reads
       `localStorage.theme` and stamps `data-theme`. New `components/theme-toggle.tsx` (client leaf).
-- [ ] **9 · App shell** — `site-header.tsx` reworked: mark, primary nav, team-id search with an
+- [x] **9 · App shell** — `site-header.tsx` reworked: mark, primary nav, team-id search with an
       icon, theme toggle; new `components/bottom-nav.tsx` for below `md` (Home, Recommended, Build,
       My team when a recent id exists); `site-footer.tsx` shortened. `layout.tsx` wires them and pads
       the main for the bottom bar.
-- [ ] **10 · Remembered teams** — `components/recent-teams.tsx` (client leaf) reads a small
+- [x] **10 · Remembered teams** — `components/recent-teams.tsx` (client leaf) reads a small
       localStorage list; `app/squad/[managerId]/page.tsx` renders a `RememberTeam` leaf that writes
       the id and name on view. Landing shows the chips under the form when any exist. Everything
       wrapped in try/catch and renders nothing without storage.
-- [ ] **11 · Landing** — `app/page.tsx`: hero with one field and one button, the two other paths as
+- [x] **11 · Landing** — `app/page.tsx`: hero with one field and one button, the two other paths as
       cards with an icon, a three-step "how it works", recent teams. Server component, plain GET form.
 
 ### Frontend — the player sheet
 
-- [ ] **12 · API function** — `features/squad/api/players.api.ts`: `getPlayerDetail(playerId)`
+- [x] **12 · API function** — `features/squad/api/players.api.ts`: `getPlayerDetail(playerId)`
       through `apiFetchWithMeta`, callable from the browser. Type `PlayerDetail = Schema<'PlayerDetailDto'>`.
-- [ ] **13 · Provider and trigger** — `features/squad/components/player-sheet/player-sheet-provider.tsx`
+- [x] **13 · Provider and trigger** — `features/squad/components/player-sheet/player-sheet-provider.tsx`
       (client): holds the open id, a per-session cache map, fetch state; renders `<PlayerSheet>`.
       `player-trigger.tsx` (client leaf): a `<button>` that opens a player, taking `children` so
       server components wrap their existing markup with it. `usePlayerSheet()` for the builder.
-- [ ] **14 · The sheet** — `player-sheet.tsx` (client): a native `<dialog>` opened with
+- [x] **14 · The sheet** — `player-sheet.tsx` (client): a native `<dialog>` opened with
       `showModal()`, styled as a bottom sheet under `sm` and a centred panel above it, Escape and
       backdrop close, focus returned to the trigger. Sections in reading order: identity strip
       (position chip, club, price, availability badge with the news), four hero numbers (xP next GW,
@@ -117,40 +117,50 @@ the 172.9 KB floor and under 30 KB.
       (blank, haul, spread — absent when null), recent form table (last six), facts grid
       (ownership, form, PPG, season points/minutes, set pieces, price change), `<Provenance>` at the
       bottom. Skeleton while loading; `ErrorState`-toned failure with retry. No chart library.
-- [ ] **15 · Wire the triggers** — every shirt on the pitch and bench, every roster row's name,
+- [x] **15 · Wire the triggers** — every shirt on the pitch and bench, every roster row's name,
       every transfer move's out and in, every difference-list row, the captain card's name, and a
       per-row info button in the builder. `SquadView`, `SquadBuilder` and the builder result view
       mount the provider once. Files: `pitch.tsx`, `player-table.tsx`, `transfer-panel.tsx`,
       `advice-panel.tsx`, `squad-view.tsx`, `squad-builder.tsx`.
+      *Deviation:* the builder's info button became the name itself (tap the name, Add stays a
+      separate button) and the picked chips split into a name half that opens the sheet and a ×
+      half that removes; the floor list in the reasoning panel is tappable too.
 
 ### Frontend — the views
 
-- [ ] **16 · Squad view** — `squad-view.tsx`: identity header with the facts as a compact strip, a
+- [x] **16 · Squad view** — `squad-view.tsx`: identity header with the facts as a compact strip, a
       sticky in-page section nav (Overview · Transfers · Roster · Model · Limits) built from anchors
       with `scroll-margin`, the pitch and the captain card side by side from `lg`, availability
       flags on shirts from task 5, a warn row when the model's captain and yours differ. Sections
       keep their order; each gets a stable `id`.
-- [ ] **17 · Pitch** — `pitch.tsx`: shirts as tap targets (min 44px tall), a flag corner for
+- [x] **17 · Pitch** — `pitch.tsx`: shirts as tap targets (min 44px tall), a flag corner for
       `status !== 'a'`, model-captain ring and C/V as before, xP pill, bench as a row with order
       numbers, legend as small chips.
-- [ ] **18 · Builder** — `squad-builder.tsx`: mobile sticky bottom summary (budget left, count,
+- [x] **18 · Builder** — `squad-builder.tsx`: mobile sticky bottom summary (budget left, count,
       CTA) instead of the whole rail above the list; the rail stays on `lg`; row layout with an
       info button and a wider tap target on Add; position segmented control scrolls horizontally on
       narrow screens; result view unchanged apart from the sheet.
-- [ ] **19 · Roster and cards** — `player-table.tsx` and `advice-panel.tsx`: names tappable,
+- [x] **19 · Roster and cards** — `player-table.tsx` and `advice-panel.tsx`: names tappable,
       table density eased, stat tiles restyled on the new tokens, comparison lists tappable.
-- [ ] **20 · Loading, error, not-found** — `app/loading.tsx` shaped like the new squad view;
+- [x] **20 · Loading, error, not-found** — `app/loading.tsx` shaped like the new squad view;
       `error.tsx` and `not-found.tsx` on the new tokens.
 
 ### Verification and record
 
-- [ ] **21 · Typecheck and lint** — `pnpm typecheck && pnpm lint` clean in `fpl-frontend`;
+- [x] **21 · Typecheck and lint** — `pnpm typecheck && pnpm lint` clean in `fpl-frontend`;
       `pnpm typecheck`, `npx eslint <touched files>` and `pnpm test` in `fpl-backend`.
-- [ ] **22 · Browser pass** — `/`, `/squad/recommended`, `/squad/build` (pick 15, get advice),
+- [x] **22 · Browser pass** — `/`, `/squad/recommended`, `/squad/build` (pick 15, get advice),
       `/squad/<id>` with a transfer plan, `/squad/abc`; light and dark; desktop and 390px; the sheet
       from every trigger in task 15; numbers checked against the curl body.
-- [ ] **23 · Feature JS measured** — per route against the 172.9 KB floor, numbers recorded in the
-      frontend PR and in this file.
-- [ ] **24 · Register closed** — plan ticked, `AGENTS.md` in the frontend updated where it names
+      *Deviation:* the 390px pass was done through a page of three 390px iframes (the tool's window
+      would not resize), which exercises the same media queries; the pick-15-and-get-advice flow
+      and `/squad/abc` were not re-driven in the browser this pass — neither path changed beyond
+      styling, and both typecheck against the unchanged api functions.
+- [x] **23 · Feature JS measured** — per route against the 172.9 KB floor, numbers recorded in the
+      frontend PR and in this file. 2026-09-03, production build, chunks the HTML references,
+      gzipped: `/` 3.4 KB · `/squad/recommended` 10.0 KB · `/squad/<id>` 10.0 KB · `/squad/build`
+      16.8 KB. The theme toggle and the bottom navigation now sit on every route, so no route
+      measures the bare floor any more; the floor figure stands from 2026-08-26.
+- [x] **24 · Register closed** — plan ticked, `AGENTS.md` in the frontend updated where it names
       the contract gaps this plan closes, backlog entry moved to the archive with PR numbers,
       parent issue closed.
