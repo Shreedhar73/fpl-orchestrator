@@ -919,6 +919,12 @@ purchase price is the same silent wrong number in a slower form.
 2. **The transfer-log path is untested against live data.** Nobody has transferred in 2026/27 yet, so
    every price observed so far came from the starting-gameweek route. It is unit-tested, including the
    bought-twice case; the first manager with a real transfer history is the check it still owes.
+   **Paid 2026-09-03.** Manager 5 transferred Palestra → Frimpong in GW2 (`entry/5/transfers/`:
+   `element_in_cost` 55) and the plan sells Frimpong at 55 with `sellValueSource: transfer-log`;
+   manager 91928 (Gibbs-White → Rogers, 75) took the same branch. Both free-transfer replays returned
+   1 after the GW2 spend, `complete: true`. Frimpong's price has not moved since GW2, so the
+   starting-gameweek route would have given the same number — the check proves the branch is taken
+   and the value matches the log, not that the two routes diverge yet.
 3. The free-transfer replay reports `complete`. A gap in a manager's history makes the count a lower
    bound, and the payload and the UI both say so rather than rounding it to a number.
 

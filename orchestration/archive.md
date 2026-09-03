@@ -1665,6 +1665,11 @@ yet in 2026/27, so every price came from the starting-gameweek route. And the pl
 uncertainty: a hit is a −4 bet on a projected difference, which is the most error-amplifying thing the
 product does, and every number it bets on is a mean with no dispersion (B-017).
 
+**The first of those was checked 2026-09-03** — manager 5's GW2 transfer took the `transfer-log`
+branch and matched the log (D-026, consequence 2). The second stands. What was also still standing,
+unnoticed: the comparison card's "Plan transfers — not built yet" stub from B-006, rendered under
+the plan this entry shipped. That is B-045.
+
 ---
 
 ## B-016 · The weekly loop — capture the deadline, score what we served, write the post-mortem
