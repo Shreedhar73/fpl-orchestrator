@@ -41,7 +41,7 @@ the 172.9 KB floor and under 30 KB.
 
 ### Backend — the contract, first
 
-- [ ] **1 · `PlayerDetailDto`** — `src/modules/players/dto/player-detail.dto.ts`. Identity (`playerId`,
+- [x] **1 · `PlayerDetailDto`** — `src/modules/players/dto/player-detail.dto.ts`. Identity (`playerId`,
       `fplId`, `webName`, `fullName`, `position`, `teamShortName`, `teamName`, `nowCost`), availability
       (`status`, `news`, `chanceOfPlayingNextRound`), FPL's own season facts (`form`, `pointsPerGame`,
       `seasonMinutes`, `seasonStarts`, `penaltiesOrder`, `directFreekicksOrder`, `cornersOrder`,
@@ -54,29 +54,33 @@ the 172.9 KB floor and under 30 KB.
       `opponentShortName`, `wasHome`, `minutes`, `points`, `goals`, `assists`, `cleanSheets`, `bonus`,
       `expectedGoals`, `expectedAssists`), plus `modelVersion` and `horizonGameweekIds`. Every model
       field nullable where the row can be absent; `projections` empty rather than fabricated.
-- [ ] **2 · Repository and service** — `players.repository.ts` gains `detail(playerId)`,
+- [x] **2 · Repository and service** — `players.repository.ts` gains `detail(playerId)`,
       `horizonProjections(playerId, gwIds, version)`, `fixturesForTeam(teamId, gwIds)`,
       `recentStats(playerId, n)`, `seasonTotals(playerId)`, `latestOwnership(playerId)`,
       `priceBounds(playerId)`, run in one `Promise.all` — one round trip per table, no N+1.
       `players.service.ts` gains `detail(playerId)` that composes the DTO and throws a
       `PlayersError.unknownPlayer` (`ErrorCode.UNKNOWN_PLAYER`, 404) when the row is missing.
       Files: `players.repository.ts`, `players.service.ts`, new `players.errors.ts`.
-- [ ] **3 · Pin the list to the served model** — `PlayersRepository.latestModelVersion` replaced
+- [x] **3 · Pin the list to the served model** — `PlayersRepository.latestModelVersion` replaced
       by the `MODEL_VERSION` import, the same way `optimizer.repository.ts` reads it; the list and the
       detail both call it. Files: `players.repository.ts`, `players.service.ts`.
-- [ ] **4 · Controller** — `@Get(':playerId')` declared after `@Get()`, `markDataAsOf` with the
+- [x] **4 · Controller** — `@Get(':playerId')` declared after `@Get()`, `markDataAsOf` with the
       first horizon gameweek, envelope error documented for 404. File: `players.controller.ts`.
-- [ ] **5 · `AdvicePlayerDto` carries availability** — `status`, `news`,
+- [x] **5 · `AdvicePlayerDto` carries availability** — `status`, `news`,
       `chanceOfPlayingNextRound` added to the DTO and to `InsightsRepository.playerMeta`'s select,
       threaded through `toPlayerDto`. Files: `insights/dto/advice.dto.ts`, `insights.repository.ts`,
       `insights.service.ts`.
-- [ ] **6 · Tests** — `players/__tests__/players.service.spec.ts` against an in-memory repository
+- [x] **6 · Tests** — `players/__tests__/players.service.spec.ts` against an in-memory repository
       double: a player with no projections renders `projections: []` and null season facts, not
       zeros; the horizon order is the gameweek order; an unknown id throws the coded 404; the
       list's version is the pin, not the newest row. `pnpm test` green.
-- [ ] **7 · Emit and regenerate** — `pnpm openapi:emit` in the backend; `pnpm generate:api` in the
+- [x] **7 · Emit and regenerate** — `pnpm openapi:emit` in the backend; `pnpm generate:api` in the
       frontend; `types.gen.ts` diff shows only the three contract pieces. Verified by `curl` on
       `/api/players/{id}` for a starter, a bench player and an unprojected player, bodies read.
+      *Deviation:* no unprojected player exists live — all 651 are projected under v5 — so that path
+      is covered by the unit test; a flagged player (status `u`, news, chance 0) was curled instead.
+      `priceChangeSeason` shipped as `priceChangeSinceTracked` + `priceTrackedSince`: the first
+      price row is the first sync, not August, and the name must not overclaim.
 
 ### Frontend — shell and system
 
