@@ -278,3 +278,51 @@ model that cannot ship its reasoning does not ship, however it measures. Candida
 component, or GBM as a residual on v3.
 
 ---
+
+---
+
+## B-046 · The board: the app redesigned from the ground up as a weekly decision
+
+```
+Status   planned
+Repos    fpl-backend, fpl-frontend, fpl-orchestrator
+Plan     docs/plans/032-the-board.md
+Issue    —
+```
+
+**Why.** B-044 shipped 2026-09-03 and the user's next sentence was "revamp the current UI and UX
+totally, from the ground up, the whole app". Read against the live app the same day, the shipped
+design has one shape problem the sheet and the shell did not touch: every route is a stack of
+same-weight cards in one scroll. On the squad view the captain, the transfer plan, the chip windows,
+the best-15 set difference, the model's refusals and a 15-row evidence table all carry the same
+visual rank, and the model's policy prose ("the correlation was measured; the charge is a policy
+choice") sits as body copy on the page a user opens to pick a captain. Routes are organised by how a
+team entered (Recommended / Build / a manager id) rather than around the team; the landing page is a
+marketing hero with the id field a second time in the header; no screen shows the deadline; the
+five-gameweek horizon exists only inside the player sheet, one player at a time; the builder's result
+replaces the builder in place with no URL.
+
+**The redesign, presented and approved 2026-09-03.** The app is a weekly decision, not a report:
+one team, one clock, three calls (captain · transfers · chips and lineup), evidence one tap away and
+never on the surface, model prose on its own tab. Seven screens were mocked on a design canvas
+(entry · the Week board at desktop and phone · player rail with compare · Plan · Squad horizon
+ledger · Build) and approved as drawn.
+
+**Already established — do not re-derive.**
+- Tokens, the four validated position hues, the three-state theme, the drawn pitch, server-first,
+  no chart library, no auth, position never signalled by colour alone, nullable model numbers
+  rendered as absence: all kept. Type is the one system change — Archivo for numerals and headings,
+  Instrument Sans for the rest — **self-hosted under `public/fonts`** per D-008 (no build-time
+  fetch), latin subset only.
+- Two contract gaps block the board and are the backend half of this entry: no DTO carries the
+  deadline (`Gameweek.deadlineTime` exists in Prisma; plans 008 and 030 both scoped a countdown out
+  for that reason), and per-gameweek projections with fixtures exist only on `PlayerDetailDto`
+  (B-044), not on the advice or the list. The pitch fixture tags, the Next-five toggle, the Squad
+  ledger, the Plan bars and the Build ticker all need them.
+- The lineup-only gap (your XI vs the model's arrangement of your own 15) is computable on the
+  client from `AdvicePlayerDto.role` against `SquadPickDto.slot`; no contract change.
+- `/api/players` is 129.5 KB raw / 22.5 KB gzipped today (measured 2026-09-03). A full per-player
+  horizon on the list would roughly triple it, so the list carries the sum per player and the
+  fixtures once per club; the advice, over 15 players, carries the full per-gameweek horizon.
+- Feature JS budget: under 30 KB per route above the 172.9 KB floor. The builder was 9.0 KB after
+  B-044.
