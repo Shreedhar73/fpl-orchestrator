@@ -97,6 +97,10 @@ the 172.9 KB floor and under 30 KB.
       localStorage list; `app/squad/[managerId]/page.tsx` renders a `RememberTeam` leaf that writes
       the id and name on view. Landing shows the chips under the form when any exist. Everything
       wrapped in try/catch and renders nothing without storage.
+      *Deviation:* `RememberTeam` is mounted by `squad-view.tsx` when `squad.managerId` is set, not
+      by the page — the view already holds the id and the name, and the page stays untouched. The
+      theme key is `fpl-advisor.theme`, namespaced like the recent-teams key, after the toggle's
+      first render was found reading a bare `theme` some other localhost project had written.
 - [x] **11 · Landing** — `app/page.tsx`: hero with one field and one button, the two other paths as
       cards with an icon, a three-step "how it works", recent teams. Server component, plain GET form.
 
