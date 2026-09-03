@@ -87,6 +87,16 @@ player at his **sell value** and its objective carries the hit. The bar is that 
 same squad, agree about who starts and who takes the armband —
 `plan-agrees-with-recommendation.spec.ts` is what checks it, and nothing did before.
 
+**Since D-037 (2026-09-03) the eleven, the armband and the bench order are priced on the NEXT
+gameweek's EP** (`Candidate.epNext`), while the fifteen is still bought on the horizon: a captain
+doubles one fixture and a bench player scores only through this week's auto-sub, and
+`decision-quality` had always chosen its XI per round that way while the product chose it on the
+horizon (the served armband went to a player 0.26 a week behind this week's best). The LP's own `y`
+and `c` columns remain horizon-priced; `arrangeSquad`/`pickBestXi` re-derive the served eleven on
+the week, and the LP's drift check compares the LP against an enumeration of its own expression.
+The transfer planner's internal armband is therefore horizon-based and the served advice's is
+week-based; no user-visible surface shows both, and this is recorded rather than reconciled.
+
 Maximise `Σ EP_p × (y_p + c_p) + bench_weight × Σ EP_p × (x_p − y_p) − λ × Σ d_ij`, where
 `d_ij ≥ y_i + y_j − 1` prices every pair of our defensive players STARTING for the same club (below).
 
@@ -145,7 +155,11 @@ argument and should say so.
 > λ=0 — for **1682 realised against 1673**, nine points, with no standard error attached and a season's
 > floor an order of magnitude larger. So the rule pays 71 projected for 9 realised, and 9 is
 > indistinguishable from 0 by every measure this project now has. That is an argument for retiring it
-> on simplicity and an argument for keeping it on variance, and B-033 leaves the call to the
+> on simplicity and an argument for keeping it on variance, and B-033 left the call to the
+> maintainer — **who made it on 2026-09-03: λ = 0 (D-037).** The machinery stays and any non-zero
+> λ is scaled into the week's units inside the enumeration. The paragraph below is the record of
+> what the charge was argued for; it no longer describes what runs.
+> B-033 originally left the call to the
 > maintainer.
 
 Read every constraint value from `rules_config`, never from a constant.

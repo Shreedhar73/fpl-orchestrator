@@ -101,3 +101,9 @@ plan 028 shape; v3 keeps riding weekly under its old name. Task 9 is `reports/gw
 Deviation from the plan as written: task 4's "FPL `strength_*` as a second prior in the same grid"
 was not built — the last-season prior lost at every weight and the second prior would have been
 measured against the same validation rounds (20+) where a season-start term can do the least.
+
+Two selection changes outside this checklist landed in the same PR, found on the live GW3 solve and
+recorded in D-037: the eleven, armband and bench order are priced on the next gameweek
+(`Candidate.epNext`), and `DEFENCE_CONCENTRATION_LAMBDA` is 0 (B-033 closed). Also fixed on review:
+the v4 composite and the feature export keep reading the v3 params they were fitted against, so
+`v4-composite-2026-08-27` does not silently become a v5-derived model under its own name.

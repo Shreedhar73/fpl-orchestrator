@@ -1528,3 +1528,10 @@ report, and both are decisions about the ELEVEN rather than the model.**
   from 0. The maintainer's instruction for this session was expected points; on GW3 the charge was
   benching Wieffer (4.35) for Ballard (3.75). Every row, pair and report stays; reversal is one
   constant.
+
+**Recorded, not reconciled.** The transfer planner's LP still prices its internal armband and
+eleven on the horizon while the served advice prices them on the week; no payload shows both, and
+`plan-agrees-with-recommendation.spec` compares the two LPs, both horizon-based, so it still holds.
+And the v4 composite candidate and `pnpm export:features` read `V3_INCUMBENT_PARAMS`, never the
+served params — the composite's residual was fitted against v3's `v3ep`, and a candidate that
+quietly re-based itself on v5 would be a different model under its own version string.

@@ -211,42 +211,6 @@ days, European midweeks) — unchanged from the paragraph above.
 
 ---
 
-## B-033 · The defensive-concentration charge changes no squad, gives up 71 projected points and returns 9
-
-```
-Status   backlog — a maintainer call, not a session call
-Repos    fpl-backend
-Plan     —
-Issue    —
-```
-
-**Why.** Two measurements taken 2026-08-27, both at HEAD, both reproducible.
-
-- **B-031's A/B**: the charge at λ=1.0 picks **the same fifteen, player for player**, as no charge at
-  all. It is inert on the squad solve.
-- **`pnpm replay:xi`, two arms at HEAD**: it is *not* inert on the eleven. With λ=1.0 the solver gives
-  up **71.34 projected points** over 38 rounds and starts both sides of a pair in 8 rounds; with λ=0 it
-  gives up nothing and starts them in 37. Realised: **1682 against 1673** — the charge is 9 points
-  ahead over a season, with no standard error attached and a season's noise floor an order of
-  magnitude larger than that.
-
-So the rule pays 71 projected points for 9 realised, and 9 is indistinguishable from 0 by every
-measure this repo now has.
-
-**Why this is a maintainer call and not a session one.** `fpl-optimizer` is explicit that the charge
-is a **policy choice whose benefit is unmeasured**, and that removing it is a policy argument rather
-than a measurement. That has not changed: what was measured (B-028) is that two of one club's defence
-covary +5.58; what cannot be measured from this data is whether a lower-variance squad scores more,
-because that depends on optimising expected *rank* and this project optimises *points*. The numbers
-above say the rule costs nothing detectable and gains nothing detectable — which is an argument for
-retiring it on simplicity, and an argument for keeping it on variance, and the register should not
-pick one in a session that was measuring something else.
-
-**Whoever takes it, the honest framing.** The predecessor rule cost six entries — B-011, B-025, B-026,
-B-027, B-028, B-029 — and was retired on evidence. This one is its replacement, and it is now the
-best-measured guard in the project: inert where it was argued to matter (which fifteen you buy), active
-where nobody was looking (which eleven you start), and worth 9 ± a lot.
-
 ## B-037 · The haul-sizing features v4 is missing, from Understat/vaastav
 
 ```

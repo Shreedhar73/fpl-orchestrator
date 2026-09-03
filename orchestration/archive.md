@@ -3302,3 +3302,45 @@ had him as the best player in the fixture (5.50 against Foden's 4.65) and the be
 (29.37). The optimizer dropped him on points per million — 1.89 against Foden's 3.61 — because the
 objective maximises points under a budget. What it does not do is price the risk of not owning the
 most-owned premium, which is a rank question rather than a points question and is B-033's territory.
+
+## B-033 · The defensive-concentration charge changes no squad, gives up 71 projected points and returns 9
+
+```
+Status   done — the call was made 2026-09-03 under the maintainer's mandate: λ = 0 (D-037, backend #115)
+Repos    fpl-backend
+Plan     docs/plans/029-market-signal-and-season-start-prior.md (as built)
+Issue    backend#114
+```
+
+> **Outcome.** `DEFENCE_CONCENTRATION_LAMBDA` is 0. The numbers below were the whole argument; the
+> user's standing instruction for the session was expected points, and on the live GW3 solve the
+> charge was benching a 4.35 defender behind a 3.75 one. Every row, pair, report and harness stays,
+> so reversal is one constant. The eleven is now priced on the next gameweek, and the enumeration
+> scales any non-zero λ into that week's units so its relative bite stays what was measured here.
+
+**Why.** Two measurements taken 2026-08-27, both at HEAD, both reproducible.
+
+- **B-031's A/B**: the charge at λ=1.0 picks **the same fifteen, player for player**, as no charge at
+  all. It is inert on the squad solve.
+- **`pnpm replay:xi`, two arms at HEAD**: it is *not* inert on the eleven. With λ=1.0 the solver gives
+  up **71.34 projected points** over 38 rounds and starts both sides of a pair in 8 rounds; with λ=0 it
+  gives up nothing and starts them in 37. Realised: **1682 against 1673** — the charge is 9 points
+  ahead over a season, with no standard error attached and a season's noise floor an order of
+  magnitude larger than that.
+
+So the rule pays 71 projected points for 9 realised, and 9 is indistinguishable from 0 by every
+measure this repo now has.
+
+**Why this is a maintainer call and not a session one.** `fpl-optimizer` is explicit that the charge
+is a **policy choice whose benefit is unmeasured**, and that removing it is a policy argument rather
+than a measurement. That has not changed: what was measured (B-028) is that two of one club's defence
+covary +5.58; what cannot be measured from this data is whether a lower-variance squad scores more,
+because that depends on optimising expected *rank* and this project optimises *points*. The numbers
+above say the rule costs nothing detectable and gains nothing detectable — which is an argument for
+retiring it on simplicity, and an argument for keeping it on variance, and the register should not
+pick one in a session that was measuring something else.
+
+**Whoever takes it, the honest framing.** The predecessor rule cost six entries — B-011, B-025, B-026,
+B-027, B-028, B-029 — and was retired on evidence. This one is its replacement, and it is now the
+best-measured guard in the project: inert where it was argued to matter (which fifteen you buy), active
+where nobody was looking (which eleven you start), and worth 9 ± a lot.
