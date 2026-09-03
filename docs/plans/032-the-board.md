@@ -90,9 +90,11 @@ route re-measured against the 172.9 KB floor and under 30 KB; `/api/players` re-
 - [x] **16 · Player rail and compare** — `features/squad/components/player-sheet/*` restyled: right rail from `lg` (board stays visible), bottom sheet below; `?player=` synced with `history.replaceState`; "Compare" adds a second column (`&vs=`), offered by default on the captain call (captain vs vice) and on every move (out vs in).
       *Deviation:* from `lg` the dialog opens with `show()` (non-modal) so the board stays tappable and "Compare with…" takes its second player from any shirt; Escape is handled by hand. The captain's "Why" links to `?player=captain&vs=vice`; a move's two names each open their player, and comparing is one tap from there.
 - [x] **17 · States** — loading, error, not-found and the `NO_UPCOMING_GAMEWEEK` case on the new shell.
+      *Deviation:* the first merge let a junk segment (`/team/abc`, `/team/built` with no ids) fall through the loader into a "could not reach the backend" message; frontend#26 makes it `notFound()` before any fetch. The no-upcoming-gameweek case is the header saying "no upcoming deadline" rather than a page — the board itself still renders from the advice.
 
 ### Verification
 
-- [x] **18 · Evidence** — every route at desktop and 390 px, both schemes, three squad sources; rail from every trigger; `pnpm typecheck && pnpm lint` both repos; `pnpm test` backend; feature JS per route measured and stated; `/api/players` size re-measured.
+- [x] **18 · Evidence** — full backend suite on merged main: 56 suites, 571 tests, green.
+      Original item: — every route at desktop and 390 px, both schemes, three squad sources; rail from every trigger; `pnpm typecheck && pnpm lint` both repos; `pnpm test` backend; feature JS per route measured and stated; `/api/players` size re-measured.
       *Measured 2026-09-03 on `next start`, gzipped, against the 172.9 KB floor:* `/` 185.5 · `/team/:id` 186.2 · `/plan` 186.4 · `/squad` 187.9 · `/model` 185.9 · `/build` 189.2 — feature JS 12.6–16.3 KB per route. Phone layouts seen at 390 px through an iframe harness (Chrome's resize never takes on this machine). Light scheme seen on the Week board.
 - [x] **19 · Register** — plan ticked, backlog entry moved to the archive with PR numbers and outcome, parent issue closed.

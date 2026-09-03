@@ -20,7 +20,7 @@ The backlog entry verbatim, plus:
 ## B-046 · The board: the app redesigned from the ground up as a weekly decision — done 2026-09-03
 
 ```
-Status   done — Shipped backend#121, frontend#25; orchestrator#29 closed
+Status   done — Shipped backend#121, frontend#25, frontend#26 (not-found fix); orchestrator#29 closed
 Repos    fpl-backend, fpl-frontend, fpl-orchestrator
 Plan     docs/plans/032-the-board.md
 Issue    orchestrator#29 (parent), backend#120, frontend#24

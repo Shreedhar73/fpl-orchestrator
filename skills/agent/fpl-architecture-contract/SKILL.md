@@ -56,7 +56,8 @@ module's `repository` or `dto/` internals — go through the other module's expo
 
 **Modules that exist:** `health`, `fpl-sync` (ingest), `projections` (expected points), `optimizer`
 (squad solving), `squad` (import by manager id, persistence, legality), `players` (the pick-from
-universe), `insights` (the "why"). **Still planned:** `fixtures`, `teams`.
+universe), `insights` (the "why"), `gameweeks` (the calendar: the next deadline and the horizon).
+**Still planned:** `fixtures`, `teams`.
 
 The HTTP surface, all through the envelope, all documented at `/api-docs-json`:
 
@@ -73,6 +74,11 @@ The HTTP surface, all through the envelope, all documented at `/api-docs-json`:
 | `GET` | `/api/players/{playerId}` | `players` — one player whole, for the sheet; `projections` empty, never zeros |
 | `GET` | `/api/insights/transfers/{managerId}` | `insights` — the transfer plan, a separate solve |
 | `POST` | `/api/insights/transfers` | `insights` — the same plan for a hand-built 15: stated free transfers, market-price sell values (B-045) |
+| `GET` | `/api/gameweeks/next` | `gameweeks` — the first gameweek whose deadline has not passed, its deadline, the horizon ids; calendar only, no `dataAsOfGw` (plan 032) |
+
+Since plan 032 the advice carries `AdvicePlayerDto.horizon[]` (expected points and fixtures per
+horizon gameweek, from the player's own side) and the list carries `epHorizon` per player plus
+`fixtures` once per club — a 651-row list joins on the club rather than shipping 651 × 5 rows.
 
 **Declare static routes before parameter routes.** `/api/squad/recommended` and
 `/api/squad/{managerId}` collide — Nest matches in declaration order, and the wrong order fails
@@ -109,6 +115,10 @@ sees a bare Nest error.
 
 ```
 Server Component (app/**/page.tsx)      ← default. Fetches on the server, renders.
+    (the board's four tabs under app/team/[id]/ all go through ONE loader,
+     features/board/load-team.ts, memoised per request with React `cache` — the
+     layout and the page share its fetches; resolveSource decides whether a segment
+     is a manager id, `recommended` or `built`, and anything else is notFound())
     │  or, for interactive views
     ▼
 Client Component ('use client')          ← state and handlers only
@@ -116,7 +126,7 @@ Client Component ('use client')          ← state and handlers only
     ▼
 API function (src/features/<f>/api/*.api.ts)   ← typed, unwraps `.data`, no React
     (a TanStack Query hook may sit between the two once one is needed; none is installed as of
-     2026-09-03 — the builder and the player sheet call the api functions directly)
+     2026-09-03 — the builder and the player rail call the api functions directly)
     │  calls
     ▼
 apiClient (src/lib/api/client.ts)        ← base URL, envelope unwrap, error normalization
