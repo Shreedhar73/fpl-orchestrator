@@ -157,14 +157,16 @@ the 172.9 KB floor and under 30 KB.
       `/squad/<id>` with a transfer plan, `/squad/abc`; light and dark; desktop and 390px; the sheet
       from every trigger in task 15; numbers checked against the curl body.
       *Deviation:* the 390px pass was done through a page of three 390px iframes (the tool's window
-      would not resize), which exercises the same media queries; the pick-15-and-get-advice flow
-      and `/squad/abc` were not re-driven in the browser this pass — neither path changed beyond
-      styling, and both typecheck against the unchanged api functions.
+      would not resize), which exercises the same media queries. The pick-15-and-get-advice flow
+      was driven by hand: an over-budget, four-from-MCI squad was refused by the server with both
+      messages rendered, then a legal 15 returned advice (Saka captain, 58.6 vs 59.3, −2.4 over the
+      horizon) and the sheet opened from the result view's roster. `/squad/abc` was not re-driven —
+      only its styling changed.
 - [x] **23 · Feature JS measured** — per route against the 172.9 KB floor, numbers recorded in the
       frontend PR and in this file. 2026-09-03, production build, chunks the HTML references,
       gzipped: `/` 3.4 KB · `/squad/recommended` 10.0 KB · `/squad/<id>` 10.0 KB · `/squad/build`
       16.8 KB. The theme toggle and the bottom navigation now sit on every route, so no route
       measures the bare floor any more; the floor figure stands from 2026-08-26.
-- [x] **24 · Register closed** — plan ticked, `AGENTS.md` in the frontend updated where it names
+- [x] **24 · Register closed** — 2026-09-03: backend#117 and frontend#20 merged, orchestrator#27 closed, entry archived. — plan ticked, `AGENTS.md` in the frontend updated where it names
       the contract gaps this plan closes, backlog entry moved to the archive with PR numbers,
       parent issue closed.
